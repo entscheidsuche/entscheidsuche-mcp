@@ -261,7 +261,7 @@ def test_parse_hits_basic():
     assert h.title == "Beschwerde gegen <em>Mietzins</em>erhöhung"
     assert "Mietzins" in h.text
     assert h.canton == "CH"
-    assert h.court == "CH_BGER"
+    assert h.court == "CH_BGer"
     assert h.decision_date == "2024-06-15"
     assert h.scrape_date == "2024-09-12"
     assert h.is_pdf is True
@@ -340,6 +340,32 @@ def test_transform_facets():
     # Hat 2 Sammlungen → wird mit children ausgegeben
     assert nodes[0].children[0].children is not None
     assert len(nodes[0].children[0].children) == 2
+
+
+def test_transform_facets_preserves_single_child_leaf_ids():
+    sample_facets = {
+        "ZH": {
+            "de": "Zuerich",
+            "Quellen": {
+                "ZH_OG": {
+                    "de": "Obergericht",
+                    "Sammlungen": {
+                        "ZH_OG_ZK": {
+                            "de": "Zivilkammer",
+                        }
+                    },
+                }
+            },
+        }
+    }
+
+    nodes = _transform_facets(sample_facets)
+    assert len(nodes) == 1
+    assert nodes[0].children is not None
+    assert nodes[0].children[0].id == "ZH_OG"
+    assert nodes[0].children[0].children is not None
+    assert len(nodes[0].children[0].children) == 1
+    assert nodes[0].children[0].children[0].id == "ZH_OG_ZK"
 
 
 # ---------------------------------------------------------------------------

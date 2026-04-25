@@ -24,7 +24,7 @@ from entscheidsuche_mcp.search import EntscheidsucheClient  # noqa: E402
 
 ES_URL = os.environ.get(
     "ENTSCHEIDSUCHE_ES_URL",
-    "https://entscheidsuche.pansoft.de/entscheidsuche.v2-*/_search",
+    "https://entscheidsuche.pansoft.de:9200/entscheidsuche.v2-*/_search",
 )
 FACETS_URL = os.environ.get(
     "ENTSCHEIDSUCHE_FACETS_URL",

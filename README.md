@@ -31,7 +31,7 @@ mcp.entscheidsuche.ch
 127.0.0.1:8765/mcp  ← uvicorn + FastMCP
        │  HTTPS
        ▼
-entscheidsuche.pansoft.de/entscheidsuche.v2-*/_search
+entscheidsuche.pansoft.de:9200/entscheidsuche.v2-*/_search
 ```
 
 Tools:
@@ -65,7 +65,7 @@ Konfiguration über Umgebungsvariablen (siehe `.env.example`):
 
 | Variable | Default | Bedeutung |
 | --- | --- | --- |
-| `ENTSCHEIDSUCHE_ES_URL` | `https://entscheidsuche.pansoft.de/entscheidsuche.v2-*/_search` | Elasticsearch-Endpoint |
+| `ENTSCHEIDSUCHE_ES_URL` | `https://entscheidsuche.pansoft.de:9200/entscheidsuche.v2-*/_search` | Elasticsearch-Endpoint |
 | `ENTSCHEIDSUCHE_FACETS_URL` | `https://www.recherche.histoirerurale.ch/Facetten.json` | Facetten-Hierarchie-JSON |
 | `HOST` | `127.0.0.1` | Listen-Host |
 | `PORT` | `8765` | Listen-Port |

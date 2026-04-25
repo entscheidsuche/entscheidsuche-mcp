@@ -62,16 +62,28 @@ systemctl daemon-reload
 systemctl enable --now entscheidsuche-mcp.service
 
 echo "==> nginx vHost"
-install -m 644 "$INSTALL_DIR/deploy/nginx.conf" \
+if [[ -f "/etc/letsencrypt/live/$DOMAIN/fullchain.pem" && -f "/etc/letsencrypt/live/$DOMAIN/privkey.pem" ]]; then
+    NGINX_TEMPLATE="$INSTALL_DIR/deploy/nginx.conf"
+else
+    NGINX_TEMPLATE="$INSTALL_DIR/deploy/nginx-http.conf"
+fi
+install -m 644 "$NGINX_TEMPLATE" \
     "/etc/nginx/sites-available/$DOMAIN"
 ln -sf "../sites-available/$DOMAIN" "/etc/nginx/sites-enabled/$DOMAIN"
 nginx -t
 systemctl reload nginx
 
 echo
-echo "Fertig. Nächster Schritt — TLS-Zertifikat:"
-echo "    apt-get install -y certbot python3-certbot-nginx"
-echo "    certbot --nginx -d $DOMAIN"
+if [[ "$NGINX_TEMPLATE" == *"nginx-http.conf" ]]; then
+    echo "Bootstrap-Konfiguration ohne TLS wurde installiert."
+    echo "Nächster Schritt — TLS-Zertifikat holen und danach auf HTTPS umstellen:"
+    echo "    apt-get install -y certbot python3-certbot-nginx"
+    echo "    certbot --nginx -d $DOMAIN"
+    echo "    install -m 644 $INSTALL_DIR/deploy/nginx.conf /etc/nginx/sites-available/$DOMAIN"
+    echo "    nginx -t && systemctl reload nginx"
+else
+    echo "TLS-Zertifikat war bereits vorhanden; HTTPS-Konfiguration ist aktiv."
+fi
 echo
 echo "Status prüfen:"
 echo "    systemctl status entscheidsuche-mcp"

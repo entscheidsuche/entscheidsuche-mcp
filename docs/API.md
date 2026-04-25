@@ -86,7 +86,7 @@ Volltext-Suche in den Entscheiden mit Filtern, Sortierung und Paginierung.
       "text": "Highlight-Auszug aus dem Volltext",
       "meta": "...",
       "canton": "CH",
-      "court": "CH_BGER",
+      "court": "CH_BGer",
       "decision_date": "2024-06-15",
       "scrape_date": "2024-09-12",
       "is_pdf": true,
@@ -241,7 +241,7 @@ Versionsinfo und konfigurierte Endpunkt-URLs.
 {
   "name": "entscheidsuche-mcp",
   "version": "0.1.0",
-  "elasticsearch_url": "https://entscheidsuche.pansoft.de/entscheidsuche.v2-*/_search",
+  "elasticsearch_url": "https://entscheidsuche.pansoft.de:9200/entscheidsuche.v2-*/_search",
   "facets_url": "https://www.recherche.histoirerurale.ch/Facetten.json",
   "languages": ["de", "fr", "it", "en"],
   "sort_orders": ["relevance", "date", "scrapedate"]

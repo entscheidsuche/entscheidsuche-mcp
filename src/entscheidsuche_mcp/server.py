@@ -41,7 +41,7 @@ from .search import EntscheidsucheClient
 logger = logging.getLogger(__name__)
 
 
-DEFAULT_ES_URL = "https://entscheidsuche.pansoft.de/entscheidsuche.v2-*/_search"
+DEFAULT_ES_URL = "https://entscheidsuche.pansoft.de:9200/entscheidsuche.v2-*/_search"
 DEFAULT_FACETS_URL = "https://www.recherche.histoirerurale.ch/Facetten.json"
 
 
