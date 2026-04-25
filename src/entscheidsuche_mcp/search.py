@@ -246,7 +246,7 @@ def _parse_hits(
         # "Gericht" wird (wie im Frontend) aus den ersten zwei Segmenten der ID
         # abgeleitet, z.B. "CH_BGer_001_..." → "CH_BGer".
         match = _COURT_PREFIX_RE.match(hit.get("_id", ""))
-        court = (match.group(1) if match else hit.get("_id", "")).upper()
+        court = match.group(1) if match else hit.get("_id", "")
 
         hit_obj = SearchHit(
             id=hit["_id"],
@@ -301,12 +301,13 @@ class EntscheidsucheClient:
         es_url: str,
         facets_url: str,
         timeout: float = 30.0,
+        verify_ssl: bool = True,
         client: Optional[httpx.AsyncClient] = None,
     ) -> None:
         self.es_url = es_url
         self.facets_url = facets_url
         self._timeout = timeout
-        self._client = client or httpx.AsyncClient(timeout=timeout)
+        self._client = client or httpx.AsyncClient(timeout=timeout, verify=verify_ssl)
         self._owns_client = client is None
 
     async def aclose(self) -> None:
@@ -433,12 +434,13 @@ def _transform_facets(data: dict) -> List[FacetNode]:
                 it=sec_val.get("it"),
                 en=sec_val.get("en"),
             )
-            if len(third_level) <= 1:
-                first_level.append(FacetNode(id=sec_key, label=label))
-            else:
-                first_level.append(
-                    FacetNode(id=sec_key, label=label, children=third_level)
+            first_level.append(
+                FacetNode(
+                    id=sec_key,
+                    label=label,
+                    children=third_level or None,
                 )
+            )
         facets.append(
             FacetNode(
                 id=key,

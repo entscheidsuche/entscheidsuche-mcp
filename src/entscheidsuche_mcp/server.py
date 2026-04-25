@@ -50,13 +50,26 @@ def _env(name: str, default: str) -> str:
     return val if val else default
 
 
+def _env_bool(name: str, default: bool) -> bool:
+    val = os.environ.get(name)
+    if val is None:
+        return default
+    return val.strip().lower() not in {"0", "false", "no", "off"}
+
+
 @asynccontextmanager
 async def _lifespan(app: FastMCP) -> AsyncIterator[dict[str, Any]]:
     """Verwaltet den HTTP-Client über die Lebensdauer des Servers."""
     es_url = _env("ENTSCHEIDSUCHE_ES_URL", DEFAULT_ES_URL)
     facets_url = _env("ENTSCHEIDSUCHE_FACETS_URL", DEFAULT_FACETS_URL)
     timeout = float(_env("HTTP_TIMEOUT", "30"))
-    client = EntscheidsucheClient(es_url=es_url, facets_url=facets_url, timeout=timeout)
+    verify_ssl = _env_bool("ENTSCHEIDSUCHE_VERIFY_SSL", True)
+    client = EntscheidsucheClient(
+        es_url=es_url,
+        facets_url=facets_url,
+        timeout=timeout,
+        verify_ssl=verify_ssl,
+    )
     logger.info("entscheidsuche-mcp %s — ES=%s", __version__, es_url)
     try:
         yield {"client": client}
