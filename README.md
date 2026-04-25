@@ -71,6 +71,7 @@ Konfiguration über Umgebungsvariablen (siehe `.env.example`):
 | `PORT` | `8765` | Listen-Port |
 | `MCP_PATH` | `/mcp` | HTTP-Pfad-Präfix |
 | `HTTP_TIMEOUT` | `30` | Request-Timeout in Sekunden |
+| `CORS_ALLOW_ORIGINS` | `*` | Erlaubte Browser-Origin(s) für den HTTP-Transport |
 | `LOG_LEVEL` | `INFO` | Loglevel |
 
 ## Schnelltest mit `curl`

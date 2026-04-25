@@ -19,6 +19,9 @@ import logging
 import os
 import sys
 
+import uvicorn
+from starlette.middleware.cors import CORSMiddleware
+
 from .server import build_server
 
 
@@ -57,6 +60,15 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     return parser.parse_args(argv)
 
 
+def _parse_cors_origins() -> list[str]:
+    raw = os.environ.get("CORS_ALLOW_ORIGINS", "*").strip()
+    if not raw:
+        return []
+    if raw == "*":
+        return ["*"]
+    return [origin.strip() for origin in raw.split(",") if origin.strip()]
+
+
 def main(argv: list[str] | None = None) -> int:
     args = _parse_args(argv)
 
@@ -66,22 +78,39 @@ def main(argv: list[str] | None = None) -> int:
     )
 
     server = build_server()
+    cors_origins = _parse_cors_origins()
 
     if args.transport == "stdio":
         # FastMCP.run() ist synchron und startet den passenden Loop intern.
         server.run(transport="stdio")
         return 0
 
-    # HTTP-Modi: Settings am Server konfigurieren, dann run().
+    # HTTP-Modi: Settings am Server konfigurieren und mit optionalem CORS starten.
     server.settings.host = args.host
     server.settings.port = args.port
     if args.transport == "streamable-http":
         server.settings.streamable_http_path = args.path
-        server.run(transport="streamable-http")
+        app = server.streamable_http_app()
     else:  # sse
         server.settings.sse_path = args.path
         server.settings.message_path = args.path.rstrip("/") + "/messages/"
-        server.run(transport="sse")
+        app = server.sse_app()
+
+    if cors_origins:
+        app = CORSMiddleware(
+            app,
+            allow_origins=cors_origins,
+            allow_methods=["GET", "POST", "DELETE", "OPTIONS"],
+            allow_headers=["*"],
+            expose_headers=["Mcp-Session-Id"],
+        )
+
+    uvicorn.run(
+        app,
+        host=args.host,
+        port=args.port,
+        log_level=args.log_level.lower(),
+    )
     return 0
 
 
