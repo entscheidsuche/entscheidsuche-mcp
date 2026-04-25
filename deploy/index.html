@@ -1,0 +1,146 @@
+<!doctype html>
+<html lang="de">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>entscheidsuche-mcp</title>
+    <style>
+      :root {
+        color-scheme: light;
+        --bg: #f5f1e8;
+        --panel: #fffdf8;
+        --ink: #1b1a17;
+        --muted: #665f52;
+        --accent: #9e3d18;
+        --accent-2: #d97706;
+        --line: #e9dcc7;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        font-family: Georgia, "Times New Roman", serif;
+        background:
+          radial-gradient(circle at top left, rgba(217, 119, 6, 0.12), transparent 28rem),
+          linear-gradient(180deg, #f8f4ec 0%, var(--bg) 100%);
+        color: var(--ink);
+      }
+
+      main {
+        max-width: 56rem;
+        margin: 0 auto;
+        padding: 4rem 1.5rem 5rem;
+      }
+
+      .eyebrow {
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: var(--accent);
+        font-size: 0.82rem;
+        font-weight: 700;
+      }
+
+      h1 {
+        font-size: clamp(2.5rem, 6vw, 4.8rem);
+        line-height: 0.95;
+        margin: 0.5rem 0 1rem;
+      }
+
+      p {
+        font-size: 1.08rem;
+        line-height: 1.65;
+        color: var(--muted);
+        max-width: 42rem;
+      }
+
+      .panel {
+        margin-top: 2rem;
+        background: var(--panel);
+        border: 1px solid var(--line);
+        border-radius: 1rem;
+        padding: 1.2rem 1.25rem;
+        box-shadow: 0 12px 40px rgba(71, 52, 24, 0.08);
+      }
+
+      code {
+        font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+        font-size: 0.95rem;
+        background: #f8efe2;
+        padding: 0.18rem 0.35rem;
+        border-radius: 0.3rem;
+      }
+
+      pre {
+        overflow-x: auto;
+        white-space: pre-wrap;
+        word-break: break-word;
+        margin: 0;
+      }
+
+      a {
+        color: var(--accent);
+      }
+
+      ul {
+        padding-left: 1.2rem;
+        color: var(--muted);
+        line-height: 1.6;
+      }
+
+      .cta {
+        display: inline-block;
+        margin-top: 0.8rem;
+        color: white;
+        text-decoration: none;
+        background: linear-gradient(135deg, var(--accent), var(--accent-2));
+        padding: 0.7rem 1rem;
+        border-radius: 999px;
+        font-weight: 700;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <div class="eyebrow">Model Context Protocol</div>
+      <h1>entscheidsuche-mcp</h1>
+      <p>
+        MCP-Server fuer <a href="https://entscheidsuche.ch">entscheidsuche.ch</a>.
+        Diese Instanz stellt die Volltextsuche fuer Schweizer Gerichtsentscheide
+        ueber einen MCP-Endpunkt bereit.
+      </p>
+
+      <div class="panel">
+        <strong>MCP-Endpunkt</strong>
+        <pre><code>https://mcp.entscheidsuche.ch/mcp</code></pre>
+      </div>
+
+      <div class="panel">
+        <strong>Verfuegbare Tools</strong>
+        <ul>
+          <li><code>search</code> fuer Volltextsuche mit Filtern und Pagination</li>
+          <li><code>get_document</code> fuer den Abruf eines einzelnen Entscheids</li>
+          <li><code>list_hierarchy</code> fuer Hierarchie-IDs und Trefferzahlen</li>
+          <li><code>list_facets</code> fuer den lokalisierten Facettenbaum</li>
+          <li><code>server_info</code> fuer Server- und Versionsinformationen</li>
+        </ul>
+      </div>
+
+      <div class="panel">
+        <strong>Beispiel fuer Claude Desktop</strong>
+        <pre><code>{
+  "mcpServers": {
+    "entscheidsuche": {
+      "type": "http",
+      "url": "https://mcp.entscheidsuche.ch/mcp"
+    }
+  }
+}</code></pre>
+      </div>
+
+      <a class="cta" href="https://github.com/entscheidsuche/entscheidsuche-mcp">Zum Repository</a>
+    </main>
+  </body>
+</html>
