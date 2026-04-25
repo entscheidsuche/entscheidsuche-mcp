@@ -1,0 +1,42 @@
+[Unit]
+Description=entscheidsuche-mcp — MCP-Server für entscheidsuche.ch
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=entscheidsuche
+Group=entscheidsuche
+WorkingDirectory=/opt/entscheidsuche-mcp
+EnvironmentFile=-/etc/entscheidsuche-mcp.env
+Environment=PYTHONUNBUFFERED=1
+ExecStart=/opt/entscheidsuche-mcp/.venv/bin/python -m entscheidsuche_mcp \
+    --transport streamable-http \
+    --host 127.0.0.1 \
+    --port 8765 \
+    --path /mcp
+Restart=on-failure
+RestartSec=5
+
+# Härtung
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictNamespaces=true
+RestrictRealtime=true
+LockPersonality=true
+RestrictSUIDSGID=true
+ReadWritePaths=/var/log/entscheidsuche-mcp
+
+# Resourcen-Limits
+LimitNOFILE=4096
+MemoryHigh=512M
+MemoryMax=1G
+
+[Install]
+WantedBy=multi-user.target
