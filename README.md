@@ -70,6 +70,7 @@ Konfiguration über Umgebungsvariablen (siehe `.env.example`):
 | `HOST` | `127.0.0.1` | Listen-Host |
 | `PORT` | `8765` | Listen-Port |
 | `MCP_PATH` | `/mcp` | HTTP-Pfad-Präfix |
+| `MCP_STATELESS_HTTP` | `true` | Streamable HTTP ohne serverseitige Session-Pflicht |
 | `HTTP_TIMEOUT` | `30` | Request-Timeout in Sekunden |
 | `ENTSCHEIDSUCHE_VERIFY_SSL` | `true` | TLS-Prüfung für Elasticsearch-/Facetten-Upstream |
 | `CORS_ALLOW_ORIGINS` | `*` | Erlaubte Browser-Origin(s) für den HTTP-Transport |
@@ -168,6 +169,11 @@ npx @modelcontextprotocol/inspector https://mcp.entscheidsuche.ch/mcp
 
 Die Standard-Verknüpfung zwischen Wörtern ist `AND`. Gesucht wird in
 `title`, `abstract`, `meta`, `attachment.content` und `reference`.
+
+Die Tool-Parameter `language` und `sort` sind optional. Wenn `language`
+weggelassen wird, verwendet der Server `de`. Wenn `sort` fehlt, wird nach
+`relevance` sortiert. Erlaubte Sprachen für Such- und Dokument-Requests sind
+`de`, `fr` und `it`.
 
 ## Lizenz
 

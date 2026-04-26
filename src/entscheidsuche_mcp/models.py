@@ -20,7 +20,6 @@ class Language(str, Enum):
     de = "de"
     fr = "fr"
     it = "it"
-    en = "en"
 
 
 class SortOrder(str, Enum):

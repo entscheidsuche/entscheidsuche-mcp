@@ -133,11 +133,16 @@ def build_server() -> FastMCP:
         ] = "*",
         language: Annotated[
             Language,
-            Field(description="Sprache für Highlight/Anzeige (de, fr, it, en)."),
+            Field(description="Optionale Sprache für Highlight/Anzeige (de, fr, it)."),
         ] = Language.de,
         sort: Annotated[
             SortOrder,
-            Field(description="'relevance' | 'date' (Entscheiddatum) | 'scrapedate'."),
+            Field(
+                description=(
+                    "Optionale Sortierung: 'relevance' | 'date' (Entscheiddatum) "
+                    "| 'scrapedate'. Default ist 'relevance'."
+                ),
+            ),
         ] = SortOrder.relevance,
         size: Annotated[
             int, Field(ge=1, le=100, description="Treffer pro Seite (1–100).")

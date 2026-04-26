@@ -37,8 +37,9 @@ Streamable-HTTP-Transport gemäß
   als `text/event-stream` (Server-Sent Events).
 - **GET `/mcp`** — Server-zu-Client-Push (optional).
 - **DELETE `/mcp`** — Session beenden.
-- Header `Mcp-Session-Id` wird vom Server beim ersten `initialize` vergeben und
-  muss in den Folge-Requests mitgeschickt werden.
+- Diese Instanz läuft standardmäßig im **stateless HTTP**-Modus. Ein
+  `Mcp-Session-Id`-Header ist daher normalerweise nicht erforderlich.
+  Zustandsbehaftete Clients können `initialize` trotzdem wie gewohnt senden.
 - Header `Accept: application/json, text/event-stream` ist Pflicht.
 
 **Tipp:** Verwende einen MCP-Client (Claude, Inspector, SDKs); der nimmt dir die
@@ -57,8 +58,8 @@ Volltext-Suche in den Entscheiden mit Filtern, Sortierung und Paginierung.
 | Name | Typ | Default | Beschreibung |
 | --- | --- | --- | --- |
 | `query` | `string` | `"*"` | Volltext-Anfrage in Lucene-Syntax. Phrasen mit `"…"`, `AND`/`OR`/`NOT`, Wildcards `*` und `?`. Default-Operator zwischen Wörtern ist `AND`. `*` matcht alles. |
-| `language` | `"de"\|"fr"\|"it"\|"en"` | `"de"` | Sprache für Highlight, Titel- und Abstract-Auswahl. Wirkt **nicht** als Filter. |
-| `sort` | `"relevance"\|"date"\|"scrapedate"` | `"relevance"` | Sortierreihenfolge. |
+| `language` | `"de"\|"fr"\|"it"` | `"de"` | Optionale Sprache für Highlight, Titel- und Abstract-Auswahl. Wirkt **nicht** als Filter. |
+| `sort` | `"relevance"\|"date"\|"scrapedate"` | `"relevance"` | Optionale Sortierreihenfolge. Ohne Angabe wird nach Relevanz sortiert. |
 | `size` | `int` (1–100) | `20` | Anzahl Treffer pro Seite. |
 | `search_after` | `array` | – | Cursor für die nächste Seite — `next_cursor` aus der Antwort der vorigen Seite. |
 | `decision_date_from` | `date` (`YYYY-MM-DD`) | – | Untergrenze Entscheiddatum (inklusive). |
@@ -66,7 +67,7 @@ Volltext-Suche in den Entscheiden mit Filtern, Sortierung und Paginierung.
 | `scrape_date_from` | `date` | – | Untergrenze Scrape-Datum. |
 | `scrape_date_to` | `date` | – | Obergrenze Scrape-Datum. |
 | `hierarchy` | `string[]` | – | Liste von Hierarchie-IDs (z.B. `["CH_BGer", "ZH_OG"]`). Mehrere IDs werden mit OR verknüpft, mit anderen Filtern AND. |
-| `language_filter` | `("de"\|"fr"\|"it"\|"en")[]` | – | Filter nach Dokumentsprache(n). |
+| `language_filter` | `("de"\|"fr"\|"it")[]` | – | Filter nach Dokumentsprache(n). |
 | `include_aggregations` | `bool` | `false` | Aggregations-Buckets über die Treffermenge mitliefern. |
 
 > **Geschäftsnummer-Suche:** Die Geschäftsnummer in Anführungszeichen setzen,
@@ -159,7 +160,7 @@ Ruft einen einzelnen Entscheid anhand seiner Dokument-ID ab.
 | Name | Typ | Default | Beschreibung |
 | --- | --- | --- | --- |
 | `id` | `string` | – | Dokument-ID (entspricht `_id` im Index). |
-| `language` | `"de"\|"fr"\|"it"\|"en"` | `"de"` | Sprache für Anzeige. |
+| `language` | `"de"\|"fr"\|"it"` | `"de"` | Optionale Sprache für Anzeige. |
 | `include_content` | `bool` | `false` | Wenn `true`: kompletter Volltext (`attachment.content`) wird mitgeliefert. **Achtung:** kann sehr groß werden. |
 
 #### Antwort
@@ -243,7 +244,7 @@ Versionsinfo und konfigurierte Endpunkt-URLs.
   "version": "0.1.0",
   "elasticsearch_url": "https://entscheidsuche.pansoft.de:9200/entscheidsuche.v2-*/_search",
   "facets_url": "https://www.recherche.histoirerurale.ch/Facetten.json",
-  "languages": ["de", "fr", "it", "en"],
+  "languages": ["de", "fr", "it"],
   "sort_orders": ["relevance", "date", "scrapedate"]
 }
 ```

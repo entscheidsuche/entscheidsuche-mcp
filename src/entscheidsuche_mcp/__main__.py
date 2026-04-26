@@ -69,6 +69,13 @@ def _parse_cors_origins() -> list[str]:
     return [origin.strip() for origin in raw.split(",") if origin.strip()]
 
 
+def _parse_bool_env(name: str, default: bool) -> bool:
+    raw = os.environ.get(name)
+    if raw is None:
+        return default
+    return raw.strip().lower() not in {"0", "false", "no", "off"}
+
+
 def main(argv: list[str] | None = None) -> int:
     args = _parse_args(argv)
 
@@ -90,6 +97,7 @@ def main(argv: list[str] | None = None) -> int:
     server.settings.port = args.port
     if args.transport == "streamable-http":
         server.settings.streamable_http_path = args.path
+        server.settings.stateless_http = _parse_bool_env("MCP_STATELESS_HTTP", True)
         app = server.streamable_http_app()
     else:  # sse
         server.settings.sse_path = args.path
