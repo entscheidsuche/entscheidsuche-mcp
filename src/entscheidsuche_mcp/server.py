@@ -123,7 +123,7 @@ def build_server() -> FastMCP:
             "  - Bundesgerichtsurteil, BGE oder Gerichtsurteil thematisch suchen\n"
             "  - Schweizer Rechtsprechung zu Mietrecht, ZGB, OR, StGB oder BV finden\n"
             "  - Geschäftsnummern, Urteilsnummern oder Zitate verifizieren\n"
-            "  - Verwandte Tools: get_document, search_by_business_number, "
+            "  - Verwandte Tools: get_document, search_by_case_number, "
             "list_hierarchy, list_facets\n\n"
             "Suchsyntax (Lucene-Query-String):\n"
             "  - Phrasen-/Geschäftsnummer-Suche: \"BGE 142 III 1\" (mit Anführungszeichen)\n"
@@ -216,7 +216,7 @@ def build_server() -> FastMCP:
         return await _client(ctx).search(params)
 
     # ------------------------------------------------------------------
-    # search_by_business_number
+    # search_by_case_number
     # ------------------------------------------------------------------
     @mcp.tool(
         title="Nach Geschäftsnummer suchen",
@@ -229,13 +229,13 @@ def build_server() -> FastMCP:
             "und kantonaler Rechtsprechung."
         ),
     )
-    async def search_by_business_number(
+    async def search_by_case_number(
         ctx: Context,
-        business_number: Annotated[
+        case_number: Annotated[
             str,
             Field(
                 description=(
-                    "Geschäftsnummer, BGE-Zitat oder Urteilsnummer, z.B. "
+                    "Geschäftsnummer (Aktenzeichen), BGE-Zitat oder Urteilsnummer, z.B. "
                     "'BGE 142 III 1' oder '5A_396/2015'."
                 ),
             ),
@@ -290,7 +290,7 @@ def build_server() -> FastMCP:
         ] = False,
     ) -> SearchResponse:
         params = SearchParams(
-            query=_quote_as_phrase(business_number),
+            query=_quote_as_phrase(case_number),
             language=language,
             sort=sort,
             size=size,

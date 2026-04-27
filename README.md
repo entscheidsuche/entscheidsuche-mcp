@@ -40,7 +40,7 @@ Tools:
 | Tool | Zweck |
 | --- | --- |
 | `search` | Volltext-Suche in Schweizer Rechtsprechung mit Filtern, Sortierung, Paginierung |
-| `search_by_business_number` | Exakte Suche nach Geschäftsnummern, Urteilsnummern und BGE-Zitaten |
+| `search_by_case_number` | Exakte Suche nach Geschäftsnummern, Aktenzeichen, Urteilsnummern und BGE-Zitaten |
 | `get_document` | Einzelnes Dokument anhand der ID, optional mit Volltext |
 | `list_hierarchy` | Hierarchie-IDs mit Trefferzahlen |
 | `list_facets` | Hierarchischer Facetten-Baum mit lokalisierten Labels |
@@ -177,8 +177,8 @@ weggelassen wird, verwendet der Server `de`. Wenn `sort` fehlt, wird nach
 `relevance` sortiert. Erlaubte Sprachen für Such- und Dokument-Requests sind
 `de`, `fr` und `it`.
 
-Für Geschäftsnummern, BGE-Zitate und ähnliche Referenzen gibt es zusätzlich
-das Tool `search_by_business_number`. Es setzt die angegebene Nummer automatisch
+Für Geschäftsnummern, Aktenzeichen, BGE-Zitate und ähnliche Referenzen gibt es zusätzlich
+das Tool `search_by_case_number`. Es setzt die angegebene Nummer automatisch
 in Anführungszeichen und führt damit eine exakte Phrasensuche aus.
 
 ## Lizenz

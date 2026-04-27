@@ -18,7 +18,7 @@ Der Pfad ist konfigurierbar (`MCP_PATH`, Default `/mcp`).
 - [Protokoll-Grundlagen](#protokoll-grundlagen)
 - [Tools](#tools)
   - [`search`](#tool-search)
-  - [`search_by_business_number`](#tool-search_by_business_number)
+  - [`search_by_case_number`](#tool-search_by_case_number)
   - [`get_document`](#tool-get_document)
   - [`list_hierarchy`](#tool-list_hierarchy)
   - [`list_facets`](#tool-list_facets)
@@ -125,7 +125,7 @@ Felder:
 
 ---
 
-### Tool: `search_by_business_number`
+### Tool: `search_by_case_number`
 
 Spezialsuche für Geschäftsnummern, Urteilsnummern und BGE-Zitate. Dieses Tool
 setzt die angegebene Referenz automatisch in Anführungszeichen und führt damit
@@ -135,7 +135,7 @@ eine exakte Phrasensuche aus.
 
 | Name | Typ | Default | Beschreibung |
 | --- | --- | --- | --- |
-| `business_number` | `string` | – | Geschäftsnummer, BGE-Zitat oder Urteilsnummer, z.B. `"BGE 142 III 1"` oder `"5A_396/2015"`. |
+| `case_number` | `string` | – | Geschäftsnummer (Aktenzeichen), BGE-Zitat oder Urteilsnummer, z.B. `"BGE 142 III 1"` oder `"5A_396/2015"`. |
 | `language` | `"de"\|"fr"\|"it"` | `"de"` | Optionale Sprache für Highlight, Titel- und Abstract-Auswahl. |
 | `sort` | `"relevance"\|"date"\|"scrapedate"` | `"relevance"` | Optionale Sortierreihenfolge. |
 | `size` | `int` (1–100) | `20` | Anzahl Treffer pro Seite. |
@@ -152,9 +152,9 @@ eine exakte Phrasensuche aus.
 
 ```json
 {
-  "name": "search_by_business_number",
+  "name": "search_by_case_number",
   "arguments": {
-    "business_number": "BGE 142 III 1",
+    "case_number": "BGE 142 III 1",
     "language": "de",
     "size": 3
   }
