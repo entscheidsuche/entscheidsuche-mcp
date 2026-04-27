@@ -41,7 +41,8 @@ Tools:
 | --- | --- |
 | `search` | Volltext-Suche in Schweizer Rechtsprechung mit Filtern, Sortierung, Paginierung |
 | `search_by_case_number` | Exakte Suche nach Geschäftsnummern, Aktenzeichen, Urteilsnummern und BGE-Zitaten |
-| `get_document` | Einzelnes Dokument anhand der ID, optional mit Volltext |
+| `fetch_document` | Einzelnen Entscheid anhand der ID mit vollständigem Volltext abrufen |
+| `get_document` | Kompatibilitäts-Alias für `fetch_document` |
 | `list_hierarchy` | Hierarchie-IDs mit Trefferzahlen |
 | `list_facets` | Hierarchischer Facetten-Baum mit lokalisierten Labels |
 | `server_info` | Versions- und Konfigurations-Info |

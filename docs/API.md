@@ -19,6 +19,7 @@ Der Pfad ist konfigurierbar (`MCP_PATH`, Default `/mcp`).
 - [Tools](#tools)
   - [`search`](#tool-search)
   - [`search_by_case_number`](#tool-search_by_case_number)
+  - [`fetch_document`](#tool-fetch_document)
   - [`get_document`](#tool-get_document)
   - [`list_hierarchy`](#tool-list_hierarchy)
   - [`list_facets`](#tool-list_facets)
@@ -190,9 +191,10 @@ eine exakte Phrasensuche aus.
 
 ---
 
-### Tool: `get_document`
+### Tool: `fetch_document`
 
-Ruft einen einzelnen Entscheid anhand seiner Dokument-ID ab.
+Ruft einen einzelnen Entscheid anhand seiner Dokument-ID ab und liefert immer
+den vollständigen Volltext zurück.
 
 #### Parameter
 
@@ -200,12 +202,30 @@ Ruft einen einzelnen Entscheid anhand seiner Dokument-ID ab.
 | --- | --- | --- | --- |
 | `id` | `string` | – | Dokument-ID (entspricht `_id` im Index). |
 | `language` | `"de"\|"fr"\|"it"` | `"de"` | Optionale Sprache für Anzeige. |
-| `include_content` | `bool` | `false` | Wenn `true`: kompletter Volltext (`attachment.content`) wird mitgeliefert. **Achtung:** kann sehr groß werden. |
 
 #### Antwort
 
 Ein einzelnes [`SearchHit`](#searchhit)-Objekt oder `null`, wenn die ID
-nicht gefunden wurde.
+nicht gefunden wurde. Das Feld `text` enthält dabei immer den vollständigen
+Volltext des Entscheids.
+
+---
+
+### Tool: `get_document`
+
+Kompatibilitäts-Alias für `fetch_document`.
+
+#### Parameter
+
+| Name | Typ | Default | Beschreibung |
+| --- | --- | --- | --- |
+| `id` | `string` | – | Dokument-ID (entspricht `_id` im Index). |
+| `language` | `"de"\|"fr"\|"it"` | `"de"` | Optionale Sprache für Anzeige. |
+#### Antwort
+
+Ein einzelnes [`SearchHit`](#searchhit)-Objekt oder `null`, wenn die ID
+nicht gefunden wurde. Das Feld `text` enthält immer den vollständigen
+Volltext des Entscheids.
 
 ---
 
@@ -299,7 +319,7 @@ Versionsinfo und konfigurierte Endpunkt-URLs.
 | `id` | `string` | Dokument-ID. |
 | `title` | `string` | Titel (in der angeforderten Sprache, ggf. mit Highlight). |
 | `abstract` | `string` | Abstract / Regeste (mit Highlight, falls vorhanden). |
-| `text` | `string` | Highlight-Auszug aus dem Volltext (`attachment.content`). Bei `get_document(include_content=true)` der komplette Volltext. |
+| `text` | `string` | Highlight-Auszug aus dem Volltext (`attachment.content`). Bei `fetch_document` und `get_document` der komplette Volltext. |
 | `meta` | `string` | Meta-Information (Index-Feld `meta`). |
 | `canton` | `string` | Kanton-Kürzel (z.B. `"ZH"`, `"CH"`). |
 | `court` | `string` | Gericht-Kürzel, abgeleitet aus den ersten zwei Segmenten der ID. |
@@ -340,7 +360,7 @@ Argumente: { "query": "\"BGE 142 III 1\"" }
 → Treffer prüfen → ID notieren
 
 Tool: get_document
-Argumente: { "id": "<ID>", "include_content": true }
+Argumente: { "id": "<ID>" }
 → Volltext zur Auswertung
 ```
 

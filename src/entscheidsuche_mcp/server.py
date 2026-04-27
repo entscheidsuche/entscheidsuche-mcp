@@ -304,15 +304,37 @@ def build_server() -> FastMCP:
         return await _client(ctx).search(params)
 
     # ------------------------------------------------------------------
-    # get_document
+    # fetch_document
     # ------------------------------------------------------------------
     @mcp.tool(
-        title="Einzeldokument abrufen",
+        title="Entscheid abrufen",
         description=(
-            "Ruft einen einzelnen Schweizer Gerichtsentscheid, ein Gerichtsurteil "
-            "oder einen Bundesgerichtsentscheid anhand seiner Dokument-ID (`_id`) "
-            "ab. Mit `include_content=true` wird zusätzlich der Volltext des "
-            "Urteils zurückgegeben."
+            "Fetch / retrieve eines einzelnen Schweizer Gerichtsentscheids, "
+            "Gerichtsurteils oder Bundesgerichtsentscheids anhand seiner "
+            "Dokument-ID (`_id`). Liefert immer den vollständigen Volltext des "
+            "Entscheids sowie Metadaten, Titel, Abstract und Links zurück. "
+            "Geeignet, wenn nach einer Suche der ganze Entscheid gelesen oder "
+            "weiterverarbeitet werden soll."
+        ),
+    )
+    async def fetch_document(
+        ctx: Context,
+        id: Annotated[
+            str,
+            Field(description="Dokument-ID (z.B. 'CH_BGer_001_5A_123_2024_2024-06-15')."),
+        ],
+        language: Annotated[
+            Language, Field(description="Sprache für Anzeige.")
+        ] = Language.de,
+    ) -> Optional[SearchHit]:
+        return await _client(ctx).get_document(id, language)
+
+    @mcp.tool(
+        title="Einzeldokument abrufen (Alias)",
+        description=(
+            "Alias für `fetch_document`. Ruft einen einzelnen Entscheid anhand "
+            "seiner Dokument-ID ab und liefert immer den vollständigen Volltext "
+            "zurück."
         ),
     )
     async def get_document(
@@ -324,12 +346,8 @@ def build_server() -> FastMCP:
         language: Annotated[
             Language, Field(description="Sprache für Anzeige.")
         ] = Language.de,
-        include_content: Annotated[
-            bool,
-            Field(description="Volltext (`attachment.content`) mitliefern. Kann groß werden."),
-        ] = False,
     ) -> Optional[SearchHit]:
-        return await _client(ctx).get_document(id, language, include_content)
+        return await _client(ctx).get_document(id, language)
 
     # ------------------------------------------------------------------
     # list_hierarchy

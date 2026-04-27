@@ -127,13 +127,6 @@ class GetDocumentParams(BaseModel):
         default=Language.de,
         description="Sprache für Titel/Abstract-Rückgabe.",
     )
-    include_content: bool = Field(
-        default=False,
-        description=(
-            "Wenn True: kompletter Volltext (`attachment.content`) wird mitgeliefert. "
-            "Achtung: kann sehr groß werden."
-        ),
-    )
 
 
 class ListHierarchyParams(BaseModel):

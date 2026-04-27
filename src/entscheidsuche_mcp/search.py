@@ -339,18 +339,14 @@ class EntscheidsucheClient:
             aggregations=aggregations,
         )
 
-    async def get_document(
-        self, doc_id: str, lang: Language, include_content: bool = False
-    ) -> Optional[SearchHit]:
-        """Einzelnes Dokument anhand seiner ID abrufen."""
+    async def get_document(self, doc_id: str, lang: Language) -> Optional[SearchHit]:
+        """Einzelnes Dokument mit vollständigem Volltext anhand seiner ID abrufen."""
         body: Dict[str, Any] = {
             "size": 1,
             "query": {"ids": {"values": [doc_id]}},
         }
-        if not include_content:
-            body["_source"] = {"excludes": ["attachment.content"]}
         resp = await self._post(body)
-        hits, _total = _parse_hits(resp, lang, include_content=include_content)
+        hits, _total = _parse_hits(resp, lang, include_content=True)
         return hits[0] if hits else None
 
     async def list_hierarchy(

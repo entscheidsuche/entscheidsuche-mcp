@@ -424,6 +424,35 @@ async def test_client_get_document_returns_none_when_missing():
 
 
 @pytest.mark.asyncio
+async def test_client_get_document_always_returns_full_text():
+    captured: list[dict] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        import json as _json
+
+        captured.append(_json.loads(request.content))
+        hit = dict(SAMPLE_HIT)
+        hit["_source"] = dict(SAMPLE_HIT["_source"])
+        attachment = dict(SAMPLE_HIT["_source"]["attachment"])
+        attachment["content"] = "Volltext des Entscheids"
+        hit["_source"]["attachment"] = attachment
+        return httpx.Response(200, json={"hits": {"total": {"value": 1}, "hits": [hit]}})
+
+    transport = httpx.MockTransport(handler)
+    async with httpx.AsyncClient(transport=transport) as http_client:
+        client = EntscheidsucheClient(
+            es_url="https://example.test/_search",
+            facets_url="https://example.test/Facetten.json",
+            client=http_client,
+        )
+        result = await client.get_document("someid", Language.de)
+
+    assert result is not None
+    assert result.text == "Volltext des Entscheids"
+    assert "_source" not in captured[0] or captured[0].get("_source") != {"excludes": ["attachment.content"]}
+
+
+@pytest.mark.asyncio
 async def test_client_list_hierarchy_parses_buckets():
     def handler(request: httpx.Request) -> httpx.Response:
         return httpx.Response(
