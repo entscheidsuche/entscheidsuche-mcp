@@ -85,16 +85,23 @@ def _coerce_date_range(
     return DateRange(**{"from": from_, "to": to})
 
 
+def _quote_as_phrase(value: str) -> str:
+    escaped = value.replace("\\", "\\\\").replace('"', '\\"').strip()
+    return f'"{escaped}"'
+
+
 def build_server() -> FastMCP:
     """Erzeugt die FastMCP-Instanz mit allen registrierten Tools."""
     mcp = FastMCP(
         name="entscheidsuche",
         instructions=(
-            "MCP-Server für entscheidsuche.ch — die Volltext-Suchmaschine für "
-            "Schweizer Gerichtsentscheide. Stellt Volltext-Suche mit Filtern "
-            "nach Entscheiddatum, Scraping-Datum, Hierarchie (Kanton/Gericht/"
-            "Kammer) und Sprache bereit. Geschäftsnummern wie 'BGE 142 III 1' "
-            "können als Phrase in Anführungszeichen gesucht werden."
+            "MCP-Server für entscheidsuche.ch — eine Suchmaschine für Schweizer "
+            "Gerichtsentscheide, Gerichtsurteile, Rechtsprechung und Swiss case law. "
+            "Die Tools helfen bei Entscheiden des Bundesgerichts (BGer, BGE) sowie "
+            "kantonalen Gerichten, Obergerichten, Verwaltungsgerichten und weiteren "
+            "Schweizer Gerichten. Unterstützt Volltextsuche, Geschäftsnummern- bzw. "
+            "Urteilsnummern-Suche, Volltext-Abruf einzelner Entscheide, Hierarchien "
+            "für Kantone und Gerichte sowie Facetten für Filter und Recherche."
         ),
         lifespan=_lifespan,
     )
@@ -108,7 +115,16 @@ def build_server() -> FastMCP:
     @mcp.tool(
         title="Entscheide durchsuchen",
         description=(
-            "Volltext-Suche in den Entscheiden von entscheidsuche.ch.\n\n"
+            "Volltext-Suche in Schweizer Gerichtsurteilen, Gerichtsentscheiden, "
+            "Rechtsprechung und Swiss case law aus entscheidsuche.ch. Geeignet für "
+            "Entscheide des Bundesgerichts (BGer, BGE) und kantonaler Gerichte wie "
+            "Kantonsgericht, Obergericht oder Verwaltungsgericht.\n\n"
+            "Typische Anwendungsfälle:\n"
+            "  - Bundesgerichtsurteil, BGE oder Gerichtsurteil thematisch suchen\n"
+            "  - Schweizer Rechtsprechung zu Mietrecht, ZGB, OR, StGB oder BV finden\n"
+            "  - Geschäftsnummern, Urteilsnummern oder Zitate verifizieren\n"
+            "  - Verwandte Tools: get_document, search_by_business_number, "
+            "list_hierarchy, list_facets\n\n"
             "Suchsyntax (Lucene-Query-String):\n"
             "  - Phrasen-/Geschäftsnummer-Suche: \"BGE 142 III 1\" (mit Anführungszeichen)\n"
             "  - Boolesche Operatoren: AND, OR, NOT (bzw. +, -)\n"
@@ -119,7 +135,7 @@ def build_server() -> FastMCP:
             "Paginierung: nach dem ersten Aufruf den `next_cursor`-Wert aus der "
             "Antwort als `search_after` im nächsten Aufruf übergeben."
         ),
-    )
+        )
     async def search(
         ctx: Context,
         query: Annotated[
@@ -200,13 +216,103 @@ def build_server() -> FastMCP:
         return await _client(ctx).search(params)
 
     # ------------------------------------------------------------------
+    # search_by_business_number
+    # ------------------------------------------------------------------
+    @mcp.tool(
+        title="Nach Geschäftsnummer suchen",
+        description=(
+            "Spezialsuche für Geschäftsnummern, Urteilsnummern und BGE-Zitate in "
+            "Schweizer Gerichtsurteilen. Dieses Tool setzt die angegebene "
+            "Geschäftsnummer automatisch in Anführungszeichen und startet damit "
+            "eine exakte Phrasensuche, zum Beispiel für 'BGE 142 III 1', "
+            "'5A_396/2015' oder ähnliche Referenzen aus Bundesgericht, BGer, BGE "
+            "und kantonaler Rechtsprechung."
+        ),
+    )
+    async def search_by_business_number(
+        ctx: Context,
+        business_number: Annotated[
+            str,
+            Field(
+                description=(
+                    "Geschäftsnummer, BGE-Zitat oder Urteilsnummer, z.B. "
+                    "'BGE 142 III 1' oder '5A_396/2015'."
+                ),
+            ),
+        ],
+        language: Annotated[
+            Language,
+            Field(description="Optionale Sprache für Highlight/Anzeige (de, fr, it)."),
+        ] = Language.de,
+        sort: Annotated[
+            SortOrder,
+            Field(
+                description=(
+                    "Optionale Sortierung: 'relevance' | 'date' (Entscheiddatum) "
+                    "| 'scrapedate'. Default ist 'relevance'."
+                ),
+            ),
+        ] = SortOrder.relevance,
+        size: Annotated[
+            int, Field(ge=1, le=100, description="Treffer pro Seite (1–100).")
+        ] = 20,
+        search_after: Annotated[
+            Optional[List[Any]],
+            Field(description="Cursor aus `next_cursor` der vorigen Antwort."),
+        ] = None,
+        decision_date_from: Annotated[
+            Optional[date_type],
+            Field(description="Optionale Untergrenze Entscheiddatum (YYYY-MM-DD)."),
+        ] = None,
+        decision_date_to: Annotated[
+            Optional[date_type],
+            Field(description="Optionale Obergrenze Entscheiddatum (YYYY-MM-DD)."),
+        ] = None,
+        scrape_date_from: Annotated[
+            Optional[date_type],
+            Field(description="Optionale Untergrenze Scrape-Datum (YYYY-MM-DD)."),
+        ] = None,
+        scrape_date_to: Annotated[
+            Optional[date_type],
+            Field(description="Optionale Obergrenze Scrape-Datum (YYYY-MM-DD)."),
+        ] = None,
+        hierarchy: Annotated[
+            Optional[List[str]],
+            Field(description="Optionale Hierarchie-IDs für Kanton/Gericht/Kammer."),
+        ] = None,
+        language_filter: Annotated[
+            Optional[List[Language]],
+            Field(description="Optionale Filter nach Dokumentsprache(n)."),
+        ] = None,
+        include_aggregations: Annotated[
+            bool,
+            Field(description="Optional Aggregationen mitliefern."),
+        ] = False,
+    ) -> SearchResponse:
+        params = SearchParams(
+            query=_quote_as_phrase(business_number),
+            language=language,
+            sort=sort,
+            size=size,
+            search_after=search_after,
+            decision_date=_coerce_date_range(decision_date_from, decision_date_to),
+            scrape_date=_coerce_date_range(scrape_date_from, scrape_date_to),
+            hierarchy=hierarchy,
+            language_filter=language_filter,
+            include_aggregations=include_aggregations,
+        )
+        return await _client(ctx).search(params)
+
+    # ------------------------------------------------------------------
     # get_document
     # ------------------------------------------------------------------
     @mcp.tool(
         title="Einzeldokument abrufen",
         description=(
-            "Ruft einen Entscheid anhand seiner Dokument-ID (`_id`) ab. "
-            "Mit `include_content=true` wird zusätzlich der Volltext zurückgegeben."
+            "Ruft einen einzelnen Schweizer Gerichtsentscheid, ein Gerichtsurteil "
+            "oder einen Bundesgerichtsentscheid anhand seiner Dokument-ID (`_id`) "
+            "ab. Mit `include_content=true` wird zusätzlich der Volltext des "
+            "Urteils zurückgegeben."
         ),
     )
     async def get_document(
@@ -231,9 +337,10 @@ def build_server() -> FastMCP:
     @mcp.tool(
         title="Hierarchie-Buckets",
         description=(
-            "Liefert die verfügbaren Hierarchie-IDs (Kanton/Gericht/Kammer) "
-            "mit Trefferzahlen. Optional lässt sich ein `query` mitgeben, um "
-            "die Aggregation auf eine Treffermenge einzuschränken."
+            "Liefert die verfügbaren Hierarchie-IDs für Schweizer Kantone, "
+            "Gerichte und Kammern mit Trefferzahlen. Hilfreich, um Bundesgericht, "
+            "kantonale Gerichte, Obergerichte oder Verwaltungsgerichte für die "
+            "weitere Suche einzugrenzen."
         ),
     )
     async def list_hierarchy(
@@ -251,9 +358,9 @@ def build_server() -> FastMCP:
     @mcp.tool(
         title="Facetten-Baum (lokalisiert)",
         description=(
-            "Hierarchischer Facetten-Baum mit lokalisierten Bezeichnungen "
-            "(de/fr/it/en). Die `id`-Felder können im `hierarchy`-Filter der "
-            "Suche verwendet werden."
+            "Hierarchischer Facetten-Baum mit lokalisierten Bezeichnungen für "
+            "Kantone, Gerichte und Kammern. Die `id`-Felder können im "
+            "`hierarchy`-Filter der Suche verwendet werden."
         ),
     )
     async def list_facets(ctx: Context) -> List[dict[str, Any]]:
@@ -265,7 +372,10 @@ def build_server() -> FastMCP:
     # ------------------------------------------------------------------
     @mcp.tool(
         title="Server-Info",
-        description="Versionsinfo und konfigurierte Endpunkt-URLs.",
+        description=(
+            "Versionsinfo und konfigurierte Endpunkt-URLs des MCP-Servers für "
+            "Schweizer Rechtsprechung und Gerichtsentscheide."
+        ),
     )
     async def server_info(ctx: Context) -> dict[str, Any]:
         return {

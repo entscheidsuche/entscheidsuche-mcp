@@ -18,6 +18,7 @@ Der Pfad ist konfigurierbar (`MCP_PATH`, Default `/mcp`).
 - [Protokoll-Grundlagen](#protokoll-grundlagen)
 - [Tools](#tools)
   - [`search`](#tool-search)
+  - [`search_by_business_number`](#tool-search_by_business_number)
   - [`get_document`](#tool-get_document)
   - [`list_hierarchy`](#tool-list_hierarchy)
   - [`list_facets`](#tool-list_facets)
@@ -118,6 +119,44 @@ Felder:
   "arguments": {
     "query": "\"5A_123/2024\"",
     "language": "de"
+  }
+}
+```
+
+---
+
+### Tool: `search_by_business_number`
+
+Spezialsuche für Geschäftsnummern, Urteilsnummern und BGE-Zitate. Dieses Tool
+setzt die angegebene Referenz automatisch in Anführungszeichen und führt damit
+eine exakte Phrasensuche aus.
+
+#### Parameter
+
+| Name | Typ | Default | Beschreibung |
+| --- | --- | --- | --- |
+| `business_number` | `string` | – | Geschäftsnummer, BGE-Zitat oder Urteilsnummer, z.B. `"BGE 142 III 1"` oder `"5A_396/2015"`. |
+| `language` | `"de"\|"fr"\|"it"` | `"de"` | Optionale Sprache für Highlight, Titel- und Abstract-Auswahl. |
+| `sort` | `"relevance"\|"date"\|"scrapedate"` | `"relevance"` | Optionale Sortierreihenfolge. |
+| `size` | `int` (1–100) | `20` | Anzahl Treffer pro Seite. |
+| `search_after` | `array` | – | Cursor für die nächste Seite. |
+| `decision_date_from` | `date` | – | Untergrenze Entscheiddatum. |
+| `decision_date_to` | `date` | – | Obergrenze Entscheiddatum. |
+| `scrape_date_from` | `date` | – | Untergrenze Scrape-Datum. |
+| `scrape_date_to` | `date` | – | Obergrenze Scrape-Datum. |
+| `hierarchy` | `string[]` | – | Optionale Hierarchie-IDs. |
+| `language_filter` | `("de"\|"fr"\|"it")[]` | – | Optionale Sprachfilter. |
+| `include_aggregations` | `bool` | `false` | Optional Aggregations-Buckets mitliefern. |
+
+#### Beispiel
+
+```json
+{
+  "name": "search_by_business_number",
+  "arguments": {
+    "business_number": "BGE 142 III 1",
+    "language": "de",
+    "size": 3
   }
 }
 ```

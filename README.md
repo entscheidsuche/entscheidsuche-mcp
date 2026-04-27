@@ -1,7 +1,7 @@
 # entscheidsuche-mcp
 
 MCP-Server für [entscheidsuche.ch](https://entscheidsuche.ch) — die Volltext-Suchmaschine
-für Schweizer Gerichtsentscheide.
+für Schweizer Gerichtsentscheide, Gerichtsurteile und Rechtsprechung.
 
 Stellt die Such-API als [Model Context Protocol](https://modelcontextprotocol.io)-Tools
 über **Streamable HTTP** bereit, sodass Claude und andere MCP-Clients direkt gegen
@@ -12,6 +12,7 @@ den Index suchen können.
 - Volltextsuche mit Lucene-Query-Syntax (Phrasen mit `"…"`, `AND`/`OR`/`NOT`,
   Wildcards `*` und `?`)
 - **Geschäftsnummer-Suche** über Phrasen in Anführungszeichen, z.B. `"BGE 142 III 1"`
+- **Spezialtool für Geschäftsnummern** und BGE-Zitate, das automatisch als Phrase sucht
 - Filter nach **Entscheiddatum**, **Scrape-Datum**, **Hierarchie**
   (Kanton/Gericht/Kammer) und **Sprache**
 - Sortierung nach Relevanz, Entscheiddatum oder Scrape-Datum
@@ -38,7 +39,8 @@ Tools:
 
 | Tool | Zweck |
 | --- | --- |
-| `search` | Volltext-Suche mit Filtern, Sortierung, Paginierung |
+| `search` | Volltext-Suche in Schweizer Rechtsprechung mit Filtern, Sortierung, Paginierung |
+| `search_by_business_number` | Exakte Suche nach Geschäftsnummern, Urteilsnummern und BGE-Zitaten |
 | `get_document` | Einzelnes Dokument anhand der ID, optional mit Volltext |
 | `list_hierarchy` | Hierarchie-IDs mit Trefferzahlen |
 | `list_facets` | Hierarchischer Facetten-Baum mit lokalisierten Labels |
@@ -174,6 +176,10 @@ Die Tool-Parameter `language` und `sort` sind optional. Wenn `language`
 weggelassen wird, verwendet der Server `de`. Wenn `sort` fehlt, wird nach
 `relevance` sortiert. Erlaubte Sprachen für Such- und Dokument-Requests sind
 `de`, `fr` und `it`.
+
+Für Geschäftsnummern, BGE-Zitate und ähnliche Referenzen gibt es zusätzlich
+das Tool `search_by_business_number`. Es setzt die angegebene Nummer automatisch
+in Anführungszeichen und führt damit eine exakte Phrasensuche aus.
 
 ## Lizenz
 
