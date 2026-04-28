@@ -25,6 +25,9 @@ from typing import Annotated, Any, AsyncIterator, List, Optional
 
 from mcp.server.fastmcp import Context, FastMCP
 from pydantic import Field
+from starlette.applications import Starlette
+from starlette.responses import JSONResponse
+from starlette.routing import Mount, Route
 
 from . import __version__
 from .models import (
@@ -43,6 +46,7 @@ logger = logging.getLogger(__name__)
 
 DEFAULT_ES_URL = "https://entscheidsuche.pansoft.de:9200/entscheidsuche.v2-*/_search"
 DEFAULT_FACETS_URL = "https://www.recherche.histoirerurale.ch/Facetten.json"
+DEFAULT_PUBLIC_BASE_URL = "https://mcp.entscheidsuche.ch"
 
 
 def _env(name: str, default: str) -> str:
@@ -90,6 +94,80 @@ def _quote_as_phrase(value: str) -> str:
     return f'"{escaped}"'
 
 
+def _public_base_url() -> str:
+    return _env("PUBLIC_BASE_URL", DEFAULT_PUBLIC_BASE_URL).rstrip("/")
+
+
+def _server_card_payload() -> dict[str, Any]:
+    base_url = _public_base_url()
+    mcp_url = f"{base_url}/mcp"
+    return {
+        "name": "entscheidsuche",
+        "title": "entscheidsuche-mcp",
+        "description": "MCP server for Swiss court decisions and case law provided by entscheidsuche.ch.",
+        "version": __version__,
+        "beta": True,
+        "website_url": "https://entscheidsuche.ch",
+        "documentation_url": base_url,
+        "transports": {
+            "streamable_http": {
+                "url": mcp_url,
+                "stateless": _env_bool("MCP_STATELESS_HTTP", True),
+            }
+        },
+        "capabilities": {
+            "tools": True,
+            "resources": True,
+            "prompts": False,
+        },
+        "tools": [
+            {
+                "name": "search",
+                "title": "Search Swiss case law",
+                "description": "Full-text search across Swiss court decisions and case law.",
+            },
+            {
+                "name": "search_by_case_number",
+                "title": "Search by case number",
+                "description": "Exact lookup of Swiss case numbers, docket references and BGE citations.",
+            },
+            {
+                "name": "fetch_document",
+                "title": "Fetch document",
+                "description": "Retrieve a single decision together with its full text.",
+            },
+            {
+                "name": "get_document",
+                "title": "Get document",
+                "description": "Compatibility alias for fetch_document.",
+            },
+            {
+                "name": "list_hierarchy",
+                "title": "List court hierarchy",
+                "description": "List cantons, courts and chambers with counts.",
+            },
+            {
+                "name": "list_facets",
+                "title": "List facets",
+                "description": "Localized facet tree for courts and jurisdictions.",
+            },
+            {
+                "name": "server_info",
+                "title": "Server information",
+                "description": "Version and endpoint information for this server.",
+            },
+        ],
+        "resources": [
+            {
+                "uri": "mcp://server-card.json",
+                "name": "server-card",
+                "description": "Structured metadata for this MCP server.",
+                "mimeType": "application/json",
+            }
+        ],
+    }
+
+
 def build_server() -> FastMCP:
     """Erzeugt die FastMCP-Instanz mit allen registrierten Tools."""
     mcp = FastMCP(
@@ -108,6 +186,16 @@ def build_server() -> FastMCP:
 
     def _client(ctx: Context) -> EntscheidsucheClient:
         return ctx.request_context.lifespan_context["client"]
+
+    @mcp.resource(
+        "mcp://server-card.json",
+        name="server-card",
+        title="MCP Server Card",
+        description="Structured metadata for the entscheidsuche MCP server.",
+        mime_type="application/json",
+    )
+    def server_card_resource() -> dict[str, Any]:
+        return _server_card_payload()
 
     # ------------------------------------------------------------------
     # search
@@ -425,7 +513,33 @@ def get_mcp() -> FastMCP:
 
 def create_app():
     """Factory für ASGI-Server (z.B. `uvicorn ...:create_app --factory`)."""
-    return get_mcp().streamable_http_app()
+
+    async def well_known_manifest(_request):
+        base_url = _public_base_url()
+        return JSONResponse(
+            {
+                "name": "entscheidsuche",
+                "title": "entscheidsuche-mcp",
+                "description": "MCP server for Swiss court decisions and case law.",
+                "server_card_url": f"{base_url}/.well-known/mcp/server-card.json",
+                "transports": {
+                    "streamable_http": {
+                        "url": f"{base_url}/mcp",
+                    }
+                },
+            }
+        )
+
+    async def well_known_server_card(_request):
+        return JSONResponse(_server_card_payload())
+
+    return Starlette(
+        routes=[
+            Route("/.well-known/mcp", endpoint=well_known_manifest),
+            Route("/.well-known/mcp/server-card.json", endpoint=well_known_server_card),
+            Mount("/", app=get_mcp().streamable_http_app()),
+        ]
+    )
 
 
 # Für direkten ASGI-Mount: `uvicorn entscheidsuche_mcp.server:app`

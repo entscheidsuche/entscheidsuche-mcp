@@ -22,7 +22,7 @@ import sys
 import uvicorn
 from starlette.middleware.cors import CORSMiddleware
 
-from .server import build_server
+from .server import build_server, create_app
 
 
 def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
@@ -98,7 +98,7 @@ def main(argv: list[str] | None = None) -> int:
     if args.transport == "streamable-http":
         server.settings.streamable_http_path = args.path
         server.settings.stateless_http = _parse_bool_env("MCP_STATELESS_HTTP", True)
-        app = server.streamable_http_app()
+        app = create_app()
     else:  # sse
         server.settings.sse_path = args.path
         server.settings.message_path = args.path.rstrip("/") + "/messages/"
