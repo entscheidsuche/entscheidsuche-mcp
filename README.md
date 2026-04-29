@@ -18,7 +18,7 @@ den Index suchen können.
 - Sortierung nach Relevanz, Entscheiddatum oder Scrape-Datum
 - Paginierung über `next_cursor` / `search_after`
 - Aggregationen (Buckets) für Facetten-Auswertung
-- Lokalisierter Facetten-Baum (de/fr/it/en)
+- Lokalisierter Facetten-Baum (de/fr/it)
 
 ## Architektur
 
