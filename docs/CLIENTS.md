@@ -11,9 +11,15 @@ Transport: **Streamable HTTP** (Model Context Protocol, JSON-RPC 2.0 über
 Authentifizierung nötig — ein Konto ist nicht erforderlich, der Server
 ist öffentlich.
 
-> **Stand:** Anbieter ändern Konfigurations-Pfade und Subscription-Tiers
-> regelmässig. Bei Abweichungen zur offiziellen Doku gilt die offizielle Doku.
-> Verweise auf die jeweiligen Hilfeseiten stehen jeweils am Ende des Abschnitts.
+> **Stand und Vorbehalt:** Die hier beschriebenen Schritte sind nicht in
+> jedem aufgeführten Client praktisch durchgespielt — sie beruhen teils
+> auf den offiziellen Dokumentationen der jeweiligen Anbieter. MCP ist
+> ein junges Protokoll, und Anbieter ändern Konfigurations-Pfade,
+> Tarif-Einteilungen, Tool-Namen und Discovery-Mechanismen regelmässig
+> und manchmal kurzfristig. Bei Abweichungen zur offiziellen Doku gilt
+> die offizielle Doku — Verweise auf die jeweiligen Hilfeseiten stehen
+> am Ende des entsprechenden Abschnitts. Bitte Rückmeldung geben, wenn
+> ein Schritt nicht mehr passt.
 
 ## Übersicht
 

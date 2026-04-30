@@ -179,6 +179,20 @@
         font-size: 0.92rem;
         color: var(--muted);
       }
+
+      .notice {
+        margin-top: 0.6rem;
+        padding: 0.7rem 0.9rem;
+        border-left: 3px solid var(--accent);
+        background: #fbf2e3;
+        border-radius: 0.4rem;
+        font-size: 0.95rem;
+        color: var(--ink);
+      }
+
+      .notice strong {
+        color: var(--accent);
+      }
     </style>
   </head>
   <body>
@@ -226,6 +240,16 @@
           Client, der das Model Context Protocol über Streamable HTTP spricht.
           Was Sie an Subscription brauchen, hängt vom Client ab — die folgenden
           Abschnitte fassen das pro Client zusammen.
+        </p>
+        <p class="notice">
+          <strong>Hinweis:</strong> Nicht jede der folgenden Anleitungen ist
+          praktisch durchgespielt; einige beruhen auf den offiziellen
+          Dokumentationen der jeweiligen Anbieter. MCP ist ein junges
+          Protokoll. Tool-Listen, Tarife und Konfigurations-Pfade ändern sich
+          bei Anthropic, OpenAI und anderen regelmässig und manchmal
+          kurzfristig. Bei Abweichungen zur offiziellen Doku des Clients gilt
+          dessen Doku — und gerne eine kurze Rückmeldung an uns, wenn etwas
+          nicht mehr passt.
         </p>
 
         <details>

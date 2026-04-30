@@ -146,6 +146,13 @@ Cursor sowie weitere Open-Source-Clients und den MCP Inspector findet
 sich in [docs/CLIENTS.md](docs/CLIENTS.md). Dort steht zu jedem Client
 auch, welcher Subscription-Tier nötig ist.
 
+> **Hinweis:** Nicht alle der dort aufgeführten Clients wurden praktisch
+> durchgetestet — die Schritte beruhen teils auf den offiziellen
+> Dokumentationen der jeweiligen Anbieter. MCP ist ein junges Protokoll;
+> Tool-Listen, Tarife und Konfigurations-Pfade ändern sich bei Anthropic,
+> OpenAI und anderen regelmässig. Bei Abweichungen gilt jeweils die
+> offizielle Doku des Clients.
+
 Schnellstart:
 
 **Claude Code (CLI)**
