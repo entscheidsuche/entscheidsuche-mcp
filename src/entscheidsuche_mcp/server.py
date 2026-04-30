@@ -23,7 +23,10 @@ from contextlib import asynccontextmanager
 from datetime import date as date_type
 from typing import Annotated, Any, AsyncIterator, List, Optional
 
+from urllib.parse import urlparse
+
 from mcp.server.fastmcp import Context, FastMCP
+from mcp.server.transport_security import TransportSecuritySettings
 from pydantic import Field
 from starlette.applications import Starlette
 from starlette.responses import JSONResponse
@@ -96,6 +99,58 @@ def _quote_as_phrase(value: str) -> str:
 
 def _public_base_url() -> str:
     return _env("PUBLIC_BASE_URL", DEFAULT_PUBLIC_BASE_URL).rstrip("/")
+
+
+def _split_csv_env(name: str) -> List[str]:
+    raw = os.environ.get(name, "")
+    return [item.strip() for item in raw.split(",") if item.strip()]
+
+
+def _allowed_hosts() -> List[str]:
+    """Hostnamen, die der DNS-Rebinding-Schutz akzeptiert.
+
+    Default: localhost, 127.0.0.1 und der Host aus `PUBLIC_BASE_URL`. Über
+    `MCP_ALLOWED_HOSTS` (kommagetrennt) lassen sich weitere Werte ergänzen.
+    """
+    hosts: List[str] = ["127.0.0.1", "localhost"]
+    base_host = urlparse(_public_base_url()).hostname
+    if base_host and base_host not in hosts:
+        hosts.append(base_host)
+    for extra in _split_csv_env("MCP_ALLOWED_HOSTS"):
+        if extra not in hosts:
+            hosts.append(extra)
+    return hosts
+
+
+def _allowed_origins() -> List[str]:
+    """Origins, die der DNS-Rebinding-Schutz akzeptiert.
+
+    Default: `PUBLIC_BASE_URL` selbst. Über `MCP_ALLOWED_ORIGINS` lässt sich
+    die Liste ergänzen (kommagetrennt, vollqualifizierte URLs).
+    """
+    origins: List[str] = []
+    base_url = _public_base_url()
+    if base_url:
+        origins.append(base_url)
+    for extra in _split_csv_env("MCP_ALLOWED_ORIGINS"):
+        if extra not in origins:
+            origins.append(extra)
+    return origins
+
+
+def _transport_security() -> TransportSecuritySettings:
+    """Konfiguriert den DNS-Rebinding-Schutz von FastMCP.
+
+    Über `MCP_DNS_REBINDING_PROTECTION=false` lässt sich der Schutz komplett
+    abschalten — z.B. wenn der Server hinter einem CDN/Proxy steht, der den
+    Host-Header verändert.
+    """
+    enabled = _env_bool("MCP_DNS_REBINDING_PROTECTION", True)
+    return TransportSecuritySettings(
+        enable_dns_rebinding_protection=enabled,
+        allowed_hosts=_allowed_hosts(),
+        allowed_origins=_allowed_origins(),
+    )
 
 
 def _server_card_payload() -> dict[str, Any]:
@@ -247,6 +302,7 @@ def build_server() -> FastMCP:
             "für Kantone und Gerichte sowie Facetten für Filter und Recherche."
         ),
         lifespan=_lifespan,
+        transport_security=_transport_security(),
     )
 
     def _client(ctx: Context) -> EntscheidsucheClient:
