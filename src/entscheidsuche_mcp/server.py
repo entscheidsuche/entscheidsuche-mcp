@@ -276,7 +276,7 @@ def build_server() -> FastMCP:
             "  - Bundesgerichtsurteil, BGE oder Gerichtsurteil thematisch suchen\n"
             "  - Schweizer Rechtsprechung zu Mietrecht, ZGB, OR, StGB oder BV finden\n"
             "  - Geschäftsnummern, Urteilsnummern oder Zitate verifizieren\n"
-            "  - Verwandte Tools: get_document, search_by_case_number, "
+            "  - Verwandte Tools: fetch_document, search_by_case_number, "
             "list_hierarchy, list_facets\n\n"
             "Suchsyntax (Lucene-Query-String):\n"
             "  - Phrasen-/Geschäftsnummer-Suche: \"BGE 142 III 1\" (mit Anführungszeichen)\n"
@@ -581,6 +581,12 @@ def create_app(mcp: Optional[FastMCP] = None):
     Settings (Pfad, stateless_http etc.), die der Aufrufer vor dem Bauen der App
     konfiguriert hat, auch tatsächlich wirksam werden. Ohne Argument wird die
     Lazy-Singleton-Instanz aus `get_mcp()` verwendet (für `uvicorn …:app`-Aufrufe).
+
+    Wichtig: FastMCP startet ihren `StreamableHTTPSessionManager` im Lifespan der
+    Sub-App, die `streamable_http_app()` zurückliefert. Starlette propagiert
+    Lifespans von gemounteten Sub-Apps NICHT, also müssen wir den Lifespan
+    der inneren App explizit in die äußere App heben — sonst wirft jeder
+    Request `RuntimeError: Task group is not initialized`.
     """
     if mcp is None:
         mcp = get_mcp()
@@ -608,14 +614,23 @@ def create_app(mcp: Optional[FastMCP] = None):
     async def well_known_server_card(_request):
         return JSONResponse(_server_card_payload())
 
-    mcp_app = _compat_streamable_http_app(mcp.streamable_http_app(), mcp_path)
+    inner_app = mcp.streamable_http_app()
+    mcp_app = _compat_streamable_http_app(inner_app, mcp_path)
+
+    @asynccontextmanager
+    async def lifespan(_app):
+        # Innere Starlette hat `lifespan=lambda app: session_manager.run()` —
+        # diesen Kontext hier explizit öffnen, damit der Session-Manager läuft.
+        async with inner_app.router.lifespan_context(inner_app):
+            yield
 
     return Starlette(
         routes=[
             Route("/.well-known/mcp", endpoint=well_known_manifest),
             Route("/.well-known/mcp/server-card.json", endpoint=well_known_server_card),
             Mount("/", app=mcp_app),
-        ]
+        ],
+        lifespan=lifespan,
     )
 
 
