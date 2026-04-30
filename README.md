@@ -42,7 +42,6 @@ Tools:
 | `search` | Volltext-Suche in Schweizer Rechtsprechung mit Filtern, Sortierung, Paginierung |
 | `search_by_case_number` | Exakte Suche nach Geschäftsnummern, Aktenzeichen, Urteilsnummern und BGE-Zitaten |
 | `fetch_document` | Einzelnen Entscheid anhand der ID mit vollständigem Volltext abrufen |
-| `get_document` | Kompatibilitäts-Alias für `fetch_document` |
 | `list_hierarchy` | Hierarchie-IDs mit Trefferzahlen |
 | `list_facets` | Hierarchischer Facetten-Baum mit lokalisierten Labels |
 | `server_info` | Versions- und Konfigurations-Info |
@@ -77,6 +76,10 @@ Konfiguration über Umgebungsvariablen (siehe `.env.example`):
 | `HTTP_TIMEOUT` | `30` | Request-Timeout in Sekunden |
 | `ENTSCHEIDSUCHE_VERIFY_SSL` | `true` | TLS-Prüfung für Elasticsearch-/Facetten-Upstream |
 | `CORS_ALLOW_ORIGINS` | `*` | Erlaubte Browser-Origin(s) für den HTTP-Transport |
+| `MCP_DNS_REBINDING_PROTECTION` | `true` | Host-/Origin-Header gegen DNS-Rebinding prüfen |
+| `MCP_ALLOWED_HOSTS` | (leer) | Zusätzliche erlaubte Hosts, kommagetrennt |
+| `MCP_ALLOWED_ORIGINS` | (leer) | Zusätzliche erlaubte Origins, kommagetrennt |
+| `PUBLIC_BASE_URL` | `https://mcp.entscheidsuche.ch` | Öffentlicher Basis-URL für Server-Card und well-known-Routen |
 | `LOG_LEVEL` | `INFO` | Loglevel |
 
 ## Schnelltest mit `curl`
@@ -137,22 +140,47 @@ DNS — `mcp.entscheidsuche.ch` muss auf den Server zeigen (A/AAAA-Record).
 
 ## Konfiguration in MCP-Clients
 
-### Claude Desktop / Claude Code
+Eine ausführliche Anleitung mit Schritt-für-Schritt-Konfigurationen für
+Claude (Web, Desktop, Code, API), ChatGPT, VS Code mit GitHub Copilot,
+Cursor sowie weitere Open-Source-Clients und den MCP Inspector findet
+sich in [docs/CLIENTS.md](docs/CLIENTS.md). Dort steht zu jedem Client
+auch, welcher Subscription-Tier nötig ist.
 
-`~/.claude/mcp.json` (oder via `claude mcp add ...`):
+Schnellstart:
+
+**Claude Code (CLI)**
+
+```bash
+claude mcp add --transport http entscheidsuche https://mcp.entscheidsuche.ch/mcp
+```
+
+**Claude.ai (Web/App), ChatGPT, VS Code, Cursor**
+
+In der jeweiligen Connector-/MCP-Server-Verwaltung des Clients eine neue
+Verbindung anlegen mit der URL
+
+```
+https://mcp.entscheidsuche.ch/mcp
+```
+
+ohne Authentifizierung. Details siehe [docs/CLIENTS.md](docs/CLIENTS.md).
+
+**Claude Desktop**
+
+Spricht historisch nur stdio — über die Bridge `mcp-remote`:
 
 ```jsonc
 {
   "mcpServers": {
     "entscheidsuche": {
-      "type": "http",
-      "url": "https://mcp.entscheidsuche.ch/mcp"
+      "command": "npx",
+      "args": ["-y", "mcp-remote", "https://mcp.entscheidsuche.ch/mcp"]
     }
   }
 }
 ```
 
-### MCP Inspector
+**MCP Inspector zum Testen**
 
 ```bash
 npx @modelcontextprotocol/inspector https://mcp.entscheidsuche.ch/mcp
@@ -174,9 +202,11 @@ Die Standard-Verknüpfung zwischen Wörtern ist `AND`. Gesucht wird in
 `title`, `abstract`, `meta`, `attachment.content` und `reference`.
 
 Die Tool-Parameter `language` und `sort` sind optional. Wenn `language`
-weggelassen wird, verwendet der Server `de`. Wenn `sort` fehlt, wird nach
-`relevance` sortiert. Erlaubte Sprachen für Such- und Dokument-Requests sind
-`de`, `fr` und `it`.
+weggelassen wird, findet **keine Spracheinschränkung** statt — der Server
+liefert das erste vorhandene Sprachfeld zurück (de → fr → it). Wenn
+`sort` fehlt, wird nach `relevance` sortiert. Erlaubte Sprachen für
+Such- und Dokument-Requests sind `de`, `fr` und `it`. Soll nach Sprache
+*gefiltert* werden, dafür `language_filter` setzen.
 
 Für Geschäftsnummern, Aktenzeichen, BGE-Zitate und ähnliche Referenzen gibt es zusätzlich
 das Tool `search_by_case_number`. Es setzt die angegebene Nummer automatisch

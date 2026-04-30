@@ -100,6 +100,85 @@
         border-radius: 999px;
         font-weight: 700;
       }
+
+      details {
+        border-top: 1px solid var(--line);
+        padding: 0.6rem 0 0.2rem;
+      }
+
+      details:first-of-type {
+        border-top: none;
+      }
+
+      details > summary {
+        cursor: pointer;
+        font-weight: 700;
+        list-style: none;
+        padding: 0.2rem 0;
+        display: flex;
+        align-items: baseline;
+        justify-content: space-between;
+      }
+
+      details > summary::-webkit-details-marker {
+        display: none;
+      }
+
+      details > summary::after {
+        content: "+";
+        color: var(--accent);
+        font-size: 1.2rem;
+        line-height: 1;
+        margin-left: 0.5rem;
+      }
+
+      details[open] > summary::after {
+        content: "−";
+      }
+
+      details > summary .badge {
+        font-weight: 400;
+        font-size: 0.85rem;
+        color: var(--muted);
+        margin-left: 0.6rem;
+      }
+
+      details p,
+      details ol,
+      details ul {
+        font-size: 1rem;
+      }
+
+      .panel pre {
+        background: #f8efe2;
+        padding: 0.7rem 0.85rem;
+        border-radius: 0.5rem;
+        margin: 0.5rem 0;
+      }
+
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 0.95rem;
+        margin-top: 0.5rem;
+      }
+
+      table th,
+      table td {
+        text-align: left;
+        padding: 0.45rem 0.6rem;
+        border-bottom: 1px solid var(--line);
+        vertical-align: top;
+      }
+
+      table th {
+        color: var(--ink);
+      }
+
+      .small {
+        font-size: 0.92rem;
+        color: var(--muted);
+      }
     </style>
   </head>
   <body>
@@ -124,7 +203,6 @@
           <li><code>search</code> für Volltextsuche in Schweizer Rechtsprechung, case law und Gerichtsurteilen</li>
           <li><code>search_by_case_number</code> für exakte Suche nach Geschäftsnummern, Aktenzeichen, Urteilsnummern und BGE-Zitaten</li>
           <li><code>fetch_document</code> für den Abruf eines einzelnen Entscheids mit vollständigem Volltext</li>
-          <li><code>get_document</code> als Alias fuer kompatible bestehende Clients</li>
           <li><code>list_hierarchy</code> für Hierarchie-IDs und Trefferzahlen</li>
           <li><code>list_facets</code> für den lokalisierten Facettenbaum</li>
           <li><code>server_info</code> für Server- und Versionsinformationen</li>
@@ -142,15 +220,161 @@
       </div>
 
       <div class="panel">
-        <strong>Beispiel für Claude Desktop</strong>
-        <pre><code>{
+        <strong>Einbindung in Clients</strong>
+        <p class="small">
+          Der Server arbeitet ohne Authentifizierung. Was Sie brauchen, ist ein
+          Client, der das Model Context Protocol über Streamable HTTP spricht.
+          Was Sie an Subscription brauchen, hängt vom Client ab — die folgenden
+          Abschnitte fassen das pro Client zusammen.
+        </p>
+
+        <details>
+          <summary>Claude.ai (Web, Mobile, Desktop) <span class="badge">Pro / Max / Team / Enterprise</span></summary>
+          <ol>
+            <li>claude.ai → <strong>Settings → Connectors</strong> (in einigen Tarifen <em>Integrations</em>).</li>
+            <li><em>„Add custom connector"</em> wählen.</li>
+            <li>
+              Eintragen:
+              <ul>
+                <li>Name: <code>entscheidsuche</code></li>
+                <li>Remote MCP server URL: <code>https://mcp.entscheidsuche.ch/mcp</code></li>
+                <li>Authentication: <em>None</em></li>
+              </ul>
+            </li>
+            <li>Connector pro Chat aktivieren (Tool-Symbol unter dem Eingabefeld).</li>
+          </ol>
+          <p class="small">
+            In Free-Konten sind Custom-Connectors nicht verfügbar. Team- und
+            Enterprise-Workspaces können verlangen, dass der Workspace-Admin den
+            Connector zentral freischaltet. Doku:
+            <a href="https://support.claude.com/en/articles/11175166-getting-started-with-custom-connectors-using-remote-mcp">support.claude.com</a>.
+          </p>
+        </details>
+
+        <details>
+          <summary>Claude Desktop <span class="badge">App gratis · benötigt Node.js</span></summary>
+          <p>Claude Desktop spricht stdio. Über die Bridge <code>mcp-remote</code> klappt der HTTP-Server trotzdem:</p>
+          <pre><code>{
   "mcpServers": {
+    "entscheidsuche": {
+      "command": "npx",
+      "args": ["-y", "mcp-remote", "https://mcp.entscheidsuche.ch/mcp"]
+    }
+  }
+}</code></pre>
+          <p class="small">
+            Pfad der Konfigurationsdatei:<br>
+            macOS: <code>~/Library/Application Support/Claude/claude_desktop_config.json</code><br>
+            Windows: <code>%APPDATA%\Claude\claude_desktop_config.json</code><br>
+            Anschliessend Claude Desktop einmal komplett beenden und neu starten.
+          </p>
+        </details>
+
+        <details>
+          <summary>Claude Code (CLI) <span class="badge">API-Credits oder Pro/Max</span></summary>
+          <pre><code>claude mcp add --transport http entscheidsuche https://mcp.entscheidsuche.ch/mcp</code></pre>
+          <p class="small">
+            Status prüfen mit <code>claude mcp list</code>, entfernen mit
+            <code>claude mcp remove entscheidsuche</code>. Doku:
+            <a href="https://docs.claude.com/en/docs/claude-code/mcp">docs.claude.com</a>.
+          </p>
+        </details>
+
+        <details>
+          <summary>Claude API (eigener Code) <span class="badge">Anthropic-API-Konto</span></summary>
+          <pre><code>import anthropic
+
+client = anthropic.Anthropic()
+resp = client.messages.create(
+    model="claude-sonnet-4-6",
+    max_tokens=2048,
+    mcp_servers=[
+        {
+            "type": "url",
+            "url": "https://mcp.entscheidsuche.ch/mcp",
+            "name": "entscheidsuche",
+        }
+    ],
+    messages=[{"role": "user", "content": "Suche BGE 142 III 1."}],
+    extra_headers={"anthropic-beta": "mcp-client-2025-04-04"},
+)</code></pre>
+          <p class="small">
+            Doku: <a href="https://docs.claude.com/en/docs/agents-and-tools/mcp-connector">docs.claude.com</a>.
+          </p>
+        </details>
+
+        <details>
+          <summary>ChatGPT <span class="badge">Pro / Team / Enterprise / Edu</span></summary>
+          <ol>
+            <li>chatgpt.com → <strong>Settings → Connectors</strong> → <em>„Create"</em>.</li>
+            <li>MCP Server URL: <code>https://mcp.entscheidsuche.ch/mcp</code>, Auth = <em>No authentication</em>.</li>
+            <li>Connector im Chat aktivieren (Tools-Menü) bzw. in einem Deep-Research-Run anhaken.</li>
+          </ol>
+          <p class="small">
+            Hinweis: OpenAIs Deep-Research-Modus sucht nach Tools mit den Namen
+            <code>search</code> und <code>fetch</code>. Unser Server hat <code>search</code>;
+            <code>fetch_document</code> wird im normalen Connector-Modus
+            mitgenutzt, im strikten Deep-Research-Modus eventuell nicht
+            automatisch erkannt. Doku:
+            <a href="https://platform.openai.com/docs/mcp">platform.openai.com</a>.
+          </p>
+        </details>
+
+        <details>
+          <summary>VS Code mit GitHub Copilot <span class="badge">Copilot Pro o.ä.</span></summary>
+          <p>Workspace-lokal in <code>.vscode/mcp.json</code>:</p>
+          <pre><code>{
+  "servers": {
     "entscheidsuche": {
       "type": "http",
       "url": "https://mcp.entscheidsuche.ch/mcp"
     }
   }
 }</code></pre>
+          <p class="small">
+            Im Chat <em>„Agent"</em>-Modus wählen, Werkzeug-Symbol klicken,
+            Tools aktivieren. Doku:
+            <a href="https://code.visualstudio.com/docs/copilot/customization/mcp-servers">code.visualstudio.com</a>.
+          </p>
+        </details>
+
+        <details>
+          <summary>Cursor <span class="badge">gratis möglich</span></summary>
+          <p>UI: <strong>Settings → MCP → Add new MCP server</strong>. Oder in <code>~/.cursor/mcp.json</code>:</p>
+          <pre><code>{
+  "mcpServers": {
+    "entscheidsuche": {
+      "url": "https://mcp.entscheidsuche.ch/mcp"
+    }
+  }
+}</code></pre>
+        </details>
+
+        <details>
+          <summary>Weitere Open-Source-Clients <span class="badge">gratis</span></summary>
+          <p>
+            Cline, Continue.dev, Zed, 5ire, goose, LibreChat, Open WebUI,
+            LobeChat — jeweils ein <em>Custom MCP server</em>-Eintrag mit der URL
+            <code>https://mcp.entscheidsuche.ch/mcp</code>. Was bei diesen Tools
+            kostet, ist nur das jeweils gewählte Sprachmodell.
+          </p>
+        </details>
+
+        <details>
+          <summary>MCP Inspector (zum Testen) <span class="badge">gratis · Node 18+</span></summary>
+          <pre><code>npx @modelcontextprotocol/inspector</code></pre>
+          <p class="small">
+            Im Browser-UI: Transport <em>HTTP / Streamable HTTP</em>, URL
+            <code>https://mcp.entscheidsuche.ch/mcp</code>, Auth leer. Ideal zum
+            Ausprobieren, ohne irgendein Konto.
+          </p>
+        </details>
+
+        <p class="small">
+          Eine ausführlichere Anleitung mit allen Voraussetzungen finden Sie in
+          <a href="https://github.com/entscheidsuche/entscheidsuche-mcp/blob/main/docs/CLIENTS.md">docs/CLIENTS.md</a>
+          im Repository.
+        </p>
       </div>
 
       <div class="panel">
