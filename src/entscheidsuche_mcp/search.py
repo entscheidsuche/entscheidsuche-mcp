@@ -19,7 +19,7 @@ from __future__ import annotations
 
 import logging
 import re
-from datetime import date, datetime
+from datetime import date, datetime, timezone
 from typing import Any, Dict, List, Optional, Tuple
 
 import httpx
@@ -65,7 +65,8 @@ def _serialise_date(value: date | int | str) -> str | int:
     if isinstance(value, int):
         if value >= 0:
             return value
-        d = datetime.utcfromtimestamp(value / 1000)
+        # `datetime.utcfromtimestamp` ist seit Python 3.12 deprecated.
+        d = datetime.fromtimestamp(value / 1000, tz=timezone.utc)
         return d.strftime("%Y-%m-%d")
     raise TypeError(f"Unsupported date type: {type(value)}")
 
@@ -127,6 +128,25 @@ def _calendar_interval(range_: DateRange | None) -> str:
     return "quarter"
 
 
+def _highlight_fields(language: Language | None) -> Dict[str, Any]:
+    """Highlight-Felder für `_build_query`.
+
+    Ohne expliziten Sprach-Wunsch werden alle Sprach-Sub-Felder von `title` und
+    `abstract` gehighlighted; sonst nur das angefragte Sub-Feld.
+    """
+    if language is None:
+        return {
+            "title.*": {"number_of_fragments": 0},
+            "abstract.*": {"number_of_fragments": 0},
+            "attachment.content": {},
+        }
+    return {
+        f"title.{language.value}": {"number_of_fragments": 0},
+        f"abstract.{language.value}": {"number_of_fragments": 0},
+        "attachment.content": {},
+    }
+
+
 def _build_query(params: SearchParams) -> dict:
     """Erzeugt den vollständigen Elasticsearch-Query-Body."""
     sort_field = {
@@ -152,13 +172,7 @@ def _build_query(params: SearchParams) -> dict:
             }
         },
         "sort": [{sort_field: "desc"}, {"id": "desc"}],
-        "highlight": {
-            "fields": {
-                f"title.{params.language.value}": {"number_of_fragments": 0},
-                f"abstract.{params.language.value}": {"number_of_fragments": 0},
-                "attachment.content": {},
-            }
-        },
+        "highlight": {"fields": _highlight_fields(params.language)},
     }
 
     filters = _build_filters(params)
@@ -213,9 +227,47 @@ def _join_highlight(parts: Optional[List[str]]) -> str:
 
 _COURT_PREFIX_RE = re.compile(r"^([^_]*_[^_]*)")
 
+# Sprach-Reihenfolge für Fallback, wenn keine Sprache angefragt oder das angefragte
+# Sub-Feld leer ist. Schweizer Amtssprachen, dann Englisch.
+_LANG_FALLBACK_ORDER: Tuple[str, ...] = ("de", "fr", "it", "en")
+
+
+def _localized_value(field: dict | None, lang: Language | None) -> str:
+    """Holt den Wert eines lokalisierten Felds mit Fallback auf andere Sprachen."""
+    if not field:
+        return ""
+    if lang is not None:
+        val = field.get(lang.value)
+        if val:
+            return val
+    for code in _LANG_FALLBACK_ORDER:
+        val = field.get(code)
+        if val:
+            return val
+    return ""
+
+
+def _localized_highlight(
+    highlight: dict, prefix: str, lang: Language | None
+) -> tuple[str, str | None]:
+    """Liefert (highlight_text, used_language_code) für ein lokalisiertes Feld.
+
+    Sucht zuerst die angefragte Sprache, dann jede Sprache aus dem Fallback;
+    Rückgabe ist leer-string + None, wenn nichts gehighlighted wurde.
+    """
+    if lang is not None:
+        key = f"{prefix}.{lang.value}"
+        if highlight.get(key):
+            return _join_highlight(highlight[key]), lang.value
+    for code in _LANG_FALLBACK_ORDER:
+        key = f"{prefix}.{code}"
+        if highlight.get(key):
+            return _join_highlight(highlight[key]), code
+    return "", None
+
 
 def _parse_hits(
-    raw: dict, lang: Language, include_content: bool = False
+    raw: dict, lang: Language | None, include_content: bool = False
 ) -> Tuple[List[SearchHit], int]:
     """Konvertiert die ES-Treffer in unsere `SearchHit`-Modelle."""
     hits_node = raw.get("hits", {})
@@ -226,18 +278,21 @@ def _parse_hits(
         src = hit.get("_source", {}) or {}
         highlight = hit.get("highlight", {}) or {}
 
-        title = (src.get("title") or {}).get(lang.value, "") or ""
-        abstract = (src.get("abstract") or {}).get(lang.value, "") or ""
-        meta = (src.get("meta") or {}).get(lang.value, "") or ""
-        original_url = (src.get("url") or {}).get(lang.value, "") or ""
+        title = _localized_value(src.get("title"), lang)
+        abstract = _localized_value(src.get("abstract"), lang)
+        meta = _localized_value(src.get("meta"), lang)
+        original_url = _localized_value(src.get("url"), lang)
 
         text = _join_highlight(highlight.get("attachment.content"))
-        if highlight.get(f"title.{lang.value}"):
-            title = _join_highlight(highlight[f"title.{lang.value}"])
-        if highlight.get(f"abstract.{lang.value}"):
-            abstract = _join_highlight(highlight[f"abstract.{lang.value}"])
-        if highlight.get(f"meta.{lang.value}"):
-            meta = _join_highlight(highlight[f"meta.{lang.value}"])
+        title_hl, _ = _localized_highlight(highlight, "title", lang)
+        if title_hl:
+            title = title_hl
+        abstract_hl, _ = _localized_highlight(highlight, "abstract", lang)
+        if abstract_hl:
+            abstract = abstract_hl
+        meta_hl, _ = _localized_highlight(highlight, "meta", lang)
+        if meta_hl:
+            meta = meta_hl
 
         attachment = src.get("attachment") or {}
         is_pdf = (attachment.get("content_type") == "application/pdf")
@@ -293,6 +348,25 @@ def _parse_aggregations(raw: dict) -> Optional[Dict[str, List[AggregationBucket]
     return result or None
 
 
+def _next_cursor(
+    hits: List[SearchHit], total: int, params: SearchParams
+) -> Optional[List[Any]]:
+    """Bestimmt den `search_after`-Cursor für die nächste Seite.
+
+    Ohne Cursor-State des Clients lässt sich auf Folge-Seiten nicht zuverlässig
+    vorab feststellen, ob noch weitere Treffer kommen — wir setzen den Cursor
+    optimistisch, sobald die Seite voll ist. Auf der ersten Seite (kein
+    `search_after` im Request) sparen wir uns den Cursor, wenn `total` bereits
+    durch diese Seite abgedeckt ist; das vermeidet den häufigsten Edge-Case
+    (genau `size` Treffer insgesamt).
+    """
+    if not hits or len(hits) < params.size:
+        return None
+    if params.search_after is None and total <= params.size:
+        return None
+    return hits[-1].sort
+
+
 class EntscheidsucheClient:
     """Asynchroner HTTP-Client für die entscheidsuche-Elasticsearch-API."""
 
@@ -330,7 +404,7 @@ class EntscheidsucheClient:
         logger.debug("ES query: %s", body)
         resp = await self._post(body)
         hits, total = _parse_hits(resp, params.language)
-        next_cursor = hits[-1].sort if hits and len(hits) == params.size else None
+        next_cursor = _next_cursor(hits, total, params)
         aggregations = _parse_aggregations(resp) if params.include_aggregations else None
         return SearchResponse(
             total=total,
@@ -339,7 +413,9 @@ class EntscheidsucheClient:
             aggregations=aggregations,
         )
 
-    async def get_document(self, doc_id: str, lang: Language) -> Optional[SearchHit]:
+    async def get_document(
+        self, doc_id: str, lang: Optional[Language] = None
+    ) -> Optional[SearchHit]:
         """Einzelnes Dokument mit vollständigem Volltext anhand seiner ID abrufen."""
         body: Dict[str, Any] = {
             "size": 1,

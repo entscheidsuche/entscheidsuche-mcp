@@ -60,10 +60,12 @@ class SearchParams(BaseModel):
             "Wenn nichts gesucht werden soll: '*'."
         ),
     )
-    language: Language = Field(
-        default=Language.de,
+    language: Optional[Language] = Field(
+        default=None,
         description=(
-            "Sprache für Highlight-Auswertung und Titel/Abstract-Rückgabe. "
+            "Bevorzugte Sprache für Highlight-Auswertung und Titel/Abstract-"
+            "Rückgabe. Wenn nicht gesetzt, wird das erste vorhandene Sprachfeld "
+            "des Dokuments verwendet (de → fr → it). "
             "Hat KEINE Wirkung als Filter — dafür `language_filter` verwenden."
         ),
     )
@@ -123,9 +125,12 @@ class GetDocumentParams(BaseModel):
     id: str = Field(
         description="Dokument-ID (entspricht `_id` im Index, z.B. 'CH_BGer_001_5A_123_2024_2024-06-15').",
     )
-    language: Language = Field(
-        default=Language.de,
-        description="Sprache für Titel/Abstract-Rückgabe.",
+    language: Optional[Language] = Field(
+        default=None,
+        description=(
+            "Bevorzugte Sprache für Titel/Abstract-Rückgabe. Wenn nicht gesetzt, "
+            "wird das erste vorhandene Sprachfeld zurückgegeben."
+        ),
     )
 
 

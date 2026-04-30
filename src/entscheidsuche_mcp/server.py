@@ -137,11 +137,6 @@ def _server_card_payload() -> dict[str, Any]:
                 "description": "Retrieve a single decision together with its full text.",
             },
             {
-                "name": "get_document",
-                "title": "Get document",
-                "description": "Compatibility alias for fetch_document.",
-            },
-            {
                 "name": "list_hierarchy",
                 "title": "List court hierarchy",
                 "description": "List cantons, courts and chambers with counts.",
@@ -166,6 +161,76 @@ def _server_card_payload() -> dict[str, Any]:
             }
         ],
     }
+
+
+def _normalise_mcp_path(path: str) -> str:
+    path = (path or "/mcp").strip()
+    if not path.startswith("/"):
+        path = "/" + path
+    return path.rstrip("/") or "/mcp"
+
+
+def _mcp_probe_payload(path: str) -> dict[str, Any]:
+    base_url = _public_base_url()
+    return {
+        "name": "entscheidsuche",
+        "title": "entscheidsuche-mcp",
+        "status": "ok",
+        "transport": "streamable-http",
+        "endpoint": f"{base_url}{path}",
+        "message": (
+            "Use POST for MCP JSON-RPC requests. Machine-readable metadata is "
+            "available under /.well-known/mcp and /.well-known/mcp/server-card.json."
+        ),
+    }
+
+
+def _is_probe_request(scope: dict[str, Any]) -> bool:
+    """True, wenn die GET-/HEAD-Anfrage offensichtlich eine Browser-/Discovery-Probe ist.
+
+    Echte JSON-RPC-Aufrufe gehen per POST ein und werden hier gar nicht ausgewertet.
+    GET mit `text/event-stream` ist der MCP-SSE-Stream — darf nicht als Probe gelten.
+    GET mit `application/json` (ohne SSE) lassen wir ebenfalls durch, weil manche
+    MCP-/HTTP-Clients ohne Streaming so anfragen.
+    """
+    if scope.get("method") == "HEAD":
+        return True
+    if scope.get("method") != "GET":
+        return False
+
+    headers = {
+        key.decode("latin1").lower(): value.decode("latin1").lower()
+        for key, value in scope.get("headers", [])
+    }
+    accept = headers.get("accept", "")
+
+    # SSE-Streams immer durchreichen.
+    if "text/event-stream" in accept:
+        return False
+    # JSON-RPC ohne Streaming ebenfalls durchreichen — kein Probe.
+    if "application/json" in accept:
+        return False
+
+    # Browser/Connector-Discovery: leerer Accept, */*, oder text/html → Probe.
+    return accept in {"", "*/*"} or "text/html" in accept
+
+
+def _compat_streamable_http_app(mcp_app, mcp_path: str):
+    """Hülle um die FastMCP-ASGI-App, die HEAD/GET-Discovery-Probes mit JSON beantwortet."""
+
+    async def app(scope, receive, send):
+        if (
+            scope.get("type") == "http"
+            and scope.get("path") == mcp_path
+            and _is_probe_request(scope)
+        ):
+            response = JSONResponse(_mcp_probe_payload(mcp_path))
+            await response(scope, receive, send)
+            return
+
+        await mcp_app(scope, receive, send)
+
+    return app
 
 
 def build_server() -> FastMCP:
@@ -236,9 +301,15 @@ def build_server() -> FastMCP:
             ),
         ] = "*",
         language: Annotated[
-            Language,
-            Field(description="Optionale Sprache für Highlight/Anzeige (de, fr, it)."),
-        ] = Language.de,
+            Optional[Language],
+            Field(
+                description=(
+                    "Optionale bevorzugte Sprache für Highlight/Anzeige (de, fr, it). "
+                    "Ohne Angabe wird das erste vorhandene Sprachfeld zurückgegeben — "
+                    "es findet KEINE Filterung statt; dafür `language_filter` setzen."
+                ),
+            ),
+        ] = None,
         sort: Annotated[
             SortOrder,
             Field(
@@ -329,9 +400,15 @@ def build_server() -> FastMCP:
             ),
         ],
         language: Annotated[
-            Language,
-            Field(description="Optionale Sprache für Highlight/Anzeige (de, fr, it)."),
-        ] = Language.de,
+            Optional[Language],
+            Field(
+                description=(
+                    "Optionale bevorzugte Sprache für Highlight/Anzeige (de, fr, it). "
+                    "Ohne Angabe wird das erste vorhandene Sprachfeld zurückgegeben — "
+                    "es findet KEINE Filterung statt; dafür `language_filter` setzen."
+                ),
+            ),
+        ] = None,
         sort: Annotated[
             SortOrder,
             Field(
@@ -412,28 +489,14 @@ def build_server() -> FastMCP:
             Field(description="Dokument-ID (z.B. 'CH_BGer_001_5A_123_2024_2024-06-15')."),
         ],
         language: Annotated[
-            Language, Field(description="Sprache für Anzeige.")
-        ] = Language.de,
-    ) -> Optional[SearchHit]:
-        return await _client(ctx).get_document(id, language)
-
-    @mcp.tool(
-        title="Einzeldokument abrufen (Alias)",
-        description=(
-            "Alias für `fetch_document`. Ruft einen einzelnen Entscheid anhand "
-            "seiner Dokument-ID ab und liefert immer den vollständigen Volltext "
-            "zurück."
-        ),
-    )
-    async def get_document(
-        ctx: Context,
-        id: Annotated[
-            str,
-            Field(description="Dokument-ID (z.B. 'CH_BGer_001_5A_123_2024_2024-06-15')."),
-        ],
-        language: Annotated[
-            Language, Field(description="Sprache für Anzeige.")
-        ] = Language.de,
+            Optional[Language],
+            Field(
+                description=(
+                    "Optionale bevorzugte Sprache für Titel/Abstract. Ohne Angabe "
+                    "wird das erste vorhandene Sprachfeld zurückgegeben."
+                ),
+            ),
+        ] = None,
     ) -> Optional[SearchHit]:
         return await _client(ctx).get_document(id, language)
 
@@ -504,18 +567,30 @@ _mcp_singleton: Optional[FastMCP] = None
 
 
 def get_mcp() -> FastMCP:
-    """Lazy-erzeugte FastMCP-Instanz (für ASGI-Mount)."""
+    """Lazy-erzeugte FastMCP-Instanz (für ASGI-Mount via Module-Level-`app`)."""
     global _mcp_singleton
     if _mcp_singleton is None:
         _mcp_singleton = build_server()
     return _mcp_singleton
 
 
-def create_app():
-    """Factory für ASGI-Server (z.B. `uvicorn ...:create_app --factory`)."""
+def create_app(mcp: Optional[FastMCP] = None):
+    """Factory für ASGI-Server.
+
+    Wenn `mcp` übergeben wird, nutzt die App genau diese Instanz — wichtig, damit
+    Settings (Pfad, stateless_http etc.), die der Aufrufer vor dem Bauen der App
+    konfiguriert hat, auch tatsächlich wirksam werden. Ohne Argument wird die
+    Lazy-Singleton-Instanz aus `get_mcp()` verwendet (für `uvicorn …:app`-Aufrufe).
+    """
+    if mcp is None:
+        mcp = get_mcp()
+
+    base_url = _public_base_url()
+    mcp_path = _normalise_mcp_path(
+        getattr(mcp.settings, "streamable_http_path", None) or "/mcp"
+    )
 
     async def well_known_manifest(_request):
-        base_url = _public_base_url()
         return JSONResponse(
             {
                 "name": "entscheidsuche",
@@ -524,7 +599,7 @@ def create_app():
                 "server_card_url": f"{base_url}/.well-known/mcp/server-card.json",
                 "transports": {
                     "streamable_http": {
-                        "url": f"{base_url}/mcp",
+                        "url": f"{base_url}{mcp_path}",
                     }
                 },
             }
@@ -533,14 +608,22 @@ def create_app():
     async def well_known_server_card(_request):
         return JSONResponse(_server_card_payload())
 
+    mcp_app = _compat_streamable_http_app(mcp.streamable_http_app(), mcp_path)
+
     return Starlette(
         routes=[
             Route("/.well-known/mcp", endpoint=well_known_manifest),
             Route("/.well-known/mcp/server-card.json", endpoint=well_known_server_card),
-            Mount("/", app=get_mcp().streamable_http_app()),
+            Mount("/", app=mcp_app),
         ]
     )
 
 
-# Für direkten ASGI-Mount: `uvicorn entscheidsuche_mcp.server:app`
-app = create_app()
+# Module-Level-Convenience für `uvicorn entscheidsuche_mcp.server:app`.
+# Nutzt die Lazy-Singleton-Instanz; für direkte CLI-Aufrufe baut `__main__.py`
+# die Instanz selbst und übergibt sie an `create_app`.
+def _build_module_app():
+    return create_app()
+
+
+app = _build_module_app()

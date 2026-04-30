@@ -93,12 +93,14 @@ def main(argv: list[str] | None = None) -> int:
         return 0
 
     # HTTP-Modi: Settings am Server konfigurieren und mit optionalem CORS starten.
+    # Achtung: `create_app(server)` muss die *gleiche* Instanz erhalten, damit die
+    # hier gesetzten Settings auch in der gemounteten ASGI-App wirken.
     server.settings.host = args.host
     server.settings.port = args.port
     if args.transport == "streamable-http":
         server.settings.streamable_http_path = args.path
         server.settings.stateless_http = _parse_bool_env("MCP_STATELESS_HTTP", True)
-        app = create_app()
+        app = create_app(server)
     else:  # sse
         server.settings.sse_path = args.path
         server.settings.message_path = args.path.rstrip("/") + "/messages/"

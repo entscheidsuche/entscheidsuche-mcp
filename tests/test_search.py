@@ -270,6 +270,61 @@ def test_parse_hits_basic():
     assert h.sort == [1718409600000, "CH_BGer_001_5A_123_2024_2024-06-15"]
 
 
+def test_parse_hits_falls_back_to_other_language_when_requested_missing():
+    """Wenn das angefragte Sprachfeld leer ist, wird auf die nächste verfügbare
+    Sprache zurückgegriffen (de → fr → it)."""
+    hit = {
+        "_id": "VD_TC_001_xy",
+        "_source": {
+            "title": {"fr": "Titre en français"},
+            "abstract": {"fr": "Résumé"},
+            "url": {"fr": "https://example.test/fr"},
+            "date": "2024-01-02",
+            "scrapedate": "2024-01-03",
+            "canton": "vd",
+            "attachment": {},
+        },
+        "highlight": {},
+        "sort": [123, "VD_TC_001_xy"],
+    }
+    raw = {"hits": {"total": {"value": 1}, "hits": [hit]}}
+    hits, _ = _parse_hits(raw, Language.de)
+    assert hits[0].title == "Titre en français"
+    assert hits[0].abstract == "Résumé"
+    assert hits[0].original_url == "https://example.test/fr"
+
+
+def test_parse_hits_with_no_language_uses_first_available():
+    hit = {
+        "_id": "TI_TC_001_xy",
+        "_source": {
+            "title": {"it": "Titolo italiano", "fr": "Titre français"},
+            "abstract": {"it": "Sommario"},
+            "url": {},
+            "date": "2024-01-02",
+            "canton": "ti",
+            "attachment": {},
+        },
+        "highlight": {},
+        "sort": [123, "TI_TC_001_xy"],
+    }
+    raw = {"hits": {"total": {"value": 1}, "hits": [hit]}}
+    hits, _ = _parse_hits(raw, None)
+    # Fallback-Reihenfolge ist de → fr → it; ohne `de` wird `fr` genommen.
+    assert hits[0].title == "Titre français"
+    assert hits[0].abstract == "Sommario"
+
+
+def test_build_query_highlight_wildcard_when_no_language():
+    params = SearchParams(query="Mietzins", language=None)
+    body = _build_query(params)
+    fields = body["highlight"]["fields"]
+    assert "title.*" in fields
+    assert "abstract.*" in fields
+    assert "attachment.content" in fields
+    assert "title.de" not in fields
+
+
 def test_parse_hits_invalid_date_becomes_none():
     hit = dict(SAMPLE_HIT)
     hit["_source"] = dict(SAMPLE_HIT["_source"])
@@ -525,5 +580,36 @@ async def test_client_search_no_next_cursor_when_fewer_hits():
             client=http_client,
         )
         params = SearchParams(query="*", size=20)
+        resp = await client.search(params)
+        assert resp.next_cursor is None
+
+
+@pytest.mark.asyncio
+async def test_client_search_no_next_cursor_when_total_equals_first_page_size():
+    """Edge-Case: erste Seite mit genau `size` Treffern und `total == size`.
+
+    Ohne Sonderbehandlung würde der Client einen Cursor liefern, der dann auf
+    eine leere Folge-Seite zeigt. Auf der ersten Seite kennen wir `total`, also
+    fixen wir den Fall hier.
+    """
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(
+            200,
+            json={
+                "hits": {
+                    "total": {"value": 2},
+                    "hits": [SAMPLE_HIT, SAMPLE_HIT],
+                },
+            },
+        )
+
+    transport = httpx.MockTransport(handler)
+    async with httpx.AsyncClient(transport=transport) as http_client:
+        client = EntscheidsucheClient(
+            es_url="https://example.test/_search",
+            facets_url="https://example.test/Facetten.json",
+            client=http_client,
+        )
+        params = SearchParams(query="*", size=2)
         resp = await client.search(params)
         assert resp.next_cursor is None
