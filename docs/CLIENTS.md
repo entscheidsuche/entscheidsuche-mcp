@@ -30,6 +30,7 @@ ist öffentlich.
 | [Claude Code](#claude-code-cli) | Terminal | `claude mcp add` (HTTP nativ) | API-Credits oder Pro/Max-Plan |
 | [Claude API](#claude-api-direkt) | Eigener Code | `mcp_servers` im Tools-Aufruf | API-Konto (pay-as-you-go) |
 | [ChatGPT](#chatgpt) | chatgpt.com, Desktop, Mobile | Custom Connectors (Deep Research / Agent) | ChatGPT Pro / Team / Enterprise / Edu |
+| [Perplexity](#perplexity) | perplexity.ai, Desktop, Mobile | Connectors (MCP) | Perplexity Pro / Enterprise (sich entwickelnd) |
 | [VS Code + Copilot](#vs-code-mit-github-copilot) | VS Code | `.vscode/mcp.json` | GitHub Copilot Pro o.ä. |
 | [Cursor](#cursor) | Cursor-Editor | UI oder `~/.cursor/mcp.json` | gratis und kostenpflichtig |
 | [Cline / Continue.dev / Zed](#weitere-open-source-clients) | VS Code / Editor | Editor-spezifische Config | Open Source / gratis |
@@ -176,6 +177,35 @@ Research**. Einrichtung über die Web-Oberfläche:
 > Im normalen Chat-Modus mit Connector-Toolauswahl ist das kein Problem.
 >
 > Doku: <https://platform.openai.com/docs/mcp>
+
+---
+
+## Perplexity
+
+Perplexity hat im Lauf von 2025 begonnen, Custom-Connectors über MCP
+einzubinden. Die UI-Pfade haben sich mehrfach geändert; Stand 2025/2026
+führt der Weg in der Regel über die Connectors-Verwaltung im
+Settings-Bereich (für individuelle Konten) oder über die
+Workspace-Administration (für Enterprise/Business).
+
+1. perplexity.ai → **Settings** → **Connectors** *(bzw. „Integrations"
+   bzw. im Enterprise-Workspace „Workspace settings → Connectors")*.
+2. *„Add custom connector"* / *„Add MCP server"* wählen.
+3. Eintragen:
+   - Name: `entscheidsuche`
+   - Server URL: `https://mcp.entscheidsuche.ch/mcp`
+   - Authentication: *None*
+4. Connector im Chat aktivieren (Tools-/Connectors-Symbol unter dem
+   Eingabefeld).
+
+> **Voraussetzung:** Custom-MCP-Connectors sind in den kostenpflichtigen
+> Tarifen vorgesehen — typischerweise Perplexity Pro, Enterprise oder
+> Business; im Free-Tier ist die Funktion regelmässig nicht verfügbar
+> oder eingeschränkt. Stand und Verfügbarkeit ändern sich in Perplexity
+> öfter als bei den anderen Anbietern; dieser Eintrag wurde nicht
+> selbst durchgespielt.
+>
+> Doku: <https://www.perplexity.ai/help-center>
 
 ---
 

@@ -345,6 +345,31 @@ resp = client.messages.create(
         </details>
 
         <details>
+          <summary>Perplexity <span class="badge">Pro / Enterprise · Verfügbarkeit ändert sich</span></summary>
+          <ol>
+            <li>perplexity.ai → <strong>Settings → Connectors</strong> (bzw. <em>„Integrations"</em>; im Enterprise-Workspace unter <em>„Workspace settings"</em>).</li>
+            <li><em>„Add custom connector" / „Add MCP server"</em> wählen.</li>
+            <li>
+              Eintragen:
+              <ul>
+                <li>Name: <code>entscheidsuche</code></li>
+                <li>Server URL: <code>https://mcp.entscheidsuche.ch/mcp</code></li>
+                <li>Authentication: <em>None</em></li>
+              </ul>
+            </li>
+            <li>Connector im Chat über das Tools-/Connectors-Symbol aktivieren.</li>
+          </ol>
+          <p class="small">
+            Custom-MCP-Connectors sind in den kostenpflichtigen Tarifen
+            vorgesehen, typischerweise Perplexity Pro, Enterprise oder
+            Business. Verfügbarkeit und UI-Pfade ändern sich bei Perplexity
+            öfter als bei anderen Anbietern; dieser Eintrag wurde nicht
+            selbst durchgespielt. Doku:
+            <a href="https://www.perplexity.ai/help-center">perplexity.ai/help-center</a>.
+          </p>
+        </details>
+
+        <details>
           <summary>VS Code mit GitHub Copilot <span class="badge">Copilot Pro o.ä.</span></summary>
           <p>Workspace-lokal in <code>.vscode/mcp.json</code>:</p>
           <pre><code>{
