@@ -51,6 +51,7 @@ mobilen App und in der Desktop-App gleichzeitig verfügbar.
    - **Name:** `entscheidsuche`
    - **Remote MCP server URL:** `https://mcp.entscheidsuche.ch/mcp`
    - **Authentication:** *None*
+   - **Transport:** *Streamable HTTP* (nicht *SSE* — SSE ist nur Legacy-Fallback).
 4. Bestätigen — die Tools `search`, `search_by_case_number`,
    `fetch_document`, `list_hierarchy`, `list_facets`, `server_info` müssen
    anschliessend in der Tool-Liste erscheinen.
@@ -163,7 +164,9 @@ Research**. Einrichtung über die Web-Oberfläche:
 1. chatgpt.com → **Settings → Connectors** → *„Create"*.
 2. **MCP Server URL:** `https://mcp.entscheidsuche.ch/mcp`,
    Auth = *No authentication*.
-3. Connector im Chat aktivieren (Tools-Menü) bzw. in einem
+3. Falls ein Transport-Feld erscheint: *Streamable HTTP* wählen
+   (nicht *SSE*).
+4. Connector im Chat aktivieren (Tools-Menü) bzw. in einem
    Deep-Research-Run mit anhaken.
 
 > **Voraussetzung:** ChatGPT Pro, Team, Enterprise oder Edu.
@@ -195,6 +198,7 @@ Workspace-Administration (für Enterprise/Business).
    - Name: `entscheidsuche`
    - Server URL: `https://mcp.entscheidsuche.ch/mcp`
    - Authentication: *None*
+   - Transport (falls abfragbar): *Streamable HTTP*.
 4. Connector im Chat aktivieren (Tools-/Connectors-Symbol unter dem
    Eingabefeld).
 

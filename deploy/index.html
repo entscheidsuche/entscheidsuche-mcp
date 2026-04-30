@@ -263,6 +263,7 @@
                 <li>Name: <code>entscheidsuche</code></li>
                 <li>Remote MCP server URL: <code>https://mcp.entscheidsuche.ch/mcp</code></li>
                 <li>Authentication: <em>None</em></li>
+                <li>Transport: <em>Streamable HTTP</em> (nicht <em>SSE</em> &mdash; SSE ist nur Legacy-Fallback).</li>
               </ul>
             </li>
             <li>Connector pro Chat aktivieren (Tool-Symbol unter dem Eingabefeld).</li>
@@ -332,6 +333,7 @@ resp = client.messages.create(
           <ol>
             <li>chatgpt.com → <strong>Settings → Connectors</strong> → <em>„Create"</em>.</li>
             <li>MCP Server URL: <code>https://mcp.entscheidsuche.ch/mcp</code>, Auth = <em>No authentication</em>.</li>
+            <li>Falls ein Transport-Feld erscheint: <em>Streamable HTTP</em> wählen (nicht <em>SSE</em>).</li>
             <li>Connector im Chat aktivieren (Tools-Menü) bzw. in einem Deep-Research-Run anhaken.</li>
           </ol>
           <p class="small">
