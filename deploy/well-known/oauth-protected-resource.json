@@ -1,0 +1,7 @@
+{
+  "resource": "https://mcp.entscheidsuche.ch/mcp",
+  "authorization_servers": [],
+  "bearer_methods_supported": [],
+  "resource_documentation": "https://mcp.entscheidsuche.ch",
+  "authentication_required": false
+}

@@ -100,6 +100,15 @@ def main(argv: list[str] | None = None) -> int:
     if args.transport == "streamable-http":
         server.settings.streamable_http_path = args.path
         server.settings.stateless_http = _parse_bool_env("MCP_STATELESS_HTTP", True)
+        # JSON-Response-Modus: POST /mcp wird mit einer einzelnen JSON-Antwort
+        # statt mit einem SSE-Stream beantwortet. Damit akzeptiert FastMCP auch
+        # Clients, die nur "application/json" im Accept-Header senden — die
+        # Streamable-HTTP-Spec verlangt sonst zwingend zusätzlich
+        # "text/event-stream", was viele MCP-Verzeichnisse und kleinere
+        # MCP-Clients (python-requests/2.33.1, relay-registry, mcp-spider,
+        # Chiark, agent-tools.cloud-crawler, AgentDiscoveryIndex …) nicht
+        # senden — Folge waren 406er-Antworten und Nicht-Erkennung.
+        server.settings.json_response = _parse_bool_env("MCP_JSON_RESPONSE", True)
         app = create_app(server)
     else:  # sse
         server.settings.sse_path = args.path

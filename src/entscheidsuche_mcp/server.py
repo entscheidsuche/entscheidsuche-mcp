@@ -240,13 +240,16 @@ def _mcp_probe_payload(path: str) -> dict[str, Any]:
     }
 
 
-def _is_probe_request(scope: dict[str, Any]) -> bool:
+def _is_probe_request(scope: dict[str, Any], json_response_mode: bool = False) -> bool:
     """True, wenn die GET-/HEAD-Anfrage offensichtlich eine Browser-/Discovery-Probe ist.
 
     Echte JSON-RPC-Aufrufe gehen per POST ein und werden hier gar nicht ausgewertet.
     GET mit `text/event-stream` ist der MCP-SSE-Stream — darf nicht als Probe gelten.
-    GET mit `application/json` (ohne SSE) lassen wir ebenfalls durch, weil manche
-    MCP-/HTTP-Clients ohne Streaming so anfragen.
+    Im `json_response_mode` (= MCP_JSON_RESPONSE=true) sendet der Server keine
+    Server-initiierten Notifications; GET /mcp mit `application/json` ist dann
+    fast immer ein Discovery-Probe und wird mit JSON beantwortet — sonst würde
+    FastMCP 406 zurückliefern ("Not Acceptable: Client must accept text/event-stream"),
+    was MCP-Verzeichnisse und SDK-CLI-Heartbeats unnötig brechen lässt.
     """
     if scope.get("method") == "HEAD":
         return True
@@ -259,10 +262,18 @@ def _is_probe_request(scope: dict[str, Any]) -> bool:
     }
     accept = headers.get("accept", "")
 
-    # SSE-Streams immer durchreichen.
+    # SSE-Streams immer durchreichen — der Client will explizit den
+    # Server-initiierten Event-Stream und FastMCP weiss damit umzugehen.
     if "text/event-stream" in accept:
         return False
-    # JSON-RPC ohne Streaming ebenfalls durchreichen — kein Probe.
+
+    # JSON-Response-Modus: keine Server-initiierten Streams. Daher jedes GET
+    # mit JSON-Accept (oder ohne) als Discovery-Probe behandeln.
+    if json_response_mode:
+        return True
+
+    # Klassischer Streamable-HTTP-Modus: JSON-Accept durchreichen, FastMCP
+    # entscheidet selbst (typischerweise 406, da kein SSE).
     if "application/json" in accept:
         return False
 
@@ -270,14 +281,14 @@ def _is_probe_request(scope: dict[str, Any]) -> bool:
     return accept in {"", "*/*"} or "text/html" in accept
 
 
-def _compat_streamable_http_app(mcp_app, mcp_path: str):
+def _compat_streamable_http_app(mcp_app, mcp_path: str, json_response_mode: bool = False):
     """Hülle um die FastMCP-ASGI-App, die HEAD/GET-Discovery-Probes mit JSON beantwortet."""
 
     async def app(scope, receive, send):
         if (
             scope.get("type") == "http"
             and scope.get("path") == mcp_path
-            and _is_probe_request(scope)
+            and _is_probe_request(scope, json_response_mode=json_response_mode)
         ):
             response = JSONResponse(_mcp_probe_payload(mcp_path))
             await response(scope, receive, send)
@@ -671,7 +682,10 @@ def create_app(mcp: Optional[FastMCP] = None):
         return JSONResponse(_server_card_payload())
 
     inner_app = mcp.streamable_http_app()
-    mcp_app = _compat_streamable_http_app(inner_app, mcp_path)
+    json_response_mode = bool(getattr(mcp.settings, "json_response", False))
+    mcp_app = _compat_streamable_http_app(
+        inner_app, mcp_path, json_response_mode=json_response_mode
+    )
 
     @asynccontextmanager
     async def lifespan(_app):

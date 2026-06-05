@@ -1,0 +1,52 @@
+{
+  "name": "entscheidsuche",
+  "title": "entscheidsuche-mcp",
+  "description": "MCP server for Swiss court decisions and case law from entscheidsuche.ch. Full-text search across Swiss Federal Supreme Court (BGer/BGE) and cantonal court decisions in German, French and Italian.",
+  "url": "https://mcp.entscheidsuche.ch/mcp",
+  "documentationUrl": "https://mcp.entscheidsuche.ch",
+  "provider": {
+    "organization": "entscheidsuche.ch",
+    "url": "https://entscheidsuche.ch"
+  },
+  "version": "0.1.0",
+  "protocolVersion": "0.3.0",
+  "capabilities": {
+    "streaming": false,
+    "pushNotifications": false,
+    "stateTransitionHistory": false
+  },
+  "defaultInputModes": ["application/json"],
+  "defaultOutputModes": ["application/json"],
+  "skills": [
+    {
+      "id": "search",
+      "name": "Search Swiss case law",
+      "description": "Full-text search across Swiss court decisions and case law.",
+      "tags": ["search", "legal", "switzerland", "case-law", "court-decisions"]
+    },
+    {
+      "id": "search_by_case_number",
+      "name": "Search by case number",
+      "description": "Exact lookup of Swiss case numbers, docket references and BGE citations.",
+      "tags": ["search", "legal", "case-number", "BGE", "docket"]
+    },
+    {
+      "id": "fetch_document",
+      "name": "Fetch document",
+      "description": "Retrieve a single decision together with its full text.",
+      "tags": ["fetch", "document", "fulltext"]
+    },
+    {
+      "id": "list_hierarchy",
+      "name": "List court hierarchy",
+      "description": "List cantons, courts and chambers with counts.",
+      "tags": ["hierarchy", "filter", "facets"]
+    },
+    {
+      "id": "list_facets",
+      "name": "List facets",
+      "description": "Localized facet tree for courts and jurisdictions.",
+      "tags": ["facets", "filter", "i18n"]
+    }
+  ]
+}
