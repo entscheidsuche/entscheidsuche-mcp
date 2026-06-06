@@ -1,0 +1,33 @@
+# entscheidsuche-mcp
+
+> MCP-Server für entscheidsuche.ch — Volltext-Suche in Schweizer
+> Gerichtsentscheiden und Rechtsprechung (Bundesgericht BGer/BGE,
+> kantonale Gerichte, Obergerichte, Verwaltungsgerichte) in
+> Deutsch, Französisch und Italienisch.
+
+Der Server stellt sechs Werkzeuge über das Model Context Protocol
+(Streamable HTTP) bereit:
+
+- search                 — Volltext-Suche mit Filtern, Sortierung, Paginierung
+- search_by_case_number  — Exakte Suche nach Geschäftsnummern, BGE-Zitaten
+- fetch_document         — Volltext eines einzelnen Entscheids
+- list_hierarchy         — Hierarchie-IDs für Kantone, Gerichte, Kammern
+- list_facets            — Lokalisierter Facetten-Baum
+- server_info            — Versions- und Endpunkt-Information
+
+## MCP-Endpoint
+
+- URL: https://mcp.entscheidsuche.ch/mcp
+- Transport: Streamable HTTP (MCP-Spec 2025-06-18)
+- Authentifizierung: keine (öffentlich)
+
+## Discovery
+
+- /.well-known/mcp.json
+- /.well-known/agent-card.json
+- /.well-known/oauth-protected-resource
+
+## Quellen
+
+- Website:    https://entscheidsuche.ch
+- Repository: https://github.com/entscheidsuche/entscheidsuche-mcp
