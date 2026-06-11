@@ -22,6 +22,7 @@ import sys
 import uvicorn
 from starlette.middleware.cors import CORSMiddleware
 
+from .access_log import configure_file_handler
 from .server import build_server, create_app
 
 
@@ -79,10 +80,16 @@ def _parse_bool_env(name: str, default: bool) -> bool:
 def main(argv: list[str] | None = None) -> int:
     args = _parse_args(argv)
 
+    # force=True ueberschreibt evtl. schon installierte Handler (Default-Verhalten
+    # von logging.basicConfig: no-op wenn Root bereits Handler hat).
     logging.basicConfig(
         level=getattr(logging, args.log_level.upper(), logging.INFO),
         format="%(asctime)s %(levelname)s %(name)s — %(message)s",
+        force=True,
     )
+    logging.getLogger("entscheidsuche_mcp").setLevel(logging.INFO)
+    # Optionaler dedizierter Access-Log-File-Handler (ESC_ACCESS_LOG_FILE).
+    configure_file_handler()
 
     server = build_server()
     cors_origins = _parse_cors_origins()
@@ -124,11 +131,15 @@ def main(argv: list[str] | None = None) -> int:
             expose_headers=["Mcp-Session-Id"],
         )
 
+    # log_config=None: uvicorn benutzt unser via basicConfig konfiguriertes
+    # Logging unveraendert, statt seine Default-dictConfig ueber unsere Logger
+    # zu legen.
     uvicorn.run(
         app,
         host=args.host,
         port=args.port,
         log_level=args.log_level.lower(),
+        log_config=None,
     )
     return 0
 

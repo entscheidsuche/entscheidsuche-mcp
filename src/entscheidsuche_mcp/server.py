@@ -33,6 +33,8 @@ from starlette.responses import JSONResponse
 from starlette.routing import Mount, Route
 
 from . import __version__
+from .access_log import wrap_if_enabled
+from .statistik import statistik_endpoint
 from .models import (
     DateRange,
     HierarchyResponse,
@@ -686,6 +688,7 @@ def create_app(mcp: Optional[FastMCP] = None):
     mcp_app = _compat_streamable_http_app(
         inner_app, mcp_path, json_response_mode=json_response_mode
     )
+    mcp_app = wrap_if_enabled(mcp_app, mcp_path=mcp_path)
 
     @asynccontextmanager
     async def lifespan(_app):
@@ -698,6 +701,8 @@ def create_app(mcp: Optional[FastMCP] = None):
         routes=[
             Route("/.well-known/mcp", endpoint=well_known_manifest),
             Route("/.well-known/mcp/server-card.json", endpoint=well_known_server_card),
+            Route("/statistik", endpoint=statistik_endpoint),
+            Route("/statistik/", endpoint=statistik_endpoint),
             Mount("/", app=mcp_app),
         ],
         lifespan=lifespan,

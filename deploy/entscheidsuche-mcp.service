@@ -31,7 +31,7 @@ RestrictNamespaces=true
 RestrictRealtime=true
 LockPersonality=true
 RestrictSUIDSGID=true
-ReadWritePaths=/var/log/entscheidsuche-mcp
+ReadWritePaths=/var/log/entscheidsuche-mcp /var/lib/entscheidsuche-mcp
 
 # Resourcen-Limits
 LimitNOFILE=4096

@@ -233,6 +233,49 @@ systemctl status entscheidsuche-mcp
 journalctl -u entscheidsuche-mcp -f
 ```
 
+## Nutzungsstatistik (`/statistik`)
+
+Der MCP-Server liefert unter `/statistik` eine selbst-enthaltene
+HTML-Seite mit Tageszahlen, Top-Tools, KI-Client-Klassifizierung
+(`clientInfo.name`), Stunden-Sparklines und Methoden-Verteilung.
+Wird **bei jedem Aufruf live** generiert; Vortage werden in einem
+JSON-Cache (`/var/lib/entscheidsuche-mcp/stats-cache.json`) fixiert.
+
+Basic Auth via Env-Variablen (in `/etc/entscheidsuche-mcp.env`):
+
+```bash
+ESC_STATS_USER=admin
+ESC_STATS_PASS=DEIN_PASSWORT
+```
+
+Sind beide leer, ist `/statistik` ungeschützt zugänglich (Dev-Modus).
+Der Authorization-Header wird vom nginx-vHost unverändert an den
+Python-Server durchgereicht; die Prüfung passiert dort per
+`hmac.compare_digest` gegen die Env-Variablen.
+
+Inhalte sind reine Aggregate. Mit `ESC_ACCESS_LOG_ARGS_MAX=0` (Default
+im `.env.example`) werden Tool-Argumente — also die Suchqueries der
+Nutzer — gar nicht erst geloggt.
+
+Datenquelle: `/var/log/entscheidsuche-mcp/access.log` (geschrieben von
+der `entscheidsuche_mcp.access`-Middleware). Logrotation z. B. via
+`/etc/logrotate.d/entscheidsuche-mcp` einrichten:
+
+```
+/var/log/entscheidsuche-mcp/access.log {
+    weekly
+    rotate 12
+    compress
+    delaycompress
+    missingok
+    notifempty
+    copytruncate
+}
+```
+
+`copytruncate` ist wichtig, damit der Logger weiter in die rotierte
+Datei schreibt, ohne dass der Server neu gestartet werden muss.
+
 ## Architektur
 
 ```

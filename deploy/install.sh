@@ -56,8 +56,8 @@ fi
 echo "==> systemd-Unit installieren"
 install -m 644 "$INSTALL_DIR/deploy/entscheidsuche-mcp.service" \
     /etc/systemd/system/entscheidsuche-mcp.service
-mkdir -p /var/log/entscheidsuche-mcp
-chown "$SERVICE_USER:$SERVICE_USER" /var/log/entscheidsuche-mcp
+mkdir -p /var/log/entscheidsuche-mcp /var/lib/entscheidsuche-mcp
+chown "$SERVICE_USER:$SERVICE_USER" /var/log/entscheidsuche-mcp /var/lib/entscheidsuche-mcp
 systemctl daemon-reload
 systemctl enable --now entscheidsuche-mcp.service
 
