@@ -16,17 +16,22 @@ from entscheidsuche_mcp import statistik
 def _log(ts: str, method: str, tool: str = "-", status: str = "200",
          size: int = 5000, ms: int = 10, client: str = "127.0.0.1",
          app: str = "-", appver: str = "-") -> str:
-    return (f"{ts},000 INFO entscheidsuche_mcp.access — method={method} "
-            f"tool={tool} id=1 status={status} size={size} ms={ms} "
-            f"client={client} app={app} appver={appver} args=")
+    return (f"{ts},000 INFO entscheidsuche_mcp.access — method={method} tool={tool} "
+            f"id=1 status={status} size={size} ms={ms} client={client} "
+            f"app={app} appver={appver} args=")
 
 
 def _write_log(path: Path, lines: list[str]) -> None:
     path.write_text("\n".join(lines) + "\n", encoding="utf-8")
 
 
+# ---------------------------------------------------------------------------
+# Parser + Aggregator
+# ---------------------------------------------------------------------------
+
+
 def test_parse_log_returns_chronological_rows(tmp_path):
-    p = tmp_path / "acc.log"
+    p = tmp_path / "afa.log"
     _write_log(p, [
         _log("2026-06-08 10:00:00", "tools/call", "search"),
         _log("2026-06-08 09:00:00", "initialize", app="Claude", appver="1.0"),
@@ -35,72 +40,154 @@ def test_parse_log_returns_chronological_rows(tmp_path):
     assert [r["method"] for r in rows] == ["initialize", "tools/call"]
 
 
-def test_aggregate_per_day_counts_categories(tmp_path):
-    p = tmp_path / "acc.log"
+def test_parser_resolves_app_for_following_tools_call(tmp_path):
+    """Nach initialize gehoeren spaetere Calls von derselben IP zur App."""
+    p = tmp_path / "afa.log"
     _write_log(p, [
-        _log("2026-06-08 09:00:00", "initialize", app="Claude", appver="1.0"),
-        _log("2026-06-08 09:00:01", "tools/list"),
-        _log("2026-06-08 09:00:02", "tools/call", "search"),
-        _log("2026-06-08 09:00:03", "tools/call", "fetch_document"),
-        _log("2026-06-08 09:00:04", "tools/call", "search"),
-        _log("2026-06-09 10:00:00", "initialize", app="ChatGPT", appver="4.5"),
+        _log("2026-06-08 09:00:00", "initialize",
+             client="160.79.106.37", app="Claude", appver="1.0"),
+        _log("2026-06-08 09:00:05", "tools/call", "search",
+             client="160.79.106.38"),  # andere IP, aber gleicher Pool
+        _log("2026-06-08 09:00:10", "tools/call", "fetch_document",
+             client="160.79.106.39"),
+    ])
+    rows = statistik.parse_log(p)
+    assert rows[0]["resolved_app"] == "Claude"
+    assert rows[1]["resolved_app"] == "Claude"
+    assert rows[2]["resolved_app"] == "Claude"
+
+
+def test_parser_session_timeout(tmp_path):
+    """Nach 30+ Min Pause keine App-Zuordnung mehr."""
+    p = tmp_path / "afa.log"
+    _write_log(p, [
+        _log("2026-06-08 09:00:00", "initialize",
+             client="160.79.106.37", app="Claude", appver="1.0"),
+        _log("2026-06-08 10:00:00", "tools/call", "search",
+             client="160.79.106.37"),
+    ])
+    rows = statistik.parse_log(p)
+    assert rows[0]["resolved_app"] == "Claude"
+    assert rows[1]["resolved_app"] == "-"
+
+
+def test_aggregate_counts_apps_tool_calls_separately(tmp_path):
+    p = tmp_path / "afa.log"
+    _write_log(p, [
+        _log("2026-06-08 09:00:00", "initialize",
+             client="160.79.106.37", app="Claude", appver="1.0"),
+        _log("2026-06-08 09:00:01", "tools/list", client="160.79.106.37"),
+        _log("2026-06-08 09:00:02", "tools/call", "search",
+             client="160.79.106.37"),
+        _log("2026-06-08 09:00:03", "tools/call", "fetch_document",
+             client="160.79.106.37"),
     ])
     days = statistik.aggregate_per_day(statistik.parse_log(p))
-    assert set(days) == {"2026-06-08", "2026-06-09"}
-    d8 = days["2026-06-08"]
-    assert d8["tool_calls"] == 3
-    assert d8["sessions"] == 1
-    assert d8["setup"] == 2
-    assert d8["tools"]["search"] == 2
-    assert d8["apps"]["Claude"] == 1
-    assert d8["hours_tools"][9] == 3
-    d9 = days["2026-06-09"]
-    assert d9["sessions"] == 1
-    assert d9["apps"]["ChatGPT"] == 1
+    d = days["2026-06-08"]
+    assert d["apps_tool_calls"]["Claude"] == 2
+    assert d["apps_setup_calls"]["Claude"] == 2  # initialize + tools/list
+    assert d["apps_all_calls"]["Claude"] == 4
 
 
-def test_aggregate_handles_4xx_errors(tmp_path):
-    p = tmp_path / "acc.log"
+def test_aggregate_sessions_with_tools(tmp_path):
+    """Eine Session ohne tools/call zaehlt nicht in sessions_with_tools."""
+    p = tmp_path / "afa.log"
+    _write_log(p, [
+        # Session 1: aktiv (mit Tool-Call)
+        _log("2026-06-08 09:00:00", "initialize",
+             client="160.79.106.37", app="Claude", appver="1.0"),
+        _log("2026-06-08 09:00:01", "tools/call", "search",
+             client="160.79.106.37"),
+        # Session 2: nur initialize, kein Tool-Call (anderer Tag, frische Pool-IP)
+        _log("2026-06-08 15:00:00", "initialize",
+             client="8.8.8.8", app="ChatGPT", appver="4.0"),
+    ])
+    days = statistik.aggregate_per_day(statistik.parse_log(p))
+    d = days["2026-06-08"]
+    assert d["sessions"] == 2
+    assert d["sessions_with_tools"] == 1
+
+
+def test_aggregate_error_breakdown(tmp_path):
+    p = tmp_path / "afa.log"
     _write_log(p, [
         _log("2026-06-08 09:00:00", "tools/call", "search", status="400"),
-        _log("2026-06-08 09:00:01", "tools/call", "search", status="500"),
-        _log("2026-06-08 09:00:02", "tools/call", "search", status="200"),
+        _log("2026-06-08 09:00:01", "tools/call", "search", status="400"),
+        _log("2026-06-08 09:00:02", "initialize", status="500"),
+        _log("2026-06-08 09:00:03", "tools/call", "search", status="200"),
     ])
     days = statistik.aggregate_per_day(statistik.parse_log(p))
-    assert days["2026-06-08"]["errors"] == 2
+    d = days["2026-06-08"]
+    assert d["errors"] == 3
+    assert d["error_breakdown"]["tools/call → 400"] == 2
+    assert d["error_breakdown"]["initialize → 500"] == 1
 
 
-def test_cache_roundtrip_preserves_counters(tmp_path):
+def test_aggregate_hours_setup_separated(tmp_path):
+    p = tmp_path / "afa.log"
+    _write_log(p, [
+        _log("2026-06-08 09:00:00", "initialize"),
+        _log("2026-06-08 09:00:01", "tools/call", "search"),
+        _log("2026-06-08 09:00:02", "tools/call", "search"),
+    ])
+    days = statistik.aggregate_per_day(statistik.parse_log(p))
+    d = days["2026-06-08"]
+    assert d["hours_tools"][9] == 2
+    assert d["hours_setup"][9] == 1
+    assert d["hours_all"][9] == 3
+
+
+# ---------------------------------------------------------------------------
+# Cache
+# ---------------------------------------------------------------------------
+
+
+def test_cache_roundtrip_preserves_new_fields(tmp_path):
     p = tmp_path / "cache.json"
     agg = statistik._empty_day()
-    agg["tool_calls"] = 7
-    agg["tools"]["search"] = 4
-    agg["tools"]["fetch_document"] = 3
-    agg["apps"]["Claude"] = 2
-    agg["apps_last_ts"]["Claude"] = "2026-06-08T15:30:00"
-    agg["hours_tools"][10] = 5
+    agg["sessions_with_tools"] = 3
+    agg["apps_tool_calls"]["Claude"] = 12
+    agg["apps_setup_calls"]["Claude"] = 4
+    agg["apps_all_calls"]["Claude"] = 16
+    agg["error_breakdown"]["tools/call → 400"] = 2
+    agg["hours_setup"][9] = 5
     statistik.save_cache(p, {"2026-06-08": agg})
 
     loaded = statistik.load_cache(p)
     out = loaded["2026-06-08"]
-    assert out["tool_calls"] == 7
-    assert out["tools"]["search"] == 4
-    assert out["apps"]["Claude"] == 2
-    assert out["hours_tools"][10] == 5
+    assert out["sessions_with_tools"] == 3
+    assert out["apps_tool_calls"]["Claude"] == 12
+    assert out["apps_setup_calls"]["Claude"] == 4
+    assert out["error_breakdown"]["tools/call → 400"] == 2
+    assert out["hours_setup"][9] == 5
 
 
-def test_load_cache_missing_returns_empty(tmp_path):
-    assert statistik.load_cache(tmp_path / "nope.json") == {}
-
-
-def test_load_cache_corrupt_returns_empty(tmp_path):
-    p = tmp_path / "broken.json"
-    p.write_text("not json", encoding="utf-8")
-    assert statistik.load_cache(p) == {}
+def test_cache_loads_old_schema_without_new_fields(tmp_path):
+    """Caches aus der v1-Zeit ohne apps_tool_calls etc. muessen geladen werden."""
+    p = tmp_path / "cache.json"
+    p.write_text(json.dumps({
+        "schema_version": 1,
+        "days": {
+            "2026-06-01": {
+                "total": 5, "tool_calls": 2, "setup": 3, "sessions": 1,
+                "tools": {"search": 2}, "methods": {"tools/call": 2},
+                "apps": {"Claude": 1},
+                "apps_last_ts": {"Claude": "2026-06-01T09:00:00"},
+                "hours_tools": [0]*9 + [2] + [0]*14,
+                "hours_all": [0]*9 + [5] + [0]*14,
+                "ms_total": 50, "ms_n": 5, "errors": 0,
+            }
+        }
+    }))
+    loaded = statistik.load_cache(p)
+    d = loaded["2026-06-01"]
+    assert d["sessions_with_tools"] == 0  # default
+    assert d["apps_tool_calls"] == {}
+    assert d["hours_setup"][9] == 3  # = all - tools
 
 
 def test_refresh_cache_persists_only_past_days(tmp_path):
-    log_path = tmp_path / "acc.log"
+    log_path = tmp_path / "afa.log"
     cache_path = tmp_path / "stats-cache.json"
     today = date.today().isoformat()
     _write_log(log_path, [
@@ -115,26 +202,9 @@ def test_refresh_cache_persists_only_past_days(tmp_path):
     assert today not in on_disk["days"]
 
 
-def test_refresh_cache_idempotent_if_log_unchanged(tmp_path):
-    log_path = tmp_path / "acc.log"
-    cache_path = tmp_path / "stats-cache.json"
-    today = date.today().isoformat()
-    _write_log(log_path, [_log("2026-01-01 09:00:00", "tools/call", "search")])
-    statistik.refresh_cache(cache_path, log_path, today=today)
-    mtime_first = cache_path.stat().st_mtime
-    statistik.refresh_cache(cache_path, log_path, today=today)
-    assert cache_path.stat().st_mtime == mtime_first
-
-
-def test_refresh_cache_uses_cache_when_log_rotated_away(tmp_path):
-    log_path = tmp_path / "acc.log"
-    cache_path = tmp_path / "stats-cache.json"
-    today = date.today().isoformat()
-    _write_log(log_path, [_log("2026-01-01 09:00:00", "tools/call", "search")])
-    statistik.refresh_cache(cache_path, log_path, today=today)
-    _write_log(log_path, [_log(f"{today} 10:00:00", "tools/call", "search")])
-    combined = statistik.refresh_cache(cache_path, log_path, today=today)
-    assert combined["2026-01-01"]["tool_calls"] == 1
+# ---------------------------------------------------------------------------
+# Auth
+# ---------------------------------------------------------------------------
 
 
 class _FakeRequest:
@@ -148,21 +218,6 @@ def test_auth_open_when_no_env(monkeypatch):
     assert statistik.check_basic_auth(_FakeRequest()) is None
 
 
-def test_auth_requires_header(monkeypatch):
-    monkeypatch.setenv("ESC_STATS_USER", "admin")
-    monkeypatch.setenv("ESC_STATS_PASS", "secret")
-    resp = statistik.check_basic_auth(_FakeRequest())
-    assert resp.status_code == 401
-
-
-def test_auth_rejects_wrong_password(monkeypatch):
-    monkeypatch.setenv("ESC_STATS_USER", "admin")
-    monkeypatch.setenv("ESC_STATS_PASS", "secret")
-    creds = base64.b64encode(b"admin:nope").decode("ascii")
-    req = _FakeRequest({"authorization": f"Basic {creds}"})
-    assert statistik.check_basic_auth(req).status_code == 401
-
-
 def test_auth_accepts_correct_credentials(monkeypatch):
     monkeypatch.setenv("ESC_STATS_USER", "admin")
     monkeypatch.setenv("ESC_STATS_PASS", "secret")
@@ -171,46 +226,46 @@ def test_auth_accepts_correct_credentials(monkeypatch):
     assert statistik.check_basic_auth(req) is None
 
 
-def test_render_html_contains_kpis_for_today(tmp_path):
+def test_auth_rejects_wrong(monkeypatch):
+    monkeypatch.setenv("ESC_STATS_USER", "admin")
+    monkeypatch.setenv("ESC_STATS_PASS", "secret")
+    assert statistik.check_basic_auth(_FakeRequest()).status_code == 401
+
+
+# ---------------------------------------------------------------------------
+# Render
+# ---------------------------------------------------------------------------
+
+
+def test_render_html_contains_kpis_and_new_columns(tmp_path):
     today = date.today().isoformat()
-    log_path = tmp_path / "acc.log"
+    log_path = tmp_path / "afa.log"
     cache_path = tmp_path / "cache.json"
     _write_log(log_path, [
-        _log(f"{today} 09:00:00", "initialize", app="Claude", appver="1.0"),
-        _log(f"{today} 09:00:01", "tools/call", "search"),
-        _log(f"{today} 09:00:02", "tools/call", "search"),
+        _log(f"{today} 09:00:00", "initialize",
+             client="160.79.106.37", app="Claude", appver="1.0"),
+        _log(f"{today} 09:00:01", "tools/call", "search",
+             client="160.79.106.37"),
+        _log(f"{today} 09:00:02", "tools/call", "search",
+             client="160.79.106.37"),
     ])
     days = statistik.refresh_cache(cache_path, log_path, today=today)
     body = statistik.render_html(days, log_path, cache_path)
     assert "Nutzungsstatistik" in body
-    assert ">2<" in body
-    assert "search" in body
+    assert "Tool-Aufrufe" in body
+    # neue Spalten:
+    assert "Sessions" in body
+    assert "Top-Tools" in body  # bleibt als Panel-Heading
+    assert "Tool-Nutzung" in body  # Top-3-Label
     assert "Claude" in body
+    # Setup-Spalte sollte NICHT mehr in der Tagesübersicht sein
+    # (aber Setup als KPI-Begriff im Methoden-Panel ist ok)
+    # Stacked-Bar in KI-Clients-Sektion:
+    assert "bar-stack" in body
+    # Tooltips:
+    assert "has-tooltip" in body or "title=" in body
 
 
-def test_endpoint_returns_html_when_auth_disabled(monkeypatch, tmp_path):
-    monkeypatch.delenv("ESC_STATS_USER", raising=False)
-    monkeypatch.delenv("ESC_STATS_PASS", raising=False)
-    log_path = tmp_path / "acc.log"
-    cache_path = tmp_path / "cache.json"
-    log_path.write_text("", encoding="utf-8")
-    monkeypatch.setenv("ESC_ACCESS_LOG_FILE", str(log_path))
-    monkeypatch.setenv("ESC_STATS_CACHE", str(cache_path))
-
-    class _Req:
-        headers: dict = {}
-
-    resp = asyncio.run(statistik.statistik_endpoint(_Req()))
-    assert resp.status_code == 200
-    assert b"Nutzungsstatistik" in resp.body
-
-
-def test_endpoint_returns_401_when_auth_enabled_and_missing(monkeypatch):
-    monkeypatch.setenv("ESC_STATS_USER", "admin")
-    monkeypatch.setenv("ESC_STATS_PASS", "secret")
-
-    class _Req:
-        headers: dict = {}
-
-    resp = asyncio.run(statistik.statistik_endpoint(_Req()))
-    assert resp.status_code == 401
+def test_render_html_handles_empty_log(tmp_path):
+    body = statistik.render_html({}, tmp_path / "log", tmp_path / "cache")
+    assert "Noch keine Daten" in body

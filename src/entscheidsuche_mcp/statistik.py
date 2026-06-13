@@ -1,17 +1,15 @@
 """Statistik-Endpoint + JSON-Tagescache fuer den entscheidsuche-MCP-Server.
 
 Verarbeitet das Access-Log und liefert eine selbst-enthaltene HTML-Seite
-mit Tageszahlen, KI-Client-Klassifizierung, Top-Tools, Methoden-Verteilung
-und Stunden-Sparklines. Wird **bei jedem Aufruf live** generiert; Vortage
-werden in einer JSON-Cache-Datei festgehalten, so dass beim Aufruf nur
-der laufende Tag aus dem Log neu aggregiert werden muss.
+mit Tageszahlen, KI-Client-Klassifizierung (mit Aufschluesselung in
+Tool-Calls vs. Setup-Calls), Top-Tools, Methoden-Verteilung und Stunden-
+Sparklines. Wird **bei jedem Aufruf live** generiert; Vortage werden in
+einer JSON-Cache-Datei festgehalten.
 
 Konfiguration via Env-Variablen:
 
-* ``ESC_ACCESS_LOG_FILE`` — Pfad zum Access-Log (Default
-  ``/var/log/entscheidsuche-mcp/access.log``)
-* ``ESC_STATS_CACHE``     — Pfad zum JSON-Cache (Default
-  ``/var/lib/entscheidsuche-mcp/stats-cache.json``)
+* ``ESC_ACCESS_LOG_FILE`` — Pfad zum Access-Log
+* ``ESC_STATS_CACHE``     — Pfad zum JSON-Cache
 * ``ESC_STATS_USER``      — Basic-Auth-Benutzer (leer = Auth aus)
 * ``ESC_STATS_PASS``      — Basic-Auth-Passwort
 """
@@ -53,7 +51,6 @@ LOG_LINE = re.compile(
 SETUP_METHODS = {"initialize", "notifications/initialized",
                  "tools/list", "resources/list", "prompts/list"}
 
-
 def _default_log_path() -> Path:
     sys_path = Path("/var/log/entscheidsuche-mcp/access.log")
     if sys_path.parent.exists():
@@ -70,6 +67,24 @@ def _default_cache_path() -> Path:
 
 DEFAULT_LOG = _default_log_path()
 DEFAULT_CACHE = _default_cache_path()
+
+# Wenn nach einem initialize laenger als dieses Fenster keine Aktivitaet
+# kommt, gilt die Session als beendet (fuer Client-Heuristik).
+SESSION_TIMEOUT = timedelta(minutes=30)
+
+
+# ---------------------------------------------------------------------------
+# Client-Pool-Normalisierung
+# ---------------------------------------------------------------------------
+
+
+def _normalize_client_pool(ip: str) -> str:
+    """Anthropic rotiert ueber 160.79.106.35-39 — alle als ein Pool."""
+    if ip.startswith("160.79.106."):
+        return "anthropic-pool"
+    if ip.startswith("127."):
+        return "localhost"
+    return ip
 
 
 # ---------------------------------------------------------------------------
@@ -96,6 +111,8 @@ def iter_log_lines(path: Path) -> Iterable[str]:
 
 
 def parse_log(path: Path) -> list[dict]:
+    """Parst das Logfile und reichert jeden Eintrag um ``resolved_app`` an —
+    die App-Zuordnung per Heuristik (zeitlich + Client-Pool)."""
     out: list[dict] = []
     for line in iter_log_lines(path):
         m = LOG_LINE.match(line)
@@ -116,6 +133,22 @@ def parse_log(path: Path) -> list[dict]:
             "appver": d.get("appver") or "-",
         })
     out.sort(key=lambda r: r["ts"])
+
+    # Heuristik: pro Pool-IP die "aktive" App tracken.
+    active: dict[str, tuple[str, datetime]] = {}
+    for r in out:
+        pool = _normalize_client_pool(r["client"])
+        r["pool"] = pool
+        if r["method"] == "initialize" and r["app"] != "-":
+            active[pool] = (r["app"], r["ts"])
+            r["resolved_app"] = r["app"]
+        else:
+            entry = active.get(pool)
+            if entry and (r["ts"] - entry[1]) <= SESSION_TIMEOUT:
+                r["resolved_app"] = entry[0]
+                active[pool] = (entry[0], r["ts"])  # Lebenszeit verlaengern
+            else:
+                r["resolved_app"] = "-"
     return out
 
 
@@ -126,43 +159,91 @@ def parse_log(path: Path) -> list[dict]:
 
 def _empty_day() -> dict[str, Any]:
     return {
-        "total": 0, "setup": 0, "tool_calls": 0, "other": 0, "sessions": 0,
-        "tools": Counter(), "methods": Counter(), "apps": Counter(),
+        "total": 0, "setup": 0, "tool_calls": 0, "other": 0,
+        "sessions": 0, "sessions_with_tools": 0,
+        "tools": Counter(),
+        "methods": Counter(),
+        "apps": Counter(),               # initialize-Counts (= Sessions)
+        "apps_tool_calls": Counter(),    # tools/call zugeordnet
+        "apps_setup_calls": Counter(),   # setup-Methoden zugeordnet
+        "apps_all_calls": Counter(),     # alle Calls zugeordnet
         "apps_last_ts": {},
-        "hours_tools": [0] * 24, "hours_all": [0] * 24,
+        "hours_tools": [0] * 24,
+        "hours_setup": [0] * 24,
+        "hours_all": [0] * 24,
         "ms_total": 0, "ms_n": 0, "errors": 0,
+        "error_breakdown": Counter(),    # (method, status) -> count
     }
 
 
 def aggregate_per_day(rows: list[dict]) -> dict[str, dict]:
     days: dict[str, dict] = defaultdict(_empty_day)
+
+    # Pool-IP -> (date, became_active_with_tool_call)
+    open_sessions: dict[str, dict] = {}
+
+    def _close_session(pool: str) -> None:
+        sess = open_sessions.get(pool)
+        if sess and sess["active"]:
+            days[sess["date"]]["sessions_with_tools"] += 1
+        if sess:
+            del open_sessions[pool]
+
     for r in rows:
         d = days[r["date"]]
         d["total"] += 1
         d["hours_all"][r["hour"]] += 1
         d["methods"][r["method"]] += 1
+        resolved = r.get("resolved_app", "-")
+        pool = r.get("pool", _normalize_client_pool(r["client"]))
+
+        if resolved != "-":
+            d["apps_all_calls"][resolved] += 1
+
         if r["method"] == "initialize":
+            _close_session(pool)  # vorherige Session abschliessen, falls offen
             d["sessions"] += 1
             d["setup"] += 1
+            d["hours_setup"][r["hour"]] += 1
             if r["app"] != "-":
                 d["apps"][r["app"]] += 1
+                d["apps_setup_calls"][r["app"]] += 1
                 d["apps_last_ts"][r["app"]] = r["ts"].isoformat()
+                open_sessions[pool] = {"date": r["date"], "active": False}
         elif r["method"] in SETUP_METHODS:
             d["setup"] += 1
+            d["hours_setup"][r["hour"]] += 1
+            if resolved != "-":
+                d["apps_setup_calls"][resolved] += 1
         elif r["method"] == "tools/call":
             d["tool_calls"] += 1
             d["hours_tools"][r["hour"]] += 1
             if r["tool"] != "-":
                 d["tools"][r["tool"]] += 1
+            if resolved != "-":
+                d["apps_tool_calls"][resolved] += 1
+            if pool in open_sessions:
+                open_sessions[pool]["active"] = True
         else:
             d["other"] += 1
+            if resolved != "-":
+                d["apps_setup_calls"][resolved] += 1  # zur Setup-Seite zaehlen
+
         d["ms_total"] += r["ms"]
         d["ms_n"] += 1
         try:
-            if int(r["status"]) >= 400:
+            status_int = int(r["status"])
+            if status_int >= 400:
                 d["errors"] += 1
+                d["error_breakdown"][f"{r['method']} → {r['status']}"] += 1
         except ValueError:
             pass
+
+    # noch offene Sessions abschliessen (z. B. die aktuelle laufende heute)
+    for pool, sess in list(open_sessions.items()):
+        if sess["active"]:
+            days[sess["date"]]["sessions_with_tools"] += 1
+
     return dict(days)
 
 
@@ -174,29 +255,53 @@ def aggregate_per_day(rows: list[dict]) -> dict[str, dict]:
 def _aggregate_to_json(agg: dict) -> dict:
     return {
         **{k: agg[k] for k in ("total", "setup", "tool_calls", "other",
-                                "sessions", "ms_total", "ms_n", "errors")},
+                                "sessions", "sessions_with_tools",
+                                "ms_total", "ms_n", "errors")},
         "tools": dict(agg["tools"]),
         "methods": dict(agg["methods"]),
         "apps": dict(agg["apps"]),
+        "apps_tool_calls": dict(agg["apps_tool_calls"]),
+        "apps_setup_calls": dict(agg["apps_setup_calls"]),
+        "apps_all_calls": dict(agg["apps_all_calls"]),
         "apps_last_ts": dict(agg["apps_last_ts"]),
         "hours_tools": list(agg["hours_tools"]),
+        "hours_setup": list(agg["hours_setup"]),
         "hours_all": list(agg["hours_all"]),
+        "error_breakdown": dict(agg["error_breakdown"]),
     }
 
 
+def _fix_24(values: Any) -> list[int]:
+    """Sicherstellen, dass es genau 24 Eintraege sind."""
+    if not values:
+        return [0] * 24
+    lst = list(values)[:24]
+    return lst + [0] * max(0, 24 - len(lst))
+
+
 def _aggregate_from_json(d: dict) -> dict:
+    """Robustes Laden — fehlende Felder (alte Cache-Versionen) werden
+    default-initialisiert. Stundenarrays werden auf 24 normalisiert."""
     agg = _empty_day()
     for k in ("total", "setup", "tool_calls", "other", "sessions",
-              "ms_total", "ms_n", "errors"):
+              "sessions_with_tools", "ms_total", "ms_n", "errors"):
         agg[k] = int(d.get(k, 0))
     agg["tools"] = Counter(d.get("tools") or {})
     agg["methods"] = Counter(d.get("methods") or {})
     agg["apps"] = Counter(d.get("apps") or {})
+    agg["apps_tool_calls"] = Counter(d.get("apps_tool_calls") or {})
+    agg["apps_setup_calls"] = Counter(d.get("apps_setup_calls") or {})
+    agg["apps_all_calls"] = Counter(d.get("apps_all_calls") or {})
     agg["apps_last_ts"] = dict(d.get("apps_last_ts") or {})
-    hours_tools = d.get("hours_tools") or [0] * 24
-    hours_all = d.get("hours_all") or [0] * 24
-    agg["hours_tools"] = list(hours_tools)[:24] + [0] * max(0, 24 - len(hours_tools))
-    agg["hours_all"] = list(hours_all)[:24] + [0] * max(0, 24 - len(hours_all))
+    agg["hours_tools"] = _fix_24(d.get("hours_tools"))
+    agg["hours_all"] = _fix_24(d.get("hours_all"))
+    # hours_setup koennte in alten Caches fehlen — herleiten aus all - tools.
+    if "hours_setup" in d:
+        agg["hours_setup"] = _fix_24(d["hours_setup"])
+    else:
+        agg["hours_setup"] = [a - t for a, t in
+                              zip(agg["hours_all"], agg["hours_tools"])]
+    agg["error_breakdown"] = Counter(d.get("error_breakdown") or {})
     return agg
 
 
@@ -217,7 +322,7 @@ def load_cache(path: Path) -> dict[str, dict]:
 def save_cache(path: Path, cache: dict[str, dict]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     payload = {
-        "schema_version": 1,
+        "schema_version": 2,
         "generated": datetime.now().isoformat(timespec="seconds"),
         "days": {d: _aggregate_to_json(v) for d, v in cache.items()},
     }
@@ -272,10 +377,17 @@ def overall_methods(days: dict[str, dict]) -> Counter:
 
 
 def overall_apps(days: dict[str, dict]) -> dict[str, dict]:
-    out: dict[str, dict] = defaultdict(lambda: {"sessions": 0, "last": None})
+    """Pro KI-Client: Sessions, Tool-Calls, Setup-Calls, letzte Sitzung."""
+    out: dict[str, dict] = defaultdict(lambda: {
+        "sessions": 0, "tool_calls": 0, "setup_calls": 0, "last": None,
+    })
     for day_data in days.values():
         for app, n in day_data["apps"].items():
             out[app]["sessions"] += n
+        for app, n in day_data["apps_tool_calls"].items():
+            out[app]["tool_calls"] += n
+        for app, n in day_data["apps_setup_calls"].items():
+            out[app]["setup_calls"] += n
         for app, ts_str in day_data["apps_last_ts"].items():
             try:
                 ts = datetime.fromisoformat(ts_str)
@@ -293,7 +405,7 @@ def overall_hours(days: dict[str, dict]) -> tuple[list[int], list[int]]:
     for d in days.values():
         for h in range(24):
             tools[h] += d["hours_tools"][h]
-            setup[h] += d["hours_all"][h] - d["hours_tools"][h]
+            setup[h] += d["hours_setup"][h]
     return tools, setup
 
 
@@ -305,13 +417,14 @@ CSS = """
 :root {
   --bg: #f5f4ee; --panel: #fdfcf6; --ink: #1f2125; --muted: #5a5c63;
   --accent: #34507e; --accent-2: #6c8cbf; --line: #d8d6c8; --soft: #ecead8;
+  --accent-light: #b5c5dc;
 }
 * { box-sizing: border-box; }
 body { margin: 0; font-family: Georgia, "Times New Roman", serif;
   background: radial-gradient(circle at top left, rgba(108,140,191,.18), transparent 28rem),
               linear-gradient(180deg, #f8f7ee 0%, var(--bg) 100%);
   color: var(--ink); }
-main { max-width: 62rem; margin: 0 auto; padding: 3rem 1.5rem 4rem; }
+main { max-width: 92rem; margin: 0 auto; padding: 2rem 1rem 3rem; }
 .eyebrow { letter-spacing: .08em; text-transform: uppercase;
   color: var(--accent); font-size: .82rem; font-weight: 700; }
 h1 { font-size: clamp(2rem,5vw,3.4rem); line-height: 1; margin: .4rem 0 1.2rem; }
@@ -325,27 +438,58 @@ h1 { font-size: clamp(2rem,5vw,3.4rem); line-height: 1; margin: .4rem 0 1.2rem; 
 .kpi .l { color: var(--muted); font-size: .92rem; margin-top: .1rem; }
 .panel { background: var(--panel); border: 1px solid var(--line);
   border-radius: 12px; padding: 1.4rem 1.6rem; margin-bottom: 1.4rem;
-  box-shadow: 0 2px 14px rgba(40,50,80,.05); }
+  box-shadow: 0 2px 14px rgba(60,50,30,.05); }
 .panel h2 { margin: 0 0 .3rem; font-size: 1.25rem; }
 .panel .lead { color: var(--muted); margin: 0 0 1rem; font-size: .94rem; }
 table { width: 100%; border-collapse: collapse; }
 th, td { padding: .55rem .55rem; border-bottom: 1px dotted var(--line);
-  font-size: .96rem; text-align: left; vertical-align: middle; }
-th { color: var(--accent); font-weight: 600; font-size: .8rem;
+  font-size: .94rem; text-align: left; vertical-align: middle; }
+th { color: var(--accent); font-weight: 600; font-size: .78rem;
   text-transform: uppercase; letter-spacing: .04em; }
 td.num { text-align: right; font-variant-numeric: tabular-nums; }
 td.day { font-weight: 600; }
 td.muted { color: var(--muted); }
-td.spark { padding: 0 .5rem; }
+td.spark { padding: 0 .4rem; }
 .bar { height: .55rem; background: var(--accent); border-radius: 3px;
   display: inline-block; vertical-align: middle; }
 .bar.alt { background: var(--accent-2); }
-.bar-cell { width: 14rem; }
+.bar-cell { width: 12rem; }
+.bar-stack { display: inline-flex; vertical-align: middle; height: .55rem;
+  border-radius: 3px; overflow: hidden; background: transparent; }
+.bar-stack .seg { height: 100%; }
+.bar-stack .seg.tool { background: var(--accent); }
+.bar-stack .seg.setup { background: var(--accent-light); }
+.bar-stack .seg.rest { background: var(--soft); }
+.has-tooltip { border-bottom: 1px dotted var(--muted); cursor: help; }
+.client-list { font-size: .92rem; line-height: 1.45; }
+.client-list b { color: var(--accent); font-weight: 600;
+  font-size: .74rem; text-transform: uppercase; letter-spacing: .03em;
+  margin-right: .4rem; }
+
+/* Tagesübersicht: pro Tag dreizeiliges Layout via tbody-Gruppen. */
+table.days tbody.day-group { border-top: 1px solid var(--line); }
+table.days tbody.day-group:first-of-type { border-top: none; }
+table.days tr.day-main td { padding: .7rem .55rem .25rem;
+  border-bottom: none; }
+table.days tr.day-detail td { padding: .15rem .55rem; font-size: .92rem;
+  border-bottom: none; color: var(--ink); }
+table.days tr.day-detail.last td { padding-bottom: .7rem; }
+table.days tr.day-detail td.label { color: var(--accent);
+  font-size: .72rem; text-transform: uppercase; letter-spacing: .04em;
+  font-weight: 600; vertical-align: top; padding-top: .25rem;
+  white-space: nowrap; width: 8rem; }
+table.days th.col-spark { white-space: normal; line-height: 1.15; }
+table.days td.spark { padding: .3rem .4rem; }
 code { font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
   font-size: .92rem; color: var(--ink); }
 footer { margin-top: 2rem; font-size: .88rem; color: var(--muted); }
 .empty { color: var(--muted); font-style: italic; padding: 1rem 0; }
 svg.sparkline { display: block; }
+.legend { font-size: .82rem; color: var(--muted); margin-top: .4rem; }
+.legend .swatch { display: inline-block; width: .8rem; height: .55rem;
+  border-radius: 2px; vertical-align: middle; margin-right: .25rem; }
+.legend .swatch.tool { background: var(--accent); }
+.legend .swatch.setup { background: var(--accent-light); }
 """
 
 PAGE = """<!doctype html>
@@ -357,8 +501,7 @@ PAGE = """<!doctype html>
 <style>{css}</style></head><body><main>
   <div class="eyebrow">entscheidsuche.ch · MCP</div>
   <h1>Nutzungsstatistik</h1>
-  <p class="subtitle">Stand: {generated} · live aus <code>{logfile}</code>
-     (Vortage aus <code>{cachefile}</code>)</p>
+  <p class="subtitle">Stand: {generated}</p>
   <div class="kpis">
     <div class="kpi"><div class="v">{today_tool_calls}</div><div class="l">heute · Tool-Aufrufe</div></div>
     <div class="kpi"><div class="v">{today_sessions}</div><div class="l">heute · Sessions</div></div>
@@ -366,39 +509,59 @@ PAGE = """<!doctype html>
     <div class="kpi"><div class="v">{total_tool_calls}</div><div class="l">gesamt · Tool-Aufrufe</div></div>
   </div>
   <div class="panel"><h2>Tagesübersicht</h2>
-    <p class="lead">Tool-Aufrufe pro Tag mit Stunden-Sparkline. Eine
-       <em>Session</em> = ein <code>initialize</code>-Call, also ein
-       neu geöffneter Chat im jeweiligen KI-Client.</p>{day_table}</div>
+    <p class="lead">dunkel&nbsp;=&nbsp;Toolaufrufe,
+       hell&nbsp;=&nbsp;Setup</p>{day_table}</div>
   <div class="panel"><h2>Top-Tools</h2>
     <p class="lead">Welche entscheidsuche-Werkzeuge wurden aufgerufen?</p>{tool_table}</div>
   <div class="panel"><h2>KI-Clients</h2>
-    <p class="lead">Aus dem <code>clientInfo</code>-Feld der MCP-Handshakes.</p>{app_table}</div>
+    <p class="lead">Aus dem <code>clientInfo</code>-Feld der MCP-Handshakes.
+       Balken zweifarbig: dunkel = Tool-Aufrufe, hell = Setup-Aufrufe.</p>{app_table}
+    <div class="legend"><span class="swatch tool"></span>Tool-Aufrufe
+      &nbsp;&nbsp;<span class="swatch setup"></span>Setup-Aufrufe</div></div>
   <div class="panel"><h2>Tagesübergreifende Aktivität nach Stunde</h2>
     <p class="lead">Tool-Aufrufe (dunkelblau) und Setup (heller) über alle Tage, Server-Zeit.</p>{hours_chart}</div>
   <div class="panel" style="opacity:.85"><h2>Methoden-Verteilung (technisch)</h2>
     <p class="lead">Setup-Methoden sind MCP-Protokoll-Overhead — pro neuem Chat einmalig.</p>{method_table}</div>
-  <footer>Live-Generierung bei jedem Aufruf. Vortage in JSON-Cache fixiert.
-    Reine Aggregate — keine Nutzerinhalte gespeichert
-    (<code>ESC_ACCESS_LOG_ARGS_MAX=0</code>).</footer>
 </main></body></html>
 """
 
 
-def _sparkline_svg(values: list[int], width: int = 144, height: int = 28) -> str:
-    n = len(values) or 1
-    maxv = max(values) or 1
+# ---------------------------------------------------------------------------
+# SVG-Helper
+# ---------------------------------------------------------------------------
+
+
+def _stacked_sparkline_svg(tools: list[int], setup: list[int],
+                           width: int = 144, height: int = 28) -> str:
+    """24-Spalten-Sparkline mit Tool (dunkel, unten) + Setup (hell, oben)."""
+    n = len(tools) or 1
+    maxv = max((t + s) for t, s in zip(tools, setup)) or 1
     bar_w = width / n
     parts = []
-    for i, v in enumerate(values):
-        h = max(1.0, (v / maxv) * (height - 2))
+    for i in range(n):
+        t = tools[i]
+        s = setup[i]
+        total = t + s
+        if total == 0:
+            continue
+        h_total = max(1.0, (total / maxv) * (height - 2))
+        h_tool = (t / maxv) * (height - 2)
         x = i * bar_w + 0.5
-        parts.append(f'<rect x="{x:.2f}" y="{height-h:.2f}" '
-                     f'width="{bar_w-1:.2f}" height="{h:.2f}" '
-                     f'fill="var(--accent)" rx="1"/>')
-    tooltip = "Stunden: " + ", ".join(f"{h:02d}h:{v}" for h, v in enumerate(values))
+        if s > 0:
+            parts.append(f'<rect x="{x:.2f}" y="{height-h_total:.2f}" '
+                         f'width="{bar_w-1:.2f}" height="{h_total - h_tool:.2f}" '
+                         f'fill="var(--accent-light)" rx="1"/>')
+        if t > 0:
+            parts.append(f'<rect x="{x:.2f}" y="{height-h_tool:.2f}" '
+                         f'width="{bar_w-1:.2f}" height="{h_tool:.2f}" '
+                         f'fill="var(--accent)" rx="1"/>')
+    title = "Stunden — Tool/Setup: " + ", ".join(
+        f"{h:02d}h:{t}+{s}" for h, (t, s) in enumerate(zip(tools, setup))
+        if (t + s) > 0
+    )
     return (f'<svg class="sparkline" width="{width}" height="{height}" '
             f'viewBox="0 0 {width} {height}">'
-            f'<title>{html.escape(tooltip)}</title>' + "".join(parts) + "</svg>")
+            f'<title>{html.escape(title)}</title>' + "".join(parts) + "</svg>")
 
 
 def _stacked_hours_svg(tools: list[int], setup: list[int],
@@ -423,7 +586,7 @@ def _stacked_hours_svg(tools: list[int], setup: list[int],
         if s > 0:
             inner.append(f'<rect x="{x:.2f}" y="{y0 - h_total:.2f}" '
                          f'width="{bar_w-2:.2f}" height="{h_total - h_tools:.2f}" '
-                         f'fill="var(--accent-2)" opacity="0.5" rx="1"/>')
+                         f'fill="var(--accent-light)" rx="1"/>')
         if t > 0:
             inner.append(f'<rect x="{x:.2f}" y="{y0 - h_tools:.2f}" '
                          f'width="{bar_w-2:.2f}" height="{h_tools:.2f}" '
@@ -437,50 +600,177 @@ def _stacked_hours_svg(tools: list[int], setup: list[int],
             + "".join(inner) + "</svg>")
 
 
+def _stacked_inline_bar(tool: int, setup: int, max_total: int,
+                        width_rem: float = 12.0) -> str:
+    """Inline-Bar mit zwei Segmenten: dunkel = Tool, hell = Setup.
+    Gesamtbreite proportional zu (tool+setup)/max_total — staerkste
+    Clients fuellen den Container, schwaechere bleiben kuerzer."""
+    if max_total <= 0:
+        return ""
+    tool_pct = 100 * tool / max_total
+    setup_pct = 100 * setup / max_total
+    parts = []
+    if tool_pct > 0:
+        parts.append(f'<span class="seg tool" style="width:{tool_pct:.2f}%"></span>')
+    if setup_pct > 0:
+        parts.append(f'<span class="seg setup" style="width:{setup_pct:.2f}%"></span>')
+    return (f'<span class="bar-stack" style="width:{width_rem}rem">'
+            + "".join(parts) + '</span>')
+
+
+# ---------------------------------------------------------------------------
+# Tabellen-Render-Helper
+# ---------------------------------------------------------------------------
+
+
+def _tooltip_text(parts: list[tuple[str, int]], max_items: Optional[int] = None) -> str:
+    """Mehrzeiliger Tooltip-Text (durch Newlines getrennt) — wird im title-
+    Attribut sauber angezeigt."""
+    if max_items:
+        parts = parts[:max_items]
+    return "\n".join(f"{name}: {n}" for name, n in parts)
+
+
+def _top_n(counter: Counter, n: int = 3) -> list[tuple[str, int]]:
+    return counter.most_common(n)
+
+
+def _format_client_list(items: list[tuple[str, int]]) -> str:
+    return ", ".join(f"{html.escape(name)} ({n})" for name, n in items)
+
+
 def _render_day_table(days: dict[str, dict]) -> str:
     if not days:
         return ('<div class="empty">Noch keine Daten — der Server hat seit '
                 'Aktivierung des Access-Logs keine Anfragen erhalten.</div>')
     max_tc = max((d["tool_calls"] for d in days.values()), default=0) or 1
-    rows = ["<table><thead><tr>"
-            "<th>Tag</th><th class='num'>Tool-Calls</th>"
-            "<th>Stundenverteilung</th>"
-            "<th class='num'>Sessions</th><th>Top-Tool</th>"
-            "<th>KI-Clients</th><th class='num'>Ø&nbsp;ms</th>"
-            "<th class='num muted'>Setup</th>"
-            "<th class='num muted'>Fehler</th></tr></thead><tbody>"]
+    out = ["<table class='days'>"
+           "<colgroup>"
+           "<col style='width:7.5rem'>"
+           "<col style='width:8rem'>"
+           "<col style='width:11rem'>"
+           "<col style='width:8rem'>"
+           "<col style='width:4.5rem'>"
+           "<col style='width:4.5rem'>"
+           "</colgroup>"
+           "<thead><tr>"
+           "<th>Tag</th>"
+           "<th class='num'>Tool-<br>Calls</th>"
+           "<th class='col-spark'>Stunden-<br>verteilung</th>"
+           "<th class='num'>Sessions<br>"
+           "<span style='font-weight:normal;text-transform:none'>"
+           "(gesamt/Tool)</span></th>"
+           "<th class='num'>Ø&nbsp;ms</th>"
+           "<th class='num'>Fehler</th>"
+           "</tr></thead>"]
+
     for day in sorted(days.keys(), reverse=True):
         d = days[day]
         avg_ms = round(d["ms_total"] / d["ms_n"]) if d["ms_n"] else 0
-        top = d["tools"].most_common(1)
-        top_str = (f"<code>{html.escape(top[0][0])}</code> "
-                   f"<span class='muted'>({top[0][1]})</span>") if top else "—"
-        apps_str = ", ".join(f"{html.escape(a)} ({n})"
-                             for a, n in d["apps"].most_common()) or "—"
         bar_w = 100 * d["tool_calls"] / max_tc
-        spark = _sparkline_svg(d["hours_tools"])
-        rows.append(
-            f"<tr><td class='day'>{html.escape(day)}</td>"
+        spark = _stacked_sparkline_svg(d["hours_tools"], d["hours_setup"])
+
+        # Top-Tools mit Tooltip
+        top_tools = d["tools"].most_common(3)
+        all_tools = list(d["tools"].most_common())
+        if top_tools:
+            top_tools_str = ", ".join(
+                f"<code>{html.escape(name)}</code> "
+                f"<span class='muted'>({n})</span>"
+                for name, n in top_tools
+            )
+            if len(all_tools) > 3:
+                tools_tt = _tooltip_text(all_tools)
+                top_tools_html = (
+                    f'<span class="has-tooltip" '
+                    f'title="{html.escape(tools_tt)}">{top_tools_str}</span>'
+                )
+            else:
+                top_tools_html = top_tools_str
+        else:
+            top_tools_html = "—"
+
+        # KI-Clients: Top 3 nach Tool-Calls + Top 3 nach Total
+        top_tool_clients = _top_n(d["apps_tool_calls"], 3)
+        top_total_clients = _top_n(d["apps_all_calls"], 3)
+        all_clients = sorted(
+            ((app, d["apps_all_calls"].get(app, 0),
+              d["apps_tool_calls"].get(app, 0),
+              d["apps_setup_calls"].get(app, 0))
+             for app in (set(d["apps_all_calls"]) | set(d["apps_tool_calls"])
+                         | set(d["apps_setup_calls"]))),
+            key=lambda x: -x[1],
+        )
+        if all_clients:
+            client_tt = "\n".join(
+                f"{name}: {total} ({tool} Tool, {setup} Setup)"
+                for name, total, tool, setup in all_clients
+            )
+        else:
+            client_tt = ""
+
+        client_blocks = []
+        if top_tool_clients:
+            client_blocks.append(
+                f"<b>Tool-Nutzung:</b> "
+                f"{_format_client_list(top_tool_clients)}"
+            )
+        if top_total_clients:
+            client_blocks.append(
+                f"<b>Alle Anfragen:</b> "
+                f"{_format_client_list(top_total_clients)}"
+            )
+        if client_blocks:
+            inner = "&nbsp;&nbsp;·&nbsp;&nbsp;".join(client_blocks)
+            clients_html = (f'<span class="client-list has-tooltip" '
+                            f'title="{html.escape(client_tt)}">{inner}</span>')
+        else:
+            clients_html = '<span class="muted">—</span>'
+
+        # Fehler mit Tooltip
+        if d["errors"] > 0:
+            err_tt = _tooltip_text(list(d["error_breakdown"].most_common()))
+            errors_html = (
+                f'<span class="has-tooltip" title="{html.escape(err_tt)}">'
+                f'{d["errors"]}</span>'
+            )
+        else:
+            errors_html = "0"
+
+        out.append(
+            f"<tbody class='day-group'>"
+            f"<tr class='day-main'>"
+            f"<td class='day' rowspan='3'>{html.escape(day)}</td>"
             f"<td class='num'><span class='bar' "
             f"style='width:{bar_w*0.7:.1f}%;margin-right:.4rem'></span>"
             f"{d['tool_calls']}</td>"
             f"<td class='spark'>{spark}</td>"
-            f"<td class='num'>{d['sessions']}</td>"
-            f"<td>{top_str}</td>"
-            f"<td class='muted'>{apps_str}</td>"
+            f"<td class='num'>{d['sessions']}&nbsp;/&nbsp;"
+            f"<strong>{d['sessions_with_tools']}</strong></td>"
             f"<td class='num muted'>{avg_ms}</td>"
-            f"<td class='num muted'>{d['setup']}</td>"
-            f"<td class='num muted'>{d['errors']}</td></tr>"
+            f"<td class='num muted'>{errors_html}</td>"
+            f"</tr>"
+            f"<tr class='day-detail'>"
+            f"<td class='label'>Tools</td>"
+            f"<td colspan='4'>{top_tools_html}</td>"
+            f"</tr>"
+            f"<tr class='day-detail last'>"
+            f"<td class='label'>KI-Clients</td>"
+            f"<td colspan='4'>{clients_html}</td>"
+            f"</tr>"
+            f"</tbody>"
         )
-    rows.append("</tbody></table>")
-    return "".join(rows)
+    out.append("</table>")
+    return "".join(out)
 
 
 def _render_tool_table(tools: Counter) -> str:
     if not tools:
         return '<div class="empty">Noch keine Tool-Aufrufe registriert.</div>'
     max_v = tools.most_common(1)[0][1]
-    rows = ["<table><thead><tr><th>Tool</th><th class='num'>Calls</th>"
+    rows = ["<table class='list-table'>"
+            "<colgroup><col><col style='width:5rem'><col style='width:14rem'></colgroup>"
+            "<thead><tr><th>Tool</th><th class='num'>Calls</th>"
             "<th class='bar-cell'>Anteil</th></tr></thead><tbody>"]
     for name, n in tools.most_common(20):
         w = 100 * n / max_v
@@ -494,20 +784,36 @@ def _render_tool_table(tools: Counter) -> str:
 
 def _render_app_table(apps: dict[str, dict]) -> str:
     if not apps:
-        return ('<div class="empty">Noch keine identifizierten KI-Clients.</div>')
-    max_v = max(a["sessions"] for a in apps.values()) or 1
-    items = sorted(apps.items(), key=lambda x: -x[1]["sessions"])
-    rows = ["<table><thead><tr><th>KI-Client</th>"
-            "<th class='num'>Sessions</th><th class='bar-cell'>Anteil</th>"
-            "<th>Letzte Sitzung</th></tr></thead><tbody>"]
+        return '<div class="empty">Noch keine identifizierten KI-Clients.</div>'
+    max_total = max((a["tool_calls"] + a["setup_calls"]) for a in apps.values()) or 1
+    items = sorted(apps.items(),
+                   key=lambda x: -(x[1]["tool_calls"] + x[1]["setup_calls"]))
+    rows = ["<table class='list-table'>"
+            "<colgroup>"
+            "<col><col style='width:6rem'><col style='width:5rem'>"
+            "<col style='width:6rem'><col style='width:14rem'>"
+            "<col style='width:11rem'>"
+            "</colgroup>"
+            "<thead><tr>"
+            "<th>KI-Client</th>"
+            "<th class='num'>Tool-Calls</th>"
+            "<th class='num'>Setup</th>"
+            "<th class='num'>Sessions</th>"
+            "<th class='bar-cell'>Anteil (Tool/Setup)</th>"
+            "<th>Letzte Sitzung</th>"
+            "</tr></thead><tbody>"]
     for name, info in items:
-        w = 100 * info["sessions"] / max_v
+        bar = _stacked_inline_bar(info["tool_calls"], info["setup_calls"],
+                                  max_total)
         last = info["last"].strftime("%Y-%m-%d %H:%M") if info["last"] else "—"
-        rows.append(f"<tr><td><strong>{html.escape(name)}</strong></td>"
-                    f"<td class='num'>{info['sessions']}</td>"
-                    f"<td class='bar-cell'><span class='bar' "
-                    f"style='width:{w:.1f}%'></span></td>"
-                    f"<td class='muted'>{html.escape(last)}</td></tr>")
+        rows.append(
+            f"<tr><td><strong>{html.escape(name)}</strong></td>"
+            f"<td class='num'>{info['tool_calls']}</td>"
+            f"<td class='num muted'>{info['setup_calls']}</td>"
+            f"<td class='num muted'>{info['sessions']}</td>"
+            f"<td class='bar-cell'>{bar}</td>"
+            f"<td class='muted'>{html.escape(last)}</td></tr>"
+        )
     rows.append("</tbody></table>")
     return "".join(rows)
 
@@ -516,7 +822,9 @@ def _render_method_table(methods: Counter) -> str:
     if not methods:
         return '<div class="empty">Noch keine Methoden registriert.</div>'
     max_v = methods.most_common(1)[0][1]
-    rows = ["<table><thead><tr><th>Methode</th><th class='num'>Calls</th>"
+    rows = ["<table class='list-table'>"
+            "<colgroup><col><col style='width:5rem'><col style='width:14rem'></colgroup>"
+            "<thead><tr><th>Methode</th><th class='num'>Calls</th>"
             "<th class='bar-cell'>Anteil</th></tr></thead><tbody>"]
     for name, n in methods.most_common():
         w = 100 * n / max_v
@@ -539,8 +847,6 @@ def render_html(days: dict[str, dict], log_path: Path,
     return PAGE.format(
         css=CSS,
         generated=datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-        logfile=html.escape(str(log_path)),
-        cachefile=html.escape(str(cache_path)),
         today_tool_calls=today_d.get("tool_calls", 0),
         today_sessions=today_d.get("sessions", 0),
         week_tool_calls=week_tc,
