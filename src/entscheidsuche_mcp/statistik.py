@@ -466,20 +466,23 @@ td.spark { padding: 0 .4rem; }
   font-size: .74rem; text-transform: uppercase; letter-spacing: .03em;
   margin-right: .4rem; }
 
-/* Tagesübersicht: pro Tag dreizeiliges Layout via tbody-Gruppen. */
+/* Tagesübersicht: pro Tag 4-zeiliges Layout via tbody-Gruppen. */
+table.days { table-layout: fixed; width: 100%; }
 table.days tbody.day-group { border-top: 1px solid var(--line); }
 table.days tbody.day-group:first-of-type { border-top: none; }
 table.days tr.day-main td { padding: .7rem .55rem .25rem;
   border-bottom: none; }
-table.days tr.day-detail td { padding: .15rem .55rem; font-size: .92rem;
-  border-bottom: none; color: var(--ink); }
+table.days tr.day-detail td { padding: .12rem .55rem; font-size: .94rem;
+  border-bottom: none; color: var(--ink); white-space: normal; }
 table.days tr.day-detail.last td { padding-bottom: .7rem; }
-table.days tr.day-detail td.label { color: var(--accent);
+table.days tr.day-detail td .label { color: var(--accent);
   font-size: .72rem; text-transform: uppercase; letter-spacing: .04em;
-  font-weight: 600; vertical-align: top; padding-top: .25rem;
-  white-space: nowrap; width: 8rem; }
+  font-weight: 600; margin-right: .8rem; display: inline-block;
+  min-width: 11rem; }
 table.days th.col-spark { white-space: normal; line-height: 1.15; }
 table.days td.spark { padding: .3rem .4rem; }
+table.list-table { table-layout: auto; width: 100%; }
+.tool-name { font-weight: 500; }
 code { font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
   font-size: .92rem; color: var(--ink); }
 footer { margin-top: 2rem; font-size: .88rem; color: var(--muted); }
@@ -511,8 +514,12 @@ PAGE = """<!doctype html>
   <div class="panel"><h2>Tagesübersicht</h2>
     <p class="lead">dunkel&nbsp;=&nbsp;Toolaufrufe,
        hell&nbsp;=&nbsp;Setup</p>{day_table}</div>
-  <div class="panel"><h2>Top-Tools</h2>
-    <p class="lead">Welche entscheidsuche-Werkzeuge wurden aufgerufen?</p>{tool_table}</div>
+  <div class="panel"><h2>Tool-Nutzung</h2>
+    <p class="lead">Tools sind die inhaltlichen Anfragen — im Gegensatz zu
+       <code>initialize</code>, <code>tools/list</code>, <code>ping</code>,
+       <code>notifications/initialized</code>, <code>resources/list</code>,
+       <code>prompts/list</code> etc., die zum Protokoll-Setup gehören.</p>
+       {tool_table}</div>
   <div class="panel"><h2>KI-Clients</h2>
     <p class="lead">Aus dem <code>clientInfo</code>-Feld der MCP-Handshakes.
        Balken zweifarbig: dunkel = Tool-Aufrufe, hell = Setup-Aufrufe.</p>{app_table}
@@ -646,12 +653,12 @@ def _render_day_table(days: dict[str, dict]) -> str:
     max_tc = max((d["tool_calls"] for d in days.values()), default=0) or 1
     out = ["<table class='days'>"
            "<colgroup>"
-           "<col style='width:7.5rem'>"
-           "<col style='width:8rem'>"
-           "<col style='width:11rem'>"
-           "<col style='width:8rem'>"
-           "<col style='width:4.5rem'>"
-           "<col style='width:4.5rem'>"
+           "<col style='width:7.5rem'>"          # Tag
+           "<col style='width:7rem'>"            # Tool-Calls
+           "<col>"                                # Stundenverteilung (auto)
+           "<col style='width:7rem'>"            # Sessions
+           "<col style='width:4rem'>"            # Ø ms
+           "<col style='width:4rem'>"            # Fehler
            "</colgroup>"
            "<thead><tr>"
            "<th>Tag</th>"
@@ -670,12 +677,12 @@ def _render_day_table(days: dict[str, dict]) -> str:
         bar_w = 100 * d["tool_calls"] / max_tc
         spark = _stacked_sparkline_svg(d["hours_tools"], d["hours_setup"])
 
-        # Top-Tools mit Tooltip
+        # Tools (Tool-Requests) mit Tooltip
         top_tools = d["tools"].most_common(3)
         all_tools = list(d["tools"].most_common())
         if top_tools:
             top_tools_str = ", ".join(
-                f"<code>{html.escape(name)}</code> "
+                f"<span class='tool-name'>{html.escape(name)}</span> "
                 f"<span class='muted'>({n})</span>"
                 for name, n in top_tools
             )
@@ -688,44 +695,38 @@ def _render_day_table(days: dict[str, dict]) -> str:
             else:
                 top_tools_html = top_tools_str
         else:
-            top_tools_html = "—"
+            top_tools_html = '<span class="muted">—</span>'
 
-        # KI-Clients: Top 3 nach Tool-Calls + Top 3 nach Total
+        # KI-Clients: Top 3 nach Tool-Calls + Top 3 nach Total (zwei Zeilen)
         top_tool_clients = _top_n(d["apps_tool_calls"], 3)
         top_total_clients = _top_n(d["apps_all_calls"], 3)
-        all_clients = sorted(
-            ((app, d["apps_all_calls"].get(app, 0),
-              d["apps_tool_calls"].get(app, 0),
-              d["apps_setup_calls"].get(app, 0))
-             for app in (set(d["apps_all_calls"]) | set(d["apps_tool_calls"])
-                         | set(d["apps_setup_calls"]))),
-            key=lambda x: -x[1],
-        )
-        if all_clients:
-            client_tt = "\n".join(
-                f"{name}: {total} ({tool} Tool, {setup} Setup)"
-                for name, total, tool, setup in all_clients
-            )
-        else:
-            client_tt = ""
 
-        client_blocks = []
+        def _client_tooltip(counter: Counter) -> str:
+            return _tooltip_text(list(counter.most_common()))
+
         if top_tool_clients:
-            client_blocks.append(
-                f"<b>Tool-Nutzung:</b> "
-                f"{_format_client_list(top_tool_clients)}"
-            )
-        if top_total_clients:
-            client_blocks.append(
-                f"<b>Alle Anfragen:</b> "
-                f"{_format_client_list(top_total_clients)}"
-            )
-        if client_blocks:
-            inner = "&nbsp;&nbsp;·&nbsp;&nbsp;".join(client_blocks)
-            clients_html = (f'<span class="client-list has-tooltip" '
-                            f'title="{html.escape(client_tt)}">{inner}</span>')
+            tool_clients_str = _format_client_list(top_tool_clients)
+            if len(d["apps_tool_calls"]) > 3:
+                tt = _client_tooltip(d["apps_tool_calls"])
+                tool_clients_html = (f'<span class="has-tooltip" '
+                                     f'title="{html.escape(tt)}">'
+                                     f'{tool_clients_str}</span>')
+            else:
+                tool_clients_html = tool_clients_str
         else:
-            clients_html = '<span class="muted">—</span>'
+            tool_clients_html = '<span class="muted">—</span>'
+
+        if top_total_clients:
+            total_clients_str = _format_client_list(top_total_clients)
+            if len(d["apps_all_calls"]) > 3:
+                tt = _client_tooltip(d["apps_all_calls"])
+                total_clients_html = (f'<span class="has-tooltip" '
+                                      f'title="{html.escape(tt)}">'
+                                      f'{total_clients_str}</span>')
+            else:
+                total_clients_html = total_clients_str
+        else:
+            total_clients_html = '<span class="muted">—</span>'
 
         # Fehler mit Tooltip
         if d["errors"] > 0:
@@ -740,7 +741,7 @@ def _render_day_table(days: dict[str, dict]) -> str:
         out.append(
             f"<tbody class='day-group'>"
             f"<tr class='day-main'>"
-            f"<td class='day' rowspan='3'>{html.escape(day)}</td>"
+            f"<td class='day' rowspan='4'>{html.escape(day)}</td>"
             f"<td class='num'><span class='bar' "
             f"style='width:{bar_w*0.7:.1f}%;margin-right:.4rem'></span>"
             f"{d['tool_calls']}</td>"
@@ -751,13 +752,17 @@ def _render_day_table(days: dict[str, dict]) -> str:
             f"<td class='num muted'>{errors_html}</td>"
             f"</tr>"
             f"<tr class='day-detail'>"
-            f"<td class='label'>Tools</td>"
-            f"<td colspan='4'>{top_tools_html}</td>"
-            f"</tr>"
+            f"<td colspan='5'>"
+            f"<span class='label'>Tool-Requests</span>{top_tools_html}"
+            f"</td></tr>"
+            f"<tr class='day-detail'>"
+            f"<td colspan='5'>"
+            f"<span class='label'>Clients (nur tools)</span>{tool_clients_html}"
+            f"</td></tr>"
             f"<tr class='day-detail last'>"
-            f"<td class='label'>KI-Clients</td>"
-            f"<td colspan='4'>{clients_html}</td>"
-            f"</tr>"
+            f"<td colspan='5'>"
+            f"<span class='label'>Clients (alle)</span>{total_clients_html}"
+            f"</td></tr>"
             f"</tbody>"
         )
     out.append("</table>")
@@ -774,7 +779,8 @@ def _render_tool_table(tools: Counter) -> str:
             "<th class='bar-cell'>Anteil</th></tr></thead><tbody>"]
     for name, n in tools.most_common(20):
         w = 100 * n / max_v
-        rows.append(f"<tr><td><code>{html.escape(name)}</code></td>"
+        rows.append(f"<tr><td><span class='tool-name'>"
+                    f"{html.escape(name)}</span></td>"
                     f"<td class='num'>{n}</td>"
                     f"<td class='bar-cell'><span class='bar alt' "
                     f"style='width:{w:.1f}%'></span></td></tr>")
@@ -829,7 +835,8 @@ def _render_method_table(methods: Counter) -> str:
     for name, n in methods.most_common():
         w = 100 * n / max_v
         cls = "" if name == "tools/call" else " class='muted'"
-        rows.append(f"<tr{cls}><td><code>{html.escape(name)}</code></td>"
+        rows.append(f"<tr{cls}><td><span class='tool-name'>"
+                    f"{html.escape(name)}</span></td>"
                     f"<td class='num'>{n}</td>"
                     f"<td class='bar-cell'><span class='bar' "
                     f"style='width:{w:.1f}%'></span></td></tr>")

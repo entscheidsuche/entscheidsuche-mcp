@@ -255,8 +255,9 @@ def test_render_html_contains_kpis_and_new_columns(tmp_path):
     assert "Tool-Aufrufe" in body
     # neue Spalten:
     assert "Sessions" in body
-    assert "Top-Tools" in body  # bleibt als Panel-Heading
-    assert "Tool-Nutzung" in body  # Top-3-Label
+    assert "Tool-Nutzung" in body  # Panel-Heading
+    assert "Tool-Requests" in body  # Tagesübersicht-Label
+    assert "Clients (nur tools)" in body
     assert "Claude" in body
     # Setup-Spalte sollte NICHT mehr in der Tagesübersicht sein
     # (aber Setup als KPI-Begriff im Methoden-Panel ist ok)
