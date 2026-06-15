@@ -21,7 +21,7 @@ import logging
 import os
 from contextlib import asynccontextmanager
 from datetime import date as date_type
-from typing import Annotated, Any, AsyncIterator, List, Optional
+from typing import Annotated, Any, AsyncIterator, List, Literal, Optional
 
 from urllib.parse import urlparse
 
@@ -380,14 +380,14 @@ def build_server() -> FastMCP:
             ),
         ] = None,
         sort: Annotated[
-            SortOrder,
+            Literal["relevance", "date", "scrapedate"],
             Field(
                 description=(
                     "Optionale Sortierung: 'relevance' | 'date' (Entscheiddatum) "
                     "| 'scrapedate'. Default ist 'relevance'."
                 ),
             ),
-        ] = SortOrder.relevance,
+        ] = "relevance",
         size: Annotated[
             int, Field(ge=1, le=100, description="Treffer pro Seite (1–100).")
         ] = 20,
@@ -479,14 +479,14 @@ def build_server() -> FastMCP:
             ),
         ] = None,
         sort: Annotated[
-            SortOrder,
+            Literal["relevance", "date", "scrapedate"],
             Field(
                 description=(
                     "Optionale Sortierung: 'relevance' | 'date' (Entscheiddatum) "
                     "| 'scrapedate'. Default ist 'relevance'."
                 ),
             ),
-        ] = SortOrder.relevance,
+        ] = "relevance",
         size: Annotated[
             int, Field(ge=1, le=100, description="Treffer pro Seite (1–100).")
         ] = 20,
