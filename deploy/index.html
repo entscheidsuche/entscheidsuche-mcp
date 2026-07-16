@@ -5,15 +5,18 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>entscheidsuche-mcp</title>
     <style>
+      /* Design-Tokens übernommen von entscheidsuche.ch */
       :root {
         color-scheme: light;
-        --bg: #f5f1e8;
-        --panel: #fffdf8;
-        --ink: #1b1a17;
-        --muted: #665f52;
-        --accent: #9e3d18;
-        --accent-2: #d97706;
-        --line: #e9dcc7;
+        --bg: #ffffff;
+        --panel: #ffffff;
+        --ink: #212529;
+        --muted: #6c757d;
+        --accent: #6183ec;
+        --accent-2: #4a6cd4;
+        --line: #dee2e6;
+        --surface: #e5e9f1;
+        --code-bg: #f4f6fa;
       }
 
       * {
@@ -22,55 +25,135 @@
 
       body {
         margin: 0;
-        font-family: Georgia, "Times New Roman", serif;
-        background:
-          radial-gradient(circle at top left, rgba(217, 119, 6, 0.12), transparent 28rem),
-          linear-gradient(180deg, #f8f4ec 0%, var(--bg) 100%);
+        font-family: "Open Sans", Helvetica, Arial, sans-serif;
+        background: var(--bg);
         color: var(--ink);
+        display: flex;
+        flex-direction: column;
+        min-height: 100vh;
+      }
+
+      /* --- Kopfleiste (wie entscheidsuche.ch: #6183ec, 70px) -------------- */
+      .site-header {
+        background: var(--accent);
+        min-height: 70px;
+        display: flex;
+        align-items: center;
+        padding: 0.75rem 1.5rem;
+      }
+
+      .site-header .inner {
+        max-width: 56rem;
+        margin: 0 auto;
+        width: 100%;
+        display: flex;
+        align-items: baseline;
+        gap: 0.75rem;
+        flex-wrap: wrap;
+      }
+
+      .site-header a.wordmark {
+        color: #fff;
+        text-decoration: none;
+        font-weight: 700;
+        font-size: 1.35rem;
+        letter-spacing: 0.02em;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+      }
+
+      .site-header .lupe {
+        width: 1.5rem;
+        height: 1.5rem;
+        flex: none;
+        stroke: #fff;
+        stroke-width: 2.2;
+        fill: none;
+        stroke-linecap: round;
+      }
+
+      .site-header .sep {
+        color: rgba(255, 255, 255, 0.55);
+      }
+
+      .site-header .tag {
+        color: #fff;
+        font-size: 0.95rem;
+        font-weight: 600;
       }
 
       main {
         max-width: 56rem;
         margin: 0 auto;
-        padding: 4rem 1.5rem 5rem;
+        width: 100%;
+        flex: 1;
+        padding: 2.5rem 1.5rem 4rem;
       }
 
       .eyebrow {
-        letter-spacing: 0.08em;
+        letter-spacing: 0.06em;
         text-transform: uppercase;
         color: var(--accent);
-        font-size: 0.82rem;
+        font-size: 0.78rem;
         font-weight: 700;
       }
 
       h1 {
-        font-size: clamp(2.5rem, 6vw, 4.8rem);
-        line-height: 0.95;
-        margin: 0.5rem 0 1rem;
+        font-size: clamp(1.9rem, 4vw, 2.6rem);
+        line-height: 1.15;
+        font-weight: 700;
+        margin: 0.4rem 0 1rem;
       }
 
       p {
-        font-size: 1.08rem;
-        line-height: 1.65;
+        font-size: 1rem;
+        line-height: 1.6;
         color: var(--muted);
         max-width: 42rem;
       }
 
+      /* --- Fusszeile (wie entscheidsuche.ch: #e5e9f1) --------------------- */
+      .site-footer {
+        background: var(--surface);
+        padding: 1.5rem;
+        margin-top: auto;
+      }
+
+      .site-footer .inner {
+        max-width: 56rem;
+        margin: 0 auto;
+        display: flex;
+        gap: 0.6rem 1.5rem;
+        flex-wrap: wrap;
+        justify-content: space-between;
+        font-size: 0.88rem;
+        color: var(--muted);
+      }
+
+      .site-footer a {
+        color: var(--accent-2);
+      }
+
       .panel {
-        margin-top: 2rem;
+        margin-top: 1.5rem;
         background: var(--panel);
         border: 1px solid var(--line);
-        border-radius: 1rem;
+        border-radius: 4px;
         padding: 1.2rem 1.25rem;
-        box-shadow: 0 12px 40px rgba(71, 52, 24, 0.08);
+        box-shadow: 0 2px 30px rgba(0, 0, 0, 0.08);
+      }
+
+      .panel > strong {
+        font-size: 1.05rem;
       }
 
       code {
         font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-        font-size: 0.95rem;
-        background: #f8efe2;
-        padding: 0.18rem 0.35rem;
-        border-radius: 0.3rem;
+        font-size: 0.9rem;
+        background: var(--code-bg);
+        padding: 0.1rem 0.3rem;
+        border-radius: 3px;
       }
 
       pre {
@@ -95,10 +178,15 @@
         margin-top: 0.8rem;
         color: white;
         text-decoration: none;
-        background: linear-gradient(135deg, var(--accent), var(--accent-2));
-        padding: 0.7rem 1rem;
-        border-radius: 999px;
-        font-weight: 700;
+        background: var(--accent);
+        padding: 0.55rem 1rem;
+        border-radius: 4px;
+        font-weight: 600;
+        font-size: 0.95rem;
+      }
+
+      .cta:hover {
+        background: var(--accent-2);
       }
 
       details {
@@ -150,10 +238,18 @@
       }
 
       .panel pre {
-        background: #f8efe2;
+        background: var(--code-bg);
+        border: 1px solid var(--line);
         padding: 0.7rem 0.85rem;
-        border-radius: 0.5rem;
+        border-radius: 4px;
         margin: 0.5rem 0;
+        font-size: 0.85rem;
+        line-height: 1.5;
+      }
+
+      .panel pre code {
+        background: none;
+        padding: 0;
       }
 
       table {
@@ -184,18 +280,108 @@
         margin-top: 0.6rem;
         padding: 0.7rem 0.9rem;
         border-left: 3px solid var(--accent);
-        background: #fbf2e3;
-        border-radius: 0.4rem;
-        font-size: 0.95rem;
+        background: var(--surface);
+        border-radius: 4px;
+        font-size: 0.92rem;
         color: var(--ink);
       }
 
       .notice strong {
         color: var(--accent);
       }
+
+      /* --- Methoden-Referenz --------------------------------------------- */
+      .api h4 {
+        margin: 1rem 0 0.2rem;
+        font-size: 0.95rem;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+        color: var(--accent);
+      }
+
+      .api table {
+        font-size: 0.9rem;
+      }
+
+      .api th {
+        font-size: 0.82rem;
+        letter-spacing: 0.03em;
+        text-transform: uppercase;
+        color: var(--muted);
+        font-weight: 700;
+      }
+
+      .api td:first-child code {
+        background: none;
+        padding: 0;
+        font-weight: 700;
+        color: var(--ink);
+      }
+
+      .api .type {
+        font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+        font-size: 0.82rem;
+        color: var(--accent);
+        white-space: nowrap;
+      }
+
+      .api .req {
+        font-size: 0.75rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        color: #fff;
+        background: var(--accent);
+        padding: 0.1rem 0.4rem;
+        border-radius: 3px;
+        white-space: nowrap;
+      }
+
+      .api > details > summary {
+        font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+        font-size: 0.98rem;
+      }
+
+      @media (max-width: 34rem) {
+        .api table,
+        .api tbody,
+        .api tr,
+        .api td {
+          display: block;
+          width: 100%;
+        }
+
+        .api thead {
+          display: none;
+        }
+
+        .api tr {
+          border-bottom: 1px solid var(--line);
+          padding: 0.5rem 0;
+        }
+
+        .api td {
+          border: none;
+          padding: 0.1rem 0;
+        }
+      }
     </style>
   </head>
   <body>
+    <header class="site-header">
+      <div class="inner">
+        <a class="wordmark" href="https://entscheidsuche.ch">
+          <svg class="lupe" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+            <circle cx="14.5" cy="9.5" r="6.5" />
+            <line x1="9.7" y1="14.3" x2="3.5" y2="20.5" />
+          </svg>
+          entscheidsuche.ch
+        </a>
+        <span class="sep">/</span>
+        <span class="tag">MCP-Interface</span>
+      </div>
+    </header>
+
     <main>
       <div class="eyebrow">Model Context Protocol</div>
       <h1>entscheidsuche-mcp</h1>
@@ -221,6 +407,360 @@
           <li><code>list_facets</code> für den lokalisierten Facettenbaum</li>
           <li><code>server_info</code> für Server- und Versionsinformationen</li>
         </ul>
+      </div>
+
+      <div class="panel api">
+        <strong>Methoden im Detail</strong>
+        <p class="small">
+          Ein- und Ausgabeparameter jeder Methode. Alle Parameter mit einem
+          Default sind optional; nur die mit <span class="req">Pflicht</span>
+          gekennzeichneten müssen angegeben werden. Die Beispiele sind echte,
+          gekürzte Antworten dieses Servers.
+        </p>
+
+        <details>
+          <summary>search <span class="badge">Volltextsuche</span></summary>
+          <p class="small">
+            Volltextsuche über alle Entscheide. <code>query</code> versteht
+            Lucene-Syntax: <code>"…"</code> für Phrasen, <code>AND</code>/<code>OR</code>/<code>NOT</code>,
+            Wildcards <code>*</code> und <code>?</code>. Default-Operator zwischen
+            Begriffen ist <code>AND</code>; Filter werden mit <code>AND</code> verknüpft.
+          </p>
+
+          <h4>Eingabe</h4>
+          <table>
+            <thead>
+              <tr><th>Parameter</th><th>Typ</th><th>Default</th><th>Beschreibung</th></tr>
+            </thead>
+            <tbody>
+              <tr><td><code>query</code></td><td class="type">string</td><td class="type">"*"</td><td>Volltext-Anfrage. <code>"*"</code> matcht alles.</td></tr>
+              <tr><td><code>language</code></td><td class="type">"de"|"fr"|"it"</td><td class="type">null</td><td>Bevorzugte Sprache für Titel/Highlight. <strong>Kein Filter</strong> — dafür <code>language_filter</code>.</td></tr>
+              <tr><td><code>sort</code></td><td class="type">"relevance"|"date"|"scrapedate"</td><td class="type">"relevance"</td><td>Sortierung; <code>date</code> = Entscheiddatum.</td></tr>
+              <tr><td><code>size</code></td><td class="type">integer 1–100</td><td class="type">20</td><td>Treffer pro Seite.</td></tr>
+              <tr><td><code>search_after</code></td><td class="type">array</td><td class="type">null</td><td>Cursor: <code>next_cursor</code> der vorigen Antwort.</td></tr>
+              <tr><td><code>decision_date_from</code></td><td class="type">date</td><td class="type">null</td><td>Untergrenze Entscheiddatum (YYYY-MM-DD, inklusive).</td></tr>
+              <tr><td><code>decision_date_to</code></td><td class="type">date</td><td class="type">null</td><td>Obergrenze Entscheiddatum (YYYY-MM-DD, inklusive).</td></tr>
+              <tr><td><code>scrape_date_from</code></td><td class="type">date</td><td class="type">null</td><td>Untergrenze Scrape-Datum.</td></tr>
+              <tr><td><code>scrape_date_to</code></td><td class="type">date</td><td class="type">null</td><td>Obergrenze Scrape-Datum.</td></tr>
+              <tr><td><code>hierarchy</code></td><td class="type">string[]</td><td class="type">null</td><td>Hierarchie-IDs (Kanton/Gericht/Kammer) aus <code>list_hierarchy</code>. Mehrere werden mit OR verknüpft.</td></tr>
+              <tr><td><code>language_filter</code></td><td class="type">("de"|"fr"|"it")[]</td><td class="type">null</td><td>Echter Filter nach Dokumentsprache(n).</td></tr>
+              <tr><td><code>include_aggregations</code></td><td class="type">boolean</td><td class="type">false</td><td>Aggregationen (Verteilungen) mitliefern.</td></tr>
+            </tbody>
+          </table>
+
+          <h4>Ausgabe</h4>
+          <table>
+            <thead>
+              <tr><th>Feld</th><th>Typ</th><th>Beschreibung</th></tr>
+            </thead>
+            <tbody>
+              <tr><td><code>total</code></td><td class="type">integer</td><td>Gesamtzahl der Treffer (nicht nur dieser Seite).</td></tr>
+              <tr><td><code>hits</code></td><td class="type">Treffer[]</td><td>Die Treffer dieser Seite — Felder siehe „Treffer-Objekt“ unten.</td></tr>
+              <tr><td><code>next_cursor</code></td><td class="type">array|null</td><td>Als <code>search_after</code> im nächsten Request mitgeben. <code>null</code> = keine weiteren Treffer.</td></tr>
+              <tr><td><code>aggregations</code></td><td class="type">object|null</td><td>Nur bei <code>include_aggregations: true</code>; je Feld eine Liste von <code>{key, count}</code>.</td></tr>
+            </tbody>
+          </table>
+
+          <h4>Beispiel</h4>
+<pre><code>// Aufruf
+{ "query": "Mietrecht Kündigung", "sort": "date", "size": 3 }
+
+// Antwort (gekürzt)
+{
+  "total": 886,
+  "hits": [
+    {
+      "id": "ZH_BK_004_MJ240016-L_2026-04-22",
+      "title": "Zürich Bezirksgerichte Mietgericht 22.04.2026 MJ240016-L",
+      "abstract": "ZMP 2026 Nr. 6: Mietzinserhöhungen …",
+      "text": "Eine &lt;em&gt;Kündigung&lt;/em&gt; kann auf jedes Monatsende …",
+      "meta": "Zürich Bezirksgerichte Mietgericht",
+      "canton": "ZH",
+      "court": "ZH_BK",
+      "decision_date": "2026-04-22",
+      "scrape_date": "2026-05-03",
+      "is_pdf": true,
+      "document_url": "https://entscheidsuche.ch/docs/ZH_Obergericht/ZH_BK_004_MJ240016-L_2026-04-22.pdf",
+      "original_url": null,
+      "sort": [1776816000000, "ZH_BK_004_MJ240016-L_2026-04-22"]
+    }
+  ],
+  "next_cursor": [1772668800000, "ZH_BK_004_MJ240004-L_2026-03-05"],
+  "aggregations": null
+}</code></pre>
+        </details>
+
+        <details>
+          <summary>search_by_case_number <span class="badge">Geschäftsnummer / BGE-Zitat</span></summary>
+          <p class="small">
+            Setzt <code>case_number</code> automatisch in Anführungszeichen und
+            sucht als exakte Phrase. Ansonsten identisch zu <code>search</code> —
+            gleiche Filter, gleiche Antwortstruktur.
+          </p>
+
+          <h4>Eingabe</h4>
+          <table>
+            <thead>
+              <tr><th>Parameter</th><th>Typ</th><th>Default</th><th>Beschreibung</th></tr>
+            </thead>
+            <tbody>
+              <tr><td><code>case_number</code></td><td class="type">string</td><td><span class="req">Pflicht</span></td><td>Geschäftsnummer, Aktenzeichen, Urteilsnummer oder BGE-Zitat, z.&nbsp;B. <code>BGE 142 III 1</code> oder <code>5A_396/2015</code>.</td></tr>
+              <tr><td><code>language</code></td><td class="type">"de"|"fr"|"it"</td><td class="type">null</td><td>Bevorzugte Sprache für Titel/Highlight (kein Filter).</td></tr>
+              <tr><td><code>sort</code></td><td class="type">"relevance"|"date"|"scrapedate"</td><td class="type">"relevance"</td><td>Sortierung.</td></tr>
+              <tr><td><code>size</code></td><td class="type">integer 1–100</td><td class="type">20</td><td>Treffer pro Seite.</td></tr>
+              <tr><td><code>search_after</code></td><td class="type">array</td><td class="type">null</td><td>Paginierungs-Cursor.</td></tr>
+              <tr><td><code>decision_date_from</code> / <code>decision_date_to</code></td><td class="type">date</td><td class="type">null</td><td>Zeitraum Entscheiddatum (YYYY-MM-DD).</td></tr>
+              <tr><td><code>scrape_date_from</code> / <code>scrape_date_to</code></td><td class="type">date</td><td class="type">null</td><td>Zeitraum Scrape-Datum.</td></tr>
+              <tr><td><code>hierarchy</code></td><td class="type">string[]</td><td class="type">null</td><td>Hierarchie-IDs für Kanton/Gericht/Kammer.</td></tr>
+              <tr><td><code>language_filter</code></td><td class="type">("de"|"fr"|"it")[]</td><td class="type">null</td><td>Filter nach Dokumentsprache(n).</td></tr>
+              <tr><td><code>include_aggregations</code></td><td class="type">boolean</td><td class="type">false</td><td>Aggregationen mitliefern.</td></tr>
+            </tbody>
+          </table>
+
+          <h4>Ausgabe</h4>
+          <p class="small">
+            Identisch zu <code>search</code>: <code>total</code>, <code>hits</code>,
+            <code>next_cursor</code>, <code>aggregations</code>.
+          </p>
+
+          <h4>Beispiel</h4>
+<pre><code>// Aufruf
+{ "case_number": "BGE 142 III 1", "size": 1 }
+
+// Antwort (gekürzt)
+{
+  "total": 171,
+  "hits": [
+    {
+      "id": "CH_BGE_005_BGE-142-III-1_2016",
+      "title": "Bundesgericht (BGE) Teil III 2016 BGE 142 III 1",
+      "abstract": "Regeste a … Art. 85 Abs. 1 IPRG; Art. 5 HKsÜ …",
+      "canton": "CH",
+      "court": "CH_BGE",
+      "decision_date": "2016-01-01",
+      "is_pdf": false,
+      "document_url": "https://entscheidsuche.ch/docs/CH_BGE/CH_BGE_005_BGE-142-III-1_2016.html",
+      "sort": [50.027256, "CH_BGE_005_BGE-142-III-1_2016"]
+    }
+  ],
+  "next_cursor": [50.027256, "CH_BGE_005_BGE-142-III-1_2016"]
+}</code></pre>
+        </details>
+
+        <details>
+          <summary>fetch_document <span class="badge">Einzelentscheid inkl. Volltext</span></summary>
+          <p class="small">
+            Liefert einen einzelnen Entscheid anhand seiner Dokument-ID — im
+            Unterschied zur Suche mit dem <strong>vollständigen</strong> Volltext
+            in <code>text</code> (nicht nur einem Highlight-Auszug).
+          </p>
+
+          <h4>Eingabe</h4>
+          <table>
+            <thead>
+              <tr><th>Parameter</th><th>Typ</th><th>Default</th><th>Beschreibung</th></tr>
+            </thead>
+            <tbody>
+              <tr><td><code>id</code></td><td class="type">string</td><td><span class="req">Pflicht</span></td><td>Dokument-ID aus einem Suchtreffer, z.&nbsp;B. <code>CH_BGE_005_BGE-142-III-1_2016</code>.</td></tr>
+              <tr><td><code>language</code></td><td class="type">"de"|"fr"|"it"</td><td class="type">null</td><td>Bevorzugte Sprache für Titel/Abstract. Ohne Angabe das erste vorhandene Sprachfeld.</td></tr>
+            </tbody>
+          </table>
+
+          <h4>Ausgabe</h4>
+          <table>
+            <thead>
+              <tr><th>Feld</th><th>Typ</th><th>Beschreibung</th></tr>
+            </thead>
+            <tbody>
+              <tr><td><code>result</code></td><td class="type">Treffer|null</td><td>Das Treffer-Objekt (Felder siehe unten) mit vollständigem <code>text</code>. <code>null</code>, wenn die ID nicht existiert. <code>sort</code> ist hier immer <code>null</code>.</td></tr>
+            </tbody>
+          </table>
+
+          <h4>Beispiel</h4>
+<pre><code>// Aufruf
+{ "id": "CH_BGE_005_BGE-142-III-1_2016" }
+
+// Antwort (gekürzt)
+{
+  "result": {
+    "id": "CH_BGE_005_BGE-142-III-1_2016",
+    "title": "Bundesgericht (BGE) Teil III 2016 BGE 142 III 1",
+    "abstract": "Regeste a … Zuteilung der alleinigen elterlichen Sorge …",
+    "text": "Urteilskopf\n\n142 III 1\n\n1. Auszug aus dem Urteil der II. zivilrechtlichen Abteilung …",
+    "meta": "Eidgenossenschaft Bundesgericht (BGE) Teil III",
+    "canton": "CH",
+    "court": "CH_BGE",
+    "decision_date": "2016-01-01",
+    "scrape_date": "2023-01-01",
+    "is_pdf": false,
+    "document_url": "https://entscheidsuche.ch/docs/CH_BGE/CH_BGE_005_BGE-142-III-1_2016.html",
+    "original_url": null,
+    "sort": null
+  }
+}</code></pre>
+        </details>
+
+        <details>
+          <summary>list_hierarchy <span class="badge">Hierarchie-IDs mit Trefferzahlen</span></summary>
+          <p class="small">
+            Liefert die Hierarchie-IDs für Kantone, Gerichte und Kammern mit
+            Trefferzahlen. Die IDs werden im <code>hierarchy</code>-Filter von
+            <code>search</code> verwendet. Mit <code>query</code> beziehen sich die
+            Zahlen auf die Treffer dieser Anfrage.
+          </p>
+
+          <h4>Eingabe</h4>
+          <table>
+            <thead>
+              <tr><th>Parameter</th><th>Typ</th><th>Default</th><th>Beschreibung</th></tr>
+            </thead>
+            <tbody>
+              <tr><td><code>query</code></td><td class="type">string</td><td class="type">"*"</td><td>Optionale Volltext-Anfrage zur Eingrenzung der Aggregation.</td></tr>
+              <tr><td><code>size</code></td><td class="type">integer 1–10000</td><td class="type">1000</td><td>Maximale Anzahl Einträge.</td></tr>
+            </tbody>
+          </table>
+
+          <h4>Ausgabe</h4>
+          <table>
+            <thead>
+              <tr><th>Feld</th><th>Typ</th><th>Beschreibung</th></tr>
+            </thead>
+            <tbody>
+              <tr><td><code>entries</code></td><td class="type">array</td><td>Liste von <code>{ id, count }</code>, absteigend nach <code>count</code>.</td></tr>
+              <tr><td><code>entries[].id</code></td><td class="type">string</td><td>Hierarchie-ID, z.&nbsp;B. <code>CH_BGer</code>, <code>ZH</code>.</td></tr>
+              <tr><td><code>entries[].count</code></td><td class="type">integer</td><td>Anzahl Dokumente unter dieser ID.</td></tr>
+            </tbody>
+          </table>
+
+          <h4>Beispiel</h4>
+<pre><code>// Aufruf
+{ "query": "Mietrecht", "size": 4 }
+
+// Antwort
+{
+  "entries": [
+    { "id": "CH",          "count": 736 },
+    { "id": "CH_BGer",     "count": 503 },
+    { "id": "ZH",          "count": 485 },
+    { "id": "CH_BGer_004", "count": 444 }
+  ]
+}</code></pre>
+        </details>
+
+        <details>
+          <summary>list_facets <span class="badge">Facettenbaum, lokalisiert</span></summary>
+          <p class="small">
+            Hierarchischer Facettenbaum mit lokalisierten Bezeichnungen. Anders als
+            <code>list_hierarchy</code> ohne Trefferzahlen, dafür mit Klartext-Namen
+            in mehreren Sprachen. Die <code>id</code>-Werte sind im
+            <code>hierarchy</code>-Filter verwendbar.
+          </p>
+
+          <h4>Eingabe</h4>
+          <p class="small">Keine Parameter.</p>
+
+          <h4>Ausgabe</h4>
+          <table>
+            <thead>
+              <tr><th>Feld</th><th>Typ</th><th>Beschreibung</th></tr>
+            </thead>
+            <tbody>
+              <tr><td><code>id</code></td><td class="type">string</td><td>Hierarchie-ID (im <code>hierarchy</code>-Filter verwendbar).</td></tr>
+              <tr><td><code>label</code></td><td class="type">object</td><td>Bezeichnungen je Sprache: <code>de</code>, <code>fr</code>, <code>it</code>, <code>en</code> (einzelne können <code>null</code> sein).</td></tr>
+              <tr><td><code>children</code></td><td class="type">array</td><td>Untergeordnete Knoten gleicher Struktur (rekursiv).</td></tr>
+            </tbody>
+          </table>
+
+          <h4>Beispiel</h4>
+<pre><code>// Aufruf
+{}
+
+// Antwort (Auszug — ein Knoten je Listeneintrag)
+{
+  "id": "CH",
+  "label": {
+    "de": "Eidgenossenschaft",
+    "fr": "Conféderation",
+    "it": "Confederazione",
+    "en": null
+  },
+  "children": []
+}
+{
+  "id": "AG",
+  "label": { "de": "Aargau", "fr": "Argovie", "it": "Argovia", "en": null },
+  "children": []
+}</code></pre>
+        </details>
+
+        <details>
+          <summary>server_info <span class="badge">Version und Endpunkte</span></summary>
+          <p class="small">
+            Diagnose-Endpunkt: Version des Servers und die konfigurierten
+            Upstream-URLs. Nützlich, um zu prüfen, welche Version tatsächlich läuft.
+          </p>
+
+          <h4>Eingabe</h4>
+          <p class="small">Keine Parameter.</p>
+
+          <h4>Ausgabe</h4>
+          <table>
+            <thead>
+              <tr><th>Feld</th><th>Typ</th><th>Beschreibung</th></tr>
+            </thead>
+            <tbody>
+              <tr><td><code>name</code></td><td class="type">string</td><td>Servername.</td></tr>
+              <tr><td><code>version</code></td><td class="type">string</td><td>Version des laufenden Servers.</td></tr>
+              <tr><td><code>elasticsearch_url</code></td><td class="type">string</td><td>Angebundener Suchindex.</td></tr>
+              <tr><td><code>facets_url</code></td><td class="type">string</td><td>Quelle des Facettenbaums.</td></tr>
+              <tr><td><code>languages</code></td><td class="type">string[]</td><td>Unterstützte Sprachen.</td></tr>
+              <tr><td><code>sort_orders</code></td><td class="type">string[]</td><td>Zulässige Werte für <code>sort</code>.</td></tr>
+            </tbody>
+          </table>
+
+          <h4>Beispiel</h4>
+<pre><code>// Aufruf
+{}
+
+// Antwort
+{
+  "name": "entscheidsuche-mcp",
+  "version": "0.1.1",
+  "elasticsearch_url": "https://entscheidsuche.pansoft.de:9200/entscheidsuche.v2-*/_search",
+  "facets_url": "https://entscheidsuche.ch/docs/Facetten.json",
+  "languages": ["de", "fr", "it"],
+  "sort_orders": ["relevance", "date", "scrapedate"]
+}</code></pre>
+        </details>
+
+        <details>
+          <summary>Treffer-Objekt <span class="badge">gemeinsame Felder</span></summary>
+          <p class="small">
+            Diese Struktur liefern <code>search</code> und
+            <code>search_by_case_number</code> in <code>hits[]</code> sowie
+            <code>fetch_document</code> in <code>result</code>.
+          </p>
+          <table>
+            <thead>
+              <tr><th>Feld</th><th>Typ</th><th>Beschreibung</th></tr>
+            </thead>
+            <tbody>
+              <tr><td><code>id</code></td><td class="type">string</td><td>Dokument-ID — für <code>fetch_document</code> verwendbar.</td></tr>
+              <tr><td><code>title</code></td><td class="type">string</td><td>Titel des Entscheids.</td></tr>
+              <tr><td><code>abstract</code></td><td class="type">string</td><td>Regeste bzw. Kurzfassung, sofern vorhanden.</td></tr>
+              <tr><td><code>text</code></td><td class="type">string</td><td>Bei der Suche ein Highlight-Auszug (Fundstellen in <code>&lt;em&gt;</code>), bei <code>fetch_document</code> der vollständige Volltext.</td></tr>
+              <tr><td><code>meta</code></td><td class="type">string</td><td>Klartext-Bezeichnung des Gerichts.</td></tr>
+              <tr><td><code>canton</code></td><td class="type">string</td><td>Kantonskürzel, <code>CH</code> für Bundesbehörden.</td></tr>
+              <tr><td><code>court</code></td><td class="type">string</td><td>Gerichts-ID (aus der Dokument-ID abgeleitet).</td></tr>
+              <tr><td><code>decision_date</code></td><td class="type">string|null</td><td>Entscheiddatum, ISO <code>YYYY-MM-DD</code>.</td></tr>
+              <tr><td><code>scrape_date</code></td><td class="type">string|null</td><td>Datum der Erfassung, ISO <code>YYYY-MM-DD</code>.</td></tr>
+              <tr><td><code>is_pdf</code></td><td class="type">boolean</td><td>Ob das Originaldokument ein PDF ist.</td></tr>
+              <tr><td><code>document_url</code></td><td class="type">string|null</td><td>Direktlink auf das Originaldokument.</td></tr>
+              <tr><td><code>original_url</code></td><td class="type">string|null</td><td>URL der ursprünglichen Quell-Webseite.</td></tr>
+              <tr><td><code>sort</code></td><td class="type">array|null</td><td>Sortierwerte des Treffers (Basis für <code>search_after</code>).</td></tr>
+            </tbody>
+          </table>
+        </details>
       </div>
 
       <div class="panel">
@@ -439,5 +979,12 @@ resp = client.messages.create(
 
       <a class="cta" href="https://github.com/entscheidsuche/entscheidsuche-mcp">Zum Repository auf Github.</a>
     </main>
+
+    <footer class="site-footer">
+      <div class="inner">
+        <span><a href="https://entscheidsuche.ch">entscheidsuche.ch</a> — Suche in Schweizer Gerichtsentscheiden</span>
+        <span><a href="https://github.com/entscheidsuche/entscheidsuche-mcp">Quellcode auf GitHub</a></span>
+      </div>
+    </footer>
   </body>
 </html>
