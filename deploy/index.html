@@ -546,6 +546,14 @@
             Unterschied zur Suche mit dem <strong>vollständigen</strong> Volltext
             in <code>text</code> (nicht nur einem Highlight-Auszug).
           </p>
+          <p class="small">
+            <strong>Sehr lange Entscheide:</strong> Der indexierte Text ist auf
+            100'000 Zeichen begrenzt. Ist er abgeschnitten, wird <code>text_truncated</code>
+            auf <code>true</code> gesetzt, <code>content_length</code> nennt die Zeichenzahl,
+            und ans Ende von <code>text</code> wird ein Hinweis in der Entscheidsprache
+            (Rückfall Englisch) mit Link auf das vollständige Dokument (<code>document_url</code>)
+            angehängt.
+          </p>
 
           <h4>Eingabe</h4>
           <table>
@@ -587,6 +595,8 @@
     "is_pdf": false,
     "document_url": "https://entscheidsuche.ch/docs/CH_BGE/CH_BGE_005_BGE-142-III-1_2016.html",
     "original_url": null,
+    "content_length": 15887,
+    "text_truncated": false,
     "sort": null
   }
 }</code></pre>
@@ -740,7 +750,7 @@
               <tr><td><code>id</code></td><td class="type">string</td><td>Dokument-ID — für <code>fetch_document</code> verwendbar.</td></tr>
               <tr><td><code>title</code></td><td class="type">string</td><td>Titel des Entscheids.</td></tr>
               <tr><td><code>abstract</code></td><td class="type">string</td><td>Regeste bzw. Kurzfassung, sofern vorhanden.</td></tr>
-              <tr><td><code>text</code></td><td class="type">string</td><td>Bei der Suche ein Highlight-Auszug (Fundstellen in <code>&lt;em&gt;</code>), bei <code>fetch_document</code> der vollständige Volltext.</td></tr>
+              <tr><td><code>text</code></td><td class="type">string</td><td>Bei der Suche ein Highlight-Auszug (Fundstellen in <code>&lt;em&gt;</code>), bei <code>fetch_document</code> der vollständige Volltext (bei sehr langen Entscheiden bis 100'000 Zeichen, dann mit angehängtem Hinweis).</td></tr>
               <tr><td><code>meta</code></td><td class="type">string</td><td>Klartext-Bezeichnung des Gerichts.</td></tr>
               <tr><td><code>canton</code></td><td class="type">string</td><td>Kantonskürzel, <code>CH</code> für Bundesbehörden.</td></tr>
               <tr><td><code>court</code></td><td class="type">string</td><td>Gerichts-ID (aus der Dokument-ID abgeleitet).</td></tr>
@@ -749,6 +759,8 @@
               <tr><td><code>is_pdf</code></td><td class="type">boolean</td><td>Ob das Originaldokument ein PDF ist.</td></tr>
               <tr><td><code>document_url</code></td><td class="type">string|null</td><td>Direktlink auf das Originaldokument.</td></tr>
               <tr><td><code>original_url</code></td><td class="type">string|null</td><td>URL der ursprünglichen Quell-Webseite.</td></tr>
+              <tr><td><code>content_length</code></td><td class="type">integer|null</td><td>Länge des indexierten Volltexts in Zeichen. Nur bei <code>fetch_document</code> gesetzt.</td></tr>
+              <tr><td><code>text_truncated</code></td><td class="type">boolean</td><td><code>true</code>, wenn der Text bei 100'000 Zeichen abgeschnitten wurde; das vollständige Dokument liegt dann unter <code>document_url</code>.</td></tr>
               <tr><td><code>sort</code></td><td class="type">array|null</td><td>Sortierwerte des Treffers (Basis für <code>search_after</code>).</td></tr>
             </tbody>
           </table>
