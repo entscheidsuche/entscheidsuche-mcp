@@ -335,27 +335,27 @@ def build_server() -> FastMCP:
     # search
     # ------------------------------------------------------------------
     @mcp.tool(
-        title="Entscheide durchsuchen",
+        title="Search decisions",
         description=(
-            "Volltext-Suche in Schweizer Gerichtsurteilen, Gerichtsentscheiden, "
-            "Rechtsprechung und Swiss case law aus entscheidsuche.ch. Geeignet für "
-            "Entscheide des Bundesgerichts (BGer, BGE) und kantonaler Gerichte wie "
-            "Kantonsgericht, Obergericht oder Verwaltungsgericht.\n\n"
-            "Typische Anwendungsfälle:\n"
-            "  - Bundesgerichtsurteil, BGE oder Gerichtsurteil thematisch suchen\n"
-            "  - Schweizer Rechtsprechung zu Mietrecht, ZGB, OR, StGB oder BV finden\n"
-            "  - Geschäftsnummern, Urteilsnummern oder Zitate verifizieren\n"
-            "  - Verwandte Tools: fetch_document, search_by_case_number, "
+            "Full-text search across Swiss court judgments, court decisions and "
+            "case law from entscheidsuche.ch. Covers decisions of the Federal "
+            "Supreme Court (BGer, BGE) and cantonal courts such as Kantonsgericht, "
+            "Obergericht or Verwaltungsgericht.\n\n"
+            "Typical use cases:\n"
+            "  - Search Federal Supreme Court judgments, BGE or rulings by topic\n"
+            "  - Find Swiss case law on tenancy law, ZGB, OR, StGB or BV\n"
+            "  - Verify case numbers, judgment numbers or citations\n"
+            "  - Related tools: fetch_document, search_by_case_number, "
             "list_hierarchy, list_facets\n\n"
-            "Suchsyntax (Lucene-Query-String):\n"
-            "  - Phrasen-/Geschäftsnummer-Suche: \"BGE 142 III 1\" (mit Anführungszeichen)\n"
-            "  - Boolesche Operatoren: AND, OR, NOT (bzw. +, -)\n"
-            "  - Wildcards: * und ?\n"
-            "  - Default-Operator zwischen Begriffen ist AND.\n\n"
-            "Filter werden mit AND verknüpft. Hierarchie-IDs aus `list_hierarchy` "
-            "oder `list_facets` übernehmen.\n\n"
-            "Paginierung: nach dem ersten Aufruf den `next_cursor`-Wert aus der "
-            "Antwort als `search_after` im nächsten Aufruf übergeben."
+            "Search syntax (Lucene query string):\n"
+            "  - Phrase / case-number search: \"BGE 142 III 1\" (in quotes)\n"
+            "  - Boolean operators: AND, OR, NOT (or +, -)\n"
+            "  - Wildcards: * and ?\n"
+            "  - The default operator between terms is AND.\n\n"
+            "Filters are combined with AND. Use hierarchy IDs from `list_hierarchy` "
+            "or `list_facets`.\n\n"
+            "Pagination: after the first call, pass the `next_cursor` value from the "
+            "response as `search_after` in the next call."
         ),
         )
     async def search(
@@ -364,8 +364,8 @@ def build_server() -> FastMCP:
             str,
             Field(
                 description=(
-                    "Volltext-Anfrage. \"...\" für Phrasen, AND/OR/NOT für Boolesche "
-                    "Verknüpfungen, * und ? für Wildcards. \"*\" matcht alles."
+                    "Full-text query. \"...\" for phrases, AND/OR/NOT for Boolean "
+                    "operators, * and ? for wildcards. \"*\" matches everything."
                 ),
             ),
         ] = "*",
@@ -373,9 +373,9 @@ def build_server() -> FastMCP:
             Optional[Language],
             Field(
                 description=(
-                    "Optionale bevorzugte Sprache für Highlight/Anzeige (de, fr, it). "
-                    "Ohne Angabe wird das erste vorhandene Sprachfeld zurückgegeben — "
-                    "es findet KEINE Filterung statt; dafür `language_filter` setzen."
+                    "Optional preferred language for highlighting/display (de, fr, "
+                    "it). If omitted, the first available language field is returned "
+                    "— this does NOT filter; use `language_filter` for that."
                 ),
             ),
         ] = None,
@@ -383,50 +383,50 @@ def build_server() -> FastMCP:
             Literal["relevance", "date", "scrapedate"],
             Field(
                 description=(
-                    "Optionale Sortierung: 'relevance' | 'date' (Entscheiddatum) "
-                    "| 'scrapedate'. Default ist 'relevance'."
+                    "Optional sort order: 'relevance' | 'date' (decision date) "
+                    "| 'scrapedate'. Default is 'relevance'."
                 ),
             ),
         ] = "relevance",
         size: Annotated[
-            int, Field(ge=1, le=100, description="Treffer pro Seite (1–100).")
+            int, Field(ge=1, le=100, description="Results per page (1–100).")
         ] = 20,
         search_after: Annotated[
             Optional[List[Any]],
-            Field(description="Cursor aus `next_cursor` der vorigen Antwort."),
+            Field(description="Cursor from `next_cursor` of the previous response."),
         ] = None,
         decision_date_from: Annotated[
             Optional[date_type],
-            Field(description="Untergrenze Entscheiddatum (YYYY-MM-DD, inklusive)."),
+            Field(description="Lower bound for the decision date (YYYY-MM-DD, inclusive)."),
         ] = None,
         decision_date_to: Annotated[
             Optional[date_type],
-            Field(description="Obergrenze Entscheiddatum (YYYY-MM-DD, inklusive)."),
+            Field(description="Upper bound for the decision date (YYYY-MM-DD, inclusive)."),
         ] = None,
         scrape_date_from: Annotated[
             Optional[date_type],
-            Field(description="Untergrenze Scrape-Datum (YYYY-MM-DD, inklusive)."),
+            Field(description="Lower bound for the scrape date (YYYY-MM-DD, inclusive)."),
         ] = None,
         scrape_date_to: Annotated[
             Optional[date_type],
-            Field(description="Obergrenze Scrape-Datum (YYYY-MM-DD, inklusive)."),
+            Field(description="Upper bound for the scrape date (YYYY-MM-DD, inclusive)."),
         ] = None,
         hierarchy: Annotated[
             Optional[List[str]],
             Field(
                 description=(
-                    "Liste von Hierarchie-IDs (Kanton/Gericht/Kammer). Mehrere IDs "
-                    "werden mit OR verknüpft; mit anderen Filtern AND."
+                    "List of hierarchy IDs (canton/court/chamber). Multiple IDs are "
+                    "combined with OR; with other filters, AND."
                 ),
             ),
         ] = None,
         language_filter: Annotated[
             Optional[List[Language]],
-            Field(description="Filter nach Dokumentsprache(n)."),
+            Field(description="Filter by document language(s)."),
         ] = None,
         include_aggregations: Annotated[
             bool,
-            Field(description="Aggregationen mitliefern (Verteilungen über die Treffer)."),
+            Field(description="Include aggregations (distributions over the results)."),
         ] = False,
     ) -> SearchResponse:
         params = SearchParams(
@@ -447,14 +447,13 @@ def build_server() -> FastMCP:
     # search_by_case_number
     # ------------------------------------------------------------------
     @mcp.tool(
-        title="Nach Geschäftsnummer suchen",
+        title="Search by case number",
         description=(
-            "Spezialsuche für Geschäftsnummern, Urteilsnummern und BGE-Zitate in "
-            "Schweizer Gerichtsurteilen. Dieses Tool setzt die angegebene "
-            "Geschäftsnummer automatisch in Anführungszeichen und startet damit "
-            "eine exakte Phrasensuche, zum Beispiel für 'BGE 142 III 1', "
-            "'5A_396/2015' oder ähnliche Referenzen aus Bundesgericht, BGer, BGE "
-            "und kantonaler Rechtsprechung."
+            "Specialized search for case numbers, judgment numbers and BGE "
+            "citations in Swiss court judgments. This tool automatically wraps the "
+            "given case number in quotes and runs an exact phrase search, for "
+            "example for 'BGE 142 III 1', '5A_396/2015' or similar references from "
+            "the Federal Supreme Court (BGer, BGE) and cantonal case law."
         ),
     )
     async def search_by_case_number(
@@ -463,8 +462,8 @@ def build_server() -> FastMCP:
             str,
             Field(
                 description=(
-                    "Geschäftsnummer (Aktenzeichen), BGE-Zitat oder Urteilsnummer, z.B. "
-                    "'BGE 142 III 1' oder '5A_396/2015'."
+                    "Case number (docket reference), BGE citation or judgment "
+                    "number, e.g. 'BGE 142 III 1' or '5A_396/2015'."
                 ),
             ),
         ],
@@ -472,9 +471,9 @@ def build_server() -> FastMCP:
             Optional[Language],
             Field(
                 description=(
-                    "Optionale bevorzugte Sprache für Highlight/Anzeige (de, fr, it). "
-                    "Ohne Angabe wird das erste vorhandene Sprachfeld zurückgegeben — "
-                    "es findet KEINE Filterung statt; dafür `language_filter` setzen."
+                    "Optional preferred language for highlighting/display (de, fr, "
+                    "it). If omitted, the first available language field is returned "
+                    "— this does NOT filter; use `language_filter` for that."
                 ),
             ),
         ] = None,
@@ -482,45 +481,45 @@ def build_server() -> FastMCP:
             Literal["relevance", "date", "scrapedate"],
             Field(
                 description=(
-                    "Optionale Sortierung: 'relevance' | 'date' (Entscheiddatum) "
-                    "| 'scrapedate'. Default ist 'relevance'."
+                    "Optional sort order: 'relevance' | 'date' (decision date) "
+                    "| 'scrapedate'. Default is 'relevance'."
                 ),
             ),
         ] = "relevance",
         size: Annotated[
-            int, Field(ge=1, le=100, description="Treffer pro Seite (1–100).")
+            int, Field(ge=1, le=100, description="Results per page (1–100).")
         ] = 20,
         search_after: Annotated[
             Optional[List[Any]],
-            Field(description="Cursor aus `next_cursor` der vorigen Antwort."),
+            Field(description="Cursor from `next_cursor` of the previous response."),
         ] = None,
         decision_date_from: Annotated[
             Optional[date_type],
-            Field(description="Optionale Untergrenze Entscheiddatum (YYYY-MM-DD)."),
+            Field(description="Optional lower bound for the decision date (YYYY-MM-DD)."),
         ] = None,
         decision_date_to: Annotated[
             Optional[date_type],
-            Field(description="Optionale Obergrenze Entscheiddatum (YYYY-MM-DD)."),
+            Field(description="Optional upper bound for the decision date (YYYY-MM-DD)."),
         ] = None,
         scrape_date_from: Annotated[
             Optional[date_type],
-            Field(description="Optionale Untergrenze Scrape-Datum (YYYY-MM-DD)."),
+            Field(description="Optional lower bound for the scrape date (YYYY-MM-DD)."),
         ] = None,
         scrape_date_to: Annotated[
             Optional[date_type],
-            Field(description="Optionale Obergrenze Scrape-Datum (YYYY-MM-DD)."),
+            Field(description="Optional upper bound for the scrape date (YYYY-MM-DD)."),
         ] = None,
         hierarchy: Annotated[
             Optional[List[str]],
-            Field(description="Optionale Hierarchie-IDs für Kanton/Gericht/Kammer."),
+            Field(description="Optional hierarchy IDs for canton/court/chamber."),
         ] = None,
         language_filter: Annotated[
             Optional[List[Language]],
-            Field(description="Optionale Filter nach Dokumentsprache(n)."),
+            Field(description="Optional filter by document language(s)."),
         ] = None,
         include_aggregations: Annotated[
             bool,
-            Field(description="Optional Aggregationen mitliefern."),
+            Field(description="Optionally include aggregations."),
         ] = False,
     ) -> SearchResponse:
         params = SearchParams(
@@ -541,28 +540,29 @@ def build_server() -> FastMCP:
     # fetch_document
     # ------------------------------------------------------------------
     @mcp.tool(
-        title="Entscheid abrufen",
+        title="Fetch decision",
         description=(
-            "Fetch / retrieve eines einzelnen Schweizer Gerichtsentscheids, "
-            "Gerichtsurteils oder Bundesgerichtsentscheids anhand seiner "
-            "Dokument-ID (`_id`). Liefert immer den vollständigen Volltext des "
-            "Entscheids sowie Metadaten, Titel, Abstract und Links zurück. "
-            "Geeignet, wenn nach einer Suche der ganze Entscheid gelesen oder "
-            "weiterverarbeitet werden soll."
+            "Fetch a single Swiss court decision, judgment or Federal Supreme "
+            "Court decision by its document ID (`_id`). Returns the indexed full "
+            "text of the decision together with metadata, title, abstract and "
+            "links. Use this when the full decision should be read or processed "
+            "after a search. Note: for very long decisions the indexed text is "
+            "capped at 100,000 characters; if `text_truncated` is true, the "
+            "complete document is available at `document_url`."
         ),
     )
     async def fetch_document(
         ctx: Context,
         id: Annotated[
             str,
-            Field(description="Dokument-ID (z.B. 'CH_BGer_001_5A_123_2024_2024-06-15')."),
+            Field(description="Document ID (e.g. 'CH_BGer_001_5A_123_2024_2024-06-15')."),
         ],
         language: Annotated[
             Optional[Language],
             Field(
                 description=(
-                    "Optionale bevorzugte Sprache für Titel/Abstract. Ohne Angabe "
-                    "wird das erste vorhandene Sprachfeld zurückgegeben."
+                    "Optional preferred language for title/abstract. If omitted, "
+                    "the first available language field is returned."
                 ),
             ),
         ] = None,
@@ -573,19 +573,19 @@ def build_server() -> FastMCP:
     # list_hierarchy
     # ------------------------------------------------------------------
     @mcp.tool(
-        title="Hierarchie-Buckets",
+        title="List hierarchy buckets",
         description=(
-            "Liefert die verfügbaren Hierarchie-IDs für Schweizer Kantone, "
-            "Gerichte und Kammern mit Trefferzahlen. Hilfreich, um Bundesgericht, "
-            "kantonale Gerichte, Obergerichte oder Verwaltungsgerichte für die "
-            "weitere Suche einzugrenzen."
+            "Returns the available hierarchy IDs for Swiss cantons, courts and "
+            "chambers together with document counts. Useful for narrowing "
+            "subsequent searches to the Federal Supreme Court, cantonal courts, "
+            "Obergerichte or Verwaltungsgerichte."
         ),
     )
     async def list_hierarchy(
         ctx: Context,
-        query: Annotated[str, Field(description="Optionale Volltext-Anfrage.")] = "*",
+        query: Annotated[str, Field(description="Optional full-text query.")] = "*",
         size: Annotated[
-            int, Field(ge=1, le=10000, description="Maximale Anzahl Einträge.")
+            int, Field(ge=1, le=10000, description="Maximum number of entries.")
         ] = 1000,
     ) -> HierarchyResponse:
         return await _client(ctx).list_hierarchy(query, size)
@@ -594,11 +594,11 @@ def build_server() -> FastMCP:
     # list_facets
     # ------------------------------------------------------------------
     @mcp.tool(
-        title="Facetten-Baum (lokalisiert)",
+        title="Facet tree (localized)",
         description=(
-            "Hierarchischer Facetten-Baum mit lokalisierten Bezeichnungen für "
-            "Kantone, Gerichte und Kammern. Die `id`-Felder können im "
-            "`hierarchy`-Filter der Suche verwendet werden."
+            "Hierarchical facet tree with localized labels for cantons, courts "
+            "and chambers. The `id` fields can be used in the `hierarchy` filter "
+            "of the search."
         ),
     )
     async def list_facets(ctx: Context) -> List[dict[str, Any]]:
@@ -609,10 +609,10 @@ def build_server() -> FastMCP:
     # server_info
     # ------------------------------------------------------------------
     @mcp.tool(
-        title="Server-Info",
+        title="Server info",
         description=(
-            "Versionsinfo und konfigurierte Endpunkt-URLs des MCP-Servers für "
-            "Schweizer Rechtsprechung und Gerichtsentscheide."
+            "Version info and configured endpoint URLs of the MCP server for "
+            "Swiss case law and court decisions."
         ),
     )
     async def server_info(ctx: Context) -> dict[str, Any]:

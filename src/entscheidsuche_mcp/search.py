@@ -40,6 +40,11 @@ from .models import (
 
 logger = logging.getLogger(__name__)
 
+# Default-Limit des Elasticsearch-`ingest-attachment`-Prozessors (Tika):
+# `indexed_chars` = 100'000. Längere Entscheide werden im Index abgeschnitten;
+# der vollständige Text steht nur im Originaldokument (content_url).
+INDEXED_CHARS_LIMIT = 100_000
+
 # Felder, in denen die Volltext-Suche stattfindet (mit Boost-Faktoren).
 # Identisch mit dem Frontend.
 QUERY_FIELDS = [
@@ -247,6 +252,16 @@ def _localized_value(field: dict | None, lang: Language | None) -> str:
     return ""
 
 
+# Trunkierungs-Hinweis in der Sprache des Entscheids (Metadatum `language`,
+# de/fr/it); Rückfallsprache Englisch, wenn keine Sprache bekannt ist.
+_TRUNCATION_NOTE: Dict[str, str] = {
+    "de": "Text abgeschnitten, vollständiger Text unter {url}",
+    "fr": "texte tronqué, voir le texte intégral sous {url}",
+    "it": "testo troncato, vedi il testo completo su {url}",
+    "en": "text truncated, see full text under {url}",
+}
+
+
 def _localized_highlight(
     highlight: dict, prefix: str, lang: Language | None
 ) -> tuple[str, str | None]:
@@ -324,6 +339,26 @@ def _parse_hits(
             if content:
                 # Wir hängen den Volltext an `text` an, wenn explizit gewünscht.
                 hit_obj.text = content
+
+                # content_length aus dem Index; Fallback auf die tatsächliche Länge.
+                length = attachment.get("content_length")
+                if not isinstance(length, int):
+                    length = len(content)
+                hit_obj.content_length = length
+
+                # Elasticsearch schneidet den indexierten Text bei 100'000 Zeichen
+                # ab (ingest-attachment default). In diesem Fall liefert `text` nur
+                # den Anfang — wir signalisieren das und verweisen auf das
+                # vollständige Originaldokument.
+                if length >= INDEXED_CHARS_LIMIT:
+                    hit_obj.text_truncated = True
+                    if document_url:
+                        # Hinweis in der Entscheidsprache (Metadatum `language`),
+                        # Rückfallsprache Englisch.
+                        note = _TRUNCATION_NOTE.get(
+                            src.get("language"), _TRUNCATION_NOTE["en"]
+                        )
+                        hit_obj.text = f"{content}\n…\n{note.format(url=document_url)}"
 
         hits.append(hit_obj)
 

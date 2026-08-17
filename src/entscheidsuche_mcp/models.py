@@ -162,21 +162,36 @@ class SearchHit(BaseModel):
     id: str
     title: str = ""
     abstract: str = ""
-    text: str = Field(default="", description="Highlight-Auszug aus dem Volltext.")
+    text: str = Field(default="", description="Highlight excerpt from the full text.")
     meta: str = ""
     canton: str = ""
-    court: str = Field(default="", description="Gericht (abgeleitet aus der ID).")
-    decision_date: Optional[str] = Field(default=None, description="ISO-Datum YYYY-MM-DD.")
-    scrape_date: Optional[str] = Field(default=None, description="ISO-Datum YYYY-MM-DD.")
+    court: str = Field(default="", description="Court (derived from the ID).")
+    decision_date: Optional[str] = Field(default=None, description="ISO date YYYY-MM-DD.")
+    scrape_date: Optional[str] = Field(default=None, description="ISO date YYYY-MM-DD.")
     is_pdf: bool = False
     document_url: Optional[str] = Field(
-        default=None, description="Direkter Download-Link auf das Originaldokument."
+        default=None, description="Direct download link to the original document."
     )
     original_url: Optional[str] = Field(
-        default=None, description="URL der ursprünglichen Quell-Webseite."
+        default=None, description="URL of the original source web page."
+    )
+    content_length: Optional[int] = Field(
+        default=None,
+        description=(
+            "Length of the indexed full text in characters. Only set by "
+            "`fetch_document`."
+        ),
+    )
+    text_truncated: bool = Field(
+        default=False,
+        description=(
+            "True if the indexed full text was truncated by Elasticsearch at "
+            "100,000 characters. In that case `text` contains only the beginning "
+            "of the decision; the complete document is available at `document_url`."
+        ),
     )
     sort: Optional[List[Any]] = Field(
-        default=None, description="Sort-Werte des Treffers (für search_after)."
+        default=None, description="Sort values of the hit (for search_after)."
     )
 
 
@@ -193,8 +208,8 @@ class SearchResponse(BaseModel):
     next_cursor: Optional[List[Any]] = Field(
         default=None,
         description=(
-            "Cursor für die nächste Seite. Im nächsten Request als `search_after` "
-            "wieder mitgeben. None, wenn keine weiteren Treffer vorhanden sind."
+            "Cursor for the next page. Pass it again as `search_after` in the "
+            "next request. None if there are no further results."
         ),
     )
     aggregations: Optional[dict[str, List[AggregationBucket]]] = None
