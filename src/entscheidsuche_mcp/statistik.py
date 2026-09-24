@@ -426,31 +426,43 @@ def _load_all_months(cache_dir: Path) -> dict[str, tuple[dict[str, dict], bool]]
     return out
 
 
+def _parse_line(line: str) -> Optional[dict]:
+    """Eine Log-Zeile zu einem Row-Dict parsen (ohne App-Resolve).
+
+    ``datetime(...)`` direkt statt ``strptime`` — bei Millionen Zeilen ist der
+    strptime-Overhead erheblich; das Format ist fix (``YYYY-MM-DD HH:MM:SS``).
+    """
+    m = LOG_LINE.match(line)
+    if not m:
+        return None
+    d = m.groupdict()
+    dt, tm = d["date"], d["time"]
+    try:
+        ts = datetime(int(dt[0:4]), int(dt[5:7]), int(dt[8:10]),
+                      int(tm[0:2]), int(tm[3:5]), int(tm[6:8]))
+    except ValueError:
+        return None
+    return {
+        "ts": ts, "date": d["date"], "hour": ts.hour,
+        "method": d["method"], "tool": d["tool"],
+        "status": d["status"], "size": int(d["size"]), "ms": int(d["ms"]),
+        "client": d["client"],
+        "app": d.get("app") or "-",
+        "appver": d.get("appver") or "-",
+    }
+
+
 def _raw_rows(lines: Iterable[str], skip_months: set[str]) -> list[dict]:
     """Log-Zeilen zu Rows parsen (ohne App-Resolve/Sort). Zeilen, deren Monat
     in ``skip_months`` liegt, werden per billigem Präfix-Check übersprungen —
     finale Monate werden so gar nicht erst aggregiert."""
     out: list[dict] = []
     for line in lines:
-        m = LOG_LINE.match(line)
-        if not m:
+        if len(line) >= 7 and line[:7] in skip_months:
             continue
-        d = m.groupdict()
-        if d["date"][:7] in skip_months:
-            continue
-        try:
-            ts = datetime.strptime(d["date"] + " " + d["time"],
-                                   "%Y-%m-%d %H:%M:%S")
-        except ValueError:
-            continue
-        out.append({
-            "ts": ts, "date": d["date"], "hour": ts.hour,
-            "method": d["method"], "tool": d["tool"],
-            "status": d["status"], "size": int(d["size"]), "ms": int(d["ms"]),
-            "client": d["client"],
-            "app": d.get("app") or "-",
-            "appver": d.get("appver") or "-",
-        })
+        row = _parse_line(line)
+        if row is not None:
+            out.append(row)
     return out
 
 
@@ -539,27 +551,65 @@ def _refresh_current_month(cache_dir: Path, log_path: Path,
                            current_month: str, existing: dict[str, dict],
                            today: str) -> None:
     """Laufenden Monat aus der AKTUELLEN (nicht rotierten) Log-Datei
-    fortschreiben — beschränkt und schnell, ohne die `.gz`-Historie zu lesen.
+    fortschreiben — **streamend, Tag für Tag**, ohne die `.gz`-Historie und
+    ohne den ganzen Monat auf einmal in den Speicher zu laden.
 
-    Bereits erfasste Tage bleiben erhalten (wichtig bei täglicher Rotation —
-    die aktuelle Datei enthält dann nur die jüngsten Tage). Die Tage werden
-    aufsteigend **kumulativ** persistiert: bricht der Aufruf ab, sind die
-    früheren Tage bereits geschrieben, der nächste Aufruf setzt fort.
+    Eine append-geschriebene Logdatei ist chronologisch. Wir puffern die Zeilen
+    des jeweils aktuellen Tages, aggregieren beim Datumswechsel genau diesen Tag
+    (App-Heuristik + Session-Zählung greifen innerhalb des Tages) und schreiben
+    die Monatsdatei **sofort**. Vorteile:
+
+    * konstanter Speicher (ein Tag statt ganzer Monat),
+    * resumierbar: bricht der Aufruf ab, sind die früheren Tage schon
+      persistiert; der nächste Lauf startet ab dem letzten erfassten Tag,
+    * kein O(Monat)-Sort und kein `.gz`-Scan.
+
+    Sessions über Mitternacht werden dem Init-Tag zugeordnet (harte
+    Tagesgrenze) — konsistent mit der Monats-Binärlogik.
     """
     days_acc = dict(existing)
     last = max(days_acc.keys(), default=None)
     since = current_month + "-01"
     if last and last >= since:
-        # nur ab dem letzten bereits erfassten Tag neu parsen (kleines Fenster)
+        # ab dem letzten bereits erfassten Tag neu parsen; dieser Tag wird
+        # überschrieben (er kann seit dem letzten Lauf weitere Calls haben).
         since = min(last, today)
-    rows = parse_log(log_path, since=since)
-    live = aggregate_per_day(rows)
 
+    cur_day: Optional[str] = None
+    buf: list[dict] = []
     wrote = False
-    for day in sorted(d for d in live if _month_of(d) == current_month):
-        days_acc[day] = live[day]
+
+    def _flush() -> None:
+        nonlocal wrote
+        if cur_day is None or not buf:
+            return
+        buf.sort(key=lambda r: r["ts"])
+        _resolve_apps(buf)
+        days_acc.update(aggregate_per_day(buf))   # {cur_day: agg}
         _write_month(cache_dir, current_month, days_acc, final=False)
         wrote = True
+
+    for line in iter_current_log_lines(log_path):
+        # billiger Präfix-Filter vor dem teuren Regex
+        if len(line) < 10 or line[:7] != current_month or line[:10] < since:
+            continue
+        row = _parse_line(line)
+        if row is None or row["date"][:7] != current_month:
+            continue
+        day = row["date"]
+        if cur_day is None:
+            cur_day = day
+        elif day > cur_day:
+            _flush()
+            cur_day, buf = day, []
+        elif day < cur_day:
+            # Datei nicht streng chronologisch (sollte bei Append nicht
+            # vorkommen) — Tag trotzdem sauber separat behandeln.
+            _flush()
+            cur_day, buf = day, []
+        buf.append(row)
+    _flush()
+
     if not wrote and not _month_file(cache_dir, current_month).exists():
         # kein Datum diesen Monat — leere Markerdatei anlegen (Abschluss-Marker)
         _write_month(cache_dir, current_month, days_acc, final=False)
