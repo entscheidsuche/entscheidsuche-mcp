@@ -536,18 +536,33 @@ def _backfill_months(cache_dir: Path, log_path: Path,
 
 
 def _refresh_current_month(cache_dir: Path, log_path: Path,
-                           current_month: str,
-                           existing: dict[str, dict]) -> None:
-    """Laufenden Monat inkrementell aus der aktuellen Log-Datei nachziehen.
-    Bereits erfasste Tage des Monats bleiben erhalten (wichtig bei täglicher
-    Log-Rotation — die aktuelle Datei enthält dann nur die jüngsten Tage)."""
-    rows = parse_log(log_path, since=current_month + "-01")
+                           current_month: str, existing: dict[str, dict],
+                           today: str) -> None:
+    """Laufenden Monat aus der AKTUELLEN (nicht rotierten) Log-Datei
+    fortschreiben — beschränkt und schnell, ohne die `.gz`-Historie zu lesen.
+
+    Bereits erfasste Tage bleiben erhalten (wichtig bei täglicher Rotation —
+    die aktuelle Datei enthält dann nur die jüngsten Tage). Die Tage werden
+    aufsteigend **kumulativ** persistiert: bricht der Aufruf ab, sind die
+    früheren Tage bereits geschrieben, der nächste Aufruf setzt fort.
+    """
+    days_acc = dict(existing)
+    last = max(days_acc.keys(), default=None)
+    since = current_month + "-01"
+    if last and last >= since:
+        # nur ab dem letzten bereits erfassten Tag neu parsen (kleines Fenster)
+        since = min(last, today)
+    rows = parse_log(log_path, since=since)
     live = aggregate_per_day(rows)
-    merged = dict(existing)
-    for d, agg in live.items():
-        if _month_of(d) == current_month:
-            merged[d] = agg
-    _write_month(cache_dir, current_month, merged, final=False)
+
+    wrote = False
+    for day in sorted(d for d in live if _month_of(d) == current_month):
+        days_acc[day] = live[day]
+        _write_month(cache_dir, current_month, days_acc, final=False)
+        wrote = True
+    if not wrote and not _month_file(cache_dir, current_month).exists():
+        # kein Datum diesen Monat — leere Markerdatei anlegen (Abschluss-Marker)
+        _write_month(cache_dir, current_month, days_acc, final=False)
 
 
 def refresh_cache(cache_path: Path, log_path: Path,
@@ -566,27 +581,33 @@ def refresh_cache(cache_path: Path, log_path: Path,
     _migrate_old_cache(cache_dir, cache_path, current_month)
 
     months = _load_all_months(cache_dir)
-    final_months = {ym for ym, (_days, final) in months.items() if final}
-    non_final_past = [ym for ym, (_days, final) in months.items()
-                      if ym < current_month and not final]
 
-    # Der Backfill gilt als vollständig, sobald die laufende Monatsdatei
-    # existiert (sie wird chronologisch zuletzt geschrieben). Fehlt sie, war
-    # es ein Kaltstart oder ein abgebrochener Backfill → fortsetzen.
-    need_backfill = current_month not in months or bool(non_final_past)
+    # 1. Vergangene, noch offene Monate IN PLACE finalisieren — die Daten
+    #    liegen bereits aggregiert vor, kein erneutes Log-Lesen nötig.
+    for ym in list(months):
+        days_m, final_m = months[ym]
+        if ym < current_month and not final_m:
+            try:
+                _write_month(cache_dir, ym, days_m, final=True)
+            except OSError as exc:
+                log.warning("Monat %s nicht finalisierbar: %s", ym, exc)
+            months[ym] = (days_m, True)
 
-    if need_backfill:
-        # Kaltstart / abgebrochener Backfill, oder ein früher „laufender"
-        # Monat ist inzwischen abgeschlossen und muss finalisiert werden.
+    if not months:
+        # 2a. Echter Kaltstart ohne jede Cache-Datei: einmaliger Voll-Backfill
+        #     über die gesamte Historie (inkl. .gz), pro Monat persistierend
+        #     und damit resumierbar.
         try:
-            _backfill_months(cache_dir, log_path, final_months, current_month)
+            _backfill_months(cache_dir, log_path, set(), current_month)
         except OSError as exc:
             log.warning("Backfill-Persistenz fehlgeschlagen: %s", exc)
     else:
-        # Warmpfad: nur den laufenden Monat fortschreiben.
+        # 2b. Normalfall: nur den laufenden Monat aus der AKTUELLEN Log-Datei
+        #     fortschreiben — beschränkt, schnell, kein .gz-Scan.
         existing = months.get(current_month, ({}, False))[0]
         try:
-            _refresh_current_month(cache_dir, log_path, current_month, existing)
+            _refresh_current_month(cache_dir, log_path, current_month,
+                                   existing, today)
         except OSError as exc:
             log.warning("Laufender Monat nicht schreibbar: %s", exc)
 
