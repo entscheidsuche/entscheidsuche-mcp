@@ -16,6 +16,7 @@ Konfiguration via Env-Variablen:
 
 from __future__ import annotations
 
+import asyncio
 import base64
 import gzip
 import hmac
@@ -110,15 +111,37 @@ def iter_log_lines(path: Path) -> Iterable[str]:
             continue
 
 
-def parse_log(path: Path) -> list[dict]:
+def iter_current_log_lines(path: Path) -> Iterable[str]:
+    """Nur die aktuelle (nicht rotierte) Log-Datei — für inkrementelles
+    Nachparsen der letzten Tage. Rotierte Dateien (`.1`, `.gz`) bleiben
+    ausgespart, ihre Daten stehen bereits im JSON-Cache."""
+    if not path.exists():
+        return
+    try:
+        with open(path, "rt", encoding="utf-8", errors="replace") as f:
+            yield from f
+    except FileNotFoundError:
+        return
+
+
+def parse_log(path: Path, since: Optional[str] = None) -> list[dict]:
     """Parst das Logfile und reichert jeden Eintrag um ``resolved_app`` an —
-    die App-Zuordnung per Heuristik (zeitlich + Client-Pool)."""
+    die App-Zuordnung per Heuristik (zeitlich + Client-Pool).
+
+    ``since``: optional ``YYYY-MM-DD``. Wenn gesetzt, werden **nur** Zeilen
+    aus der aktuellen (nicht rotierten) Log-Datei berücksichtigt, deren
+    Datum >= ``since`` ist. So bleibt das Parsen bei jedem Aufruf auf ein
+    konstantes Zeitfenster begrenzt, statt mit dem Log-Volumen zu wachsen.
+    """
+    lines = iter_current_log_lines(path) if since else iter_log_lines(path)
     out: list[dict] = []
-    for line in iter_log_lines(path):
+    for line in lines:
         m = LOG_LINE.match(line)
         if not m:
             continue
         d = m.groupdict()
+        if since and d["date"] < since:
+            continue
         try:
             ts = datetime.strptime(d["date"] + " " + d["time"],
                                    "%Y-%m-%d %H:%M:%S")
@@ -331,29 +354,245 @@ def save_cache(path: Path, cache: dict[str, dict]) -> None:
     tmp.replace(path)
 
 
+# ---------------------------------------------------------------------------
+# Monats-partitionierter, resumierbarer Cache
+# ---------------------------------------------------------------------------
+#
+# Statt einer einzigen All-or-Nothing-Datei liegt die Aggregation in
+# Monatsdateien ``stats-YYYY-MM.json``:
+#
+#   * Abgeschlossene Monate tragen ``final: true`` und werden nie wieder
+#     berechnet — beim Backfill werden ihre Log-Zeilen billig übersprungen.
+#   * Der Kaltstart/Backfill streamt das Log **einmal**, bucketet nach Monat
+#     und schreibt jeden fertigen Monat **sofort** auf Platte. Ein Timeout
+#     mittendrin verliert nur den gerade laufenden Monat; der nächste Aufruf
+#     setzt fort (Resumierbarkeit).
+#   * Der laufende Monat (``final: false``) wird bei jedem Aufruf inkrementell
+#     aus der aktuellen (nicht rotierten) Log-Datei fortgeschrieben.
+#
+# Sessions werden binär genau einem Monat zugeordnet (dem Start-/Init-Monat) —
+# das ist die vom Betreiber gewünschte harte Monatsgrenze, keine anteilige
+# Verteilung über Monatswechsel hinweg.
+
+_MONTH_RE = re.compile(r"stats-(\d{4}-\d{2})\.json$")
+
+
+def _month_of(day: str) -> str:
+    return day[:7]
+
+
+def _month_file(cache_dir: Path, ym: str) -> Path:
+    return cache_dir / f"stats-{ym}.json"
+
+
+def _write_month(cache_dir: Path, ym: str, days: dict[str, dict],
+                 final: bool) -> None:
+    cache_dir.mkdir(parents=True, exist_ok=True)
+    payload = {
+        "schema_version": 3,
+        "month": ym,
+        "final": final,
+        "generated": datetime.now().isoformat(timespec="seconds"),
+        "days": {d: _aggregate_to_json(v) for d, v in days.items()},
+    }
+    p = _month_file(cache_dir, ym)
+    tmp = p.with_suffix(p.suffix + ".tmp")
+    tmp.write_text(json.dumps(payload, ensure_ascii=False), encoding="utf-8")
+    tmp.replace(p)
+
+
+def _read_month(path: Path) -> tuple[dict[str, dict], bool]:
+    try:
+        raw = json.loads(path.read_text(encoding="utf-8"))
+    except FileNotFoundError:
+        return {}, False  # erwartbar (z. B. laufender Monat vor Erstschreibung)
+    except (OSError, json.JSONDecodeError) as exc:
+        log.warning("Monatsdatei %s nicht lesbar: %s", path.name, exc)
+        return {}, False
+    days = {d: _aggregate_from_json(v)
+            for d, v in (raw.get("days") or {}).items()
+            if isinstance(v, dict)}
+    return days, bool(raw.get("final"))
+
+
+def _load_all_months(cache_dir: Path) -> dict[str, tuple[dict[str, dict], bool]]:
+    out: dict[str, tuple[dict[str, dict], bool]] = {}
+    if not cache_dir.exists():
+        return out
+    for p in sorted(cache_dir.glob("stats-*.json")):
+        m = _MONTH_RE.search(p.name)
+        if m:
+            out[m.group(1)] = _read_month(p)
+    return out
+
+
+def _raw_rows(lines: Iterable[str], skip_months: set[str]) -> list[dict]:
+    """Log-Zeilen zu Rows parsen (ohne App-Resolve/Sort). Zeilen, deren Monat
+    in ``skip_months`` liegt, werden per billigem Präfix-Check übersprungen —
+    finale Monate werden so gar nicht erst aggregiert."""
+    out: list[dict] = []
+    for line in lines:
+        m = LOG_LINE.match(line)
+        if not m:
+            continue
+        d = m.groupdict()
+        if d["date"][:7] in skip_months:
+            continue
+        try:
+            ts = datetime.strptime(d["date"] + " " + d["time"],
+                                   "%Y-%m-%d %H:%M:%S")
+        except ValueError:
+            continue
+        out.append({
+            "ts": ts, "date": d["date"], "hour": ts.hour,
+            "method": d["method"], "tool": d["tool"],
+            "status": d["status"], "size": int(d["size"]), "ms": int(d["ms"]),
+            "client": d["client"],
+            "app": d.get("app") or "-",
+            "appver": d.get("appver") or "-",
+        })
+    return out
+
+
+def _resolve_apps(rows: list[dict]) -> None:
+    """App-Heuristik in-place — identisch zu parse_log, aber getrennt
+    verwendbar (erwartet nach ts sortierte Rows)."""
+    active: dict[str, tuple[str, datetime]] = {}
+    for r in rows:
+        pool = _normalize_client_pool(r["client"])
+        r["pool"] = pool
+        if r["method"] == "initialize" and r["app"] != "-":
+            active[pool] = (r["app"], r["ts"])
+            r["resolved_app"] = r["app"]
+        else:
+            entry = active.get(pool)
+            if entry and (r["ts"] - entry[1]) <= SESSION_TIMEOUT:
+                r["resolved_app"] = entry[0]
+                active[pool] = (entry[0], r["ts"])
+            else:
+                r["resolved_app"] = "-"
+
+
+def _migrate_old_cache(cache_dir: Path, old_path: Path,
+                       current_month: str) -> None:
+    """Alten Einzeldatei-Cache (``stats-cache.json``) einmalig in
+    Monatsdateien überführen. Läuft nur, wenn noch keine Monatsdateien
+    existieren."""
+    if not old_path.exists() or _MONTH_RE.search(old_path.name):
+        return
+    if any(_MONTH_RE.search(p.name) for p in cache_dir.glob("stats-*.json")):
+        return  # bereits migriert / Monatsdateien vorhanden
+    days = load_cache(old_path)
+    if not days:
+        return
+    by_month: dict[str, dict[str, dict]] = defaultdict(dict)
+    for d, agg in days.items():
+        by_month[_month_of(d)][d] = agg
+    for ym, dd in by_month.items():
+        _write_month(cache_dir, ym, dd, final=(ym < current_month))
+    try:
+        old_path.replace(old_path.with_suffix(old_path.suffix + ".migrated"))
+    except OSError as exc:
+        log.warning("Alten Cache %s nicht umbenennbar: %s", old_path.name, exc)
+    log.info("Alten Cache in %d Monatsdatei(en) migriert.", len(by_month))
+
+
+def _backfill_months(cache_dir: Path, log_path: Path,
+                     final_months: set[str], current_month: str) -> None:
+    """Ganzes Log (inkl. Rotationen) einmal streamen, finale Monate
+    überspringen, jeden fertigen Monat sofort persistieren."""
+    rows = _raw_rows(iter_log_lines(log_path), skip_months=final_months)
+    rows.sort(key=lambda r: r["ts"])
+    _resolve_apps(rows)  # globaler Resolve über die (noch offenen) Monate
+
+    buf_month: Optional[str] = None
+    buf: list[dict] = []
+    seen_current = False
+
+    def _flush(ym: str, chunk: list[dict]) -> None:
+        nonlocal seen_current
+        month_days = aggregate_per_day(chunk)
+        _write_month(cache_dir, ym, month_days, final=(ym < current_month))
+        if ym == current_month:
+            seen_current = True
+
+    for r in rows:
+        ym = _month_of(r["date"])
+        if buf_month is None:
+            buf_month = ym
+        elif ym != buf_month:
+            _flush(buf_month, buf)
+            buf_month, buf = ym, []
+        buf.append(r)
+    if buf_month is not None:
+        _flush(buf_month, buf)
+
+    # Die laufende Monatsdatei ist der Abschluss-Marker des Backfills: existiert
+    # sie, gilt der Backfill als vollständig (auch ohne Daten diesen Monat).
+    # Bricht der Backfill vorher ab, fehlt sie → der nächste Aufruf setzt fort.
+    if not seen_current:
+        existing = _read_month(_month_file(cache_dir, current_month))[0]
+        _write_month(cache_dir, current_month, existing, final=False)
+
+
+def _refresh_current_month(cache_dir: Path, log_path: Path,
+                           current_month: str,
+                           existing: dict[str, dict]) -> None:
+    """Laufenden Monat inkrementell aus der aktuellen Log-Datei nachziehen.
+    Bereits erfasste Tage des Monats bleiben erhalten (wichtig bei täglicher
+    Log-Rotation — die aktuelle Datei enthält dann nur die jüngsten Tage)."""
+    rows = parse_log(log_path, since=current_month + "-01")
+    live = aggregate_per_day(rows)
+    merged = dict(existing)
+    for d, agg in live.items():
+        if _month_of(d) == current_month:
+            merged[d] = agg
+    _write_month(cache_dir, current_month, merged, final=False)
+
+
 def refresh_cache(cache_path: Path, log_path: Path,
                   today: Optional[str] = None) -> dict[str, dict]:
+    """Monats-partitionierte, resumierbare Aggregation.
+
+    Rückgabe: gemergte Tages-Sicht ``{YYYY-MM-DD: agg}`` über alle Monate,
+    wie sie ``render_html`` erwartet. ``cache_path`` dient nur zur Ableitung
+    des Cache-Verzeichnisses (``cache_path.parent``) und für die einmalige
+    Migration des alten Einzeldatei-Caches.
+    """
     today = today or date.today().isoformat()
-    cache = load_cache(cache_path)
-    live = aggregate_per_day(parse_log(log_path))
+    current_month = _month_of(today)
+    cache_dir = cache_path.parent
 
-    dirty = False
-    for d, agg in live.items():
-        if d < today:
-            old = cache.get(d)
-            new_json = _aggregate_to_json(agg)
-            if old is None or _aggregate_to_json(old) != new_json:
-                cache[d] = agg
-                dirty = True
-    if dirty:
+    _migrate_old_cache(cache_dir, cache_path, current_month)
+
+    months = _load_all_months(cache_dir)
+    final_months = {ym for ym, (_days, final) in months.items() if final}
+    non_final_past = [ym for ym, (_days, final) in months.items()
+                      if ym < current_month and not final]
+
+    # Der Backfill gilt als vollständig, sobald die laufende Monatsdatei
+    # existiert (sie wird chronologisch zuletzt geschrieben). Fehlt sie, war
+    # es ein Kaltstart oder ein abgebrochener Backfill → fortsetzen.
+    need_backfill = current_month not in months or bool(non_final_past)
+
+    if need_backfill:
+        # Kaltstart / abgebrochener Backfill, oder ein früher „laufender"
+        # Monat ist inzwischen abgeschlossen und muss finalisiert werden.
         try:
-            save_cache(cache_path, cache)
+            _backfill_months(cache_dir, log_path, final_months, current_month)
         except OSError as exc:
-            log.warning("Cache konnte nicht geschrieben werden: %s", exc)
+            log.warning("Backfill-Persistenz fehlgeschlagen: %s", exc)
+    else:
+        # Warmpfad: nur den laufenden Monat fortschreiben.
+        existing = months.get(current_month, ({}, False))[0]
+        try:
+            _refresh_current_month(cache_dir, log_path, current_month, existing)
+        except OSError as exc:
+            log.warning("Laufender Monat nicht schreibbar: %s", exc)
 
-    combined = dict(cache)
-    if today in live:
-        combined[today] = live[today]
+    combined: dict[str, dict] = {}
+    for _ym, (days, _final) in _load_all_months(cache_dir).items():
+        combined.update(days)
     return combined
 
 
@@ -909,6 +1148,9 @@ async def statistik_endpoint(request: Request) -> Response:
         return auth
     log_path = _env_path("ESC_ACCESS_LOG_FILE", DEFAULT_LOG)
     cache_path = _env_path("ESC_STATS_CACHE", DEFAULT_CACHE)
-    days = refresh_cache(cache_path, log_path)
-    body = render_html(days, log_path, cache_path)
+    # Log-Parsing + Rendering sind synchrones I/O bzw. CPU-Arbeit.
+    # In einen Thread auslagern, damit der FastMCP-Event-Loop während
+    # der Statistik-Aufbereitung weiterhin /mcp-Requests bedienen kann.
+    days = await asyncio.to_thread(refresh_cache, cache_path, log_path)
+    body = await asyncio.to_thread(render_html, days, log_path, cache_path)
     return HTMLResponse(body, headers={"Cache-Control": "no-store"})

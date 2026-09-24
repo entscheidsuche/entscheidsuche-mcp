@@ -143,11 +143,17 @@ def _allowed_origins() -> List[str]:
 def _transport_security() -> TransportSecuritySettings:
     """Konfiguriert den DNS-Rebinding-Schutz von FastMCP.
 
-    Über `MCP_DNS_REBINDING_PROTECTION=false` lässt sich der Schutz komplett
-    abschalten — z.B. wenn der Server hinter einem CDN/Proxy steht, der den
-    Host-Header verändert.
+    Default: AUS. Dieser Server ist öffentlich, ohne Authentifizierung und
+    nur lesend; er wird von Browser-Clients (Claude, ChatGPT u.a.) über eine
+    fremde Origin (z.B. https://claude.ai) angesprochen. Der DNS-Rebinding-
+    Schutz prüft Host/Origin und ist dafür gedacht, LOKALE bzw.
+    authentifizierte Server vor bösartigen Webseiten zu schützen — hier gibt
+    es nichts zu schützen (öffentliche Daten, keine Credentials), er würde nur
+    legitime Clients mit „403 Invalid Origin header" aussperren. Die
+    Host-Prüfung übernimmt ohnehin nginx (server_name). Bei Bedarf lässt er
+    sich mit `MCP_DNS_REBINDING_PROTECTION=true` wieder einschalten.
     """
-    enabled = _env_bool("MCP_DNS_REBINDING_PROTECTION", True)
+    enabled = _env_bool("MCP_DNS_REBINDING_PROTECTION", False)
     return TransportSecuritySettings(
         enable_dns_rebinding_protection=enabled,
         allowed_hosts=_allowed_hosts(),
