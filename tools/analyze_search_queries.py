@@ -152,15 +152,18 @@ def main() -> int:
             if parsed is None:
                 unparsable_args += 1
                 continue
-            q = parsed.get("query", "") or ""
+            q = parsed.get("query", "")
+            if q is None:
+                q = ""
+            q = str(q)
             search_queries[q.strip().lower()] += 1
             search_lengths.append(len(q))
             search_query_classes[classify_query(q)] += 1
             search_by_date[d["date"]] += 1
             if parsed.get("language"):
-                search_languages[parsed["language"]] += 1
+                search_languages[str(parsed["language"])] += 1
             if parsed.get("sort"):
-                search_sorts[parsed["sort"]] += 1
+                search_sorts[str(parsed["sort"])] += 1
             if parsed.get("size"):
                 search_sizes[str(parsed["size"])] += 1
             if parsed.get("hierarchy"):
