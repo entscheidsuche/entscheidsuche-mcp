@@ -69,20 +69,21 @@ def iter_lines(path: Path):
 
 
 def parse_args_field(raw: str) -> dict | None:
-    if not raw or raw.endswith("…"):
-        # Trunkierte args sind nicht sauber JSON-parsbar — versuch's trotzdem,
-        # viele search-Aufrufe sind kurz genug um unter 200 Byte zu bleiben.
-        raw = raw.rstrip("…")
-    try:
-        return json.loads(raw)
-    except (ValueError, TypeError):
-        # Versuch, als trunkiertes JSON zu reparieren (nicht zuverlaessig).
-        for n in range(len(raw), 0, -1):
-            try:
-                return json.loads(raw[:n] + "}")
-            except ValueError:
-                continue
+    """Parst das args=-Feld. Gibt None zurueck, wenn nicht parsebar oder
+    kein Dict (z.B. Liste, String, trunkiert)."""
+    if not raw:
         return None
+    if raw.endswith("…"):
+        # Trunkierte args (>ESC_ACCESS_LOG_ARGS_MAX Bytes) sind nicht
+        # sauber parsebar — ueberspringen statt raten.
+        return None
+    try:
+        parsed = json.loads(raw)
+    except (ValueError, TypeError):
+        return None
+    if not isinstance(parsed, dict):
+        return None
+    return parsed
 
 
 def classify_query(q: str) -> str:
