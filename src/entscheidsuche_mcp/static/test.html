@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex">
-<title>entscheidsuche MCP – Testoberfläche</title>
+<title>entscheidsuche MCP</title>
 <link rel="icon" href="data:,">
 <style>
   :root {
@@ -22,6 +22,13 @@
   .brand small { font-weight: 400; color: #9ca3af; margin-left: 6px; font-size: 13px; }
   .endpoint { flex: 1; display: flex; min-width: 300px; }
   .endpoint input { flex: 1; border: 2px solid #62a03f; border-right: 0; border-radius: 4px 0 0 4px; padding: 7px 10px; font: 13px var(--mono); min-width: 0; }
+  .langs { display: inline-flex; border: 1px solid #6b7280; border-radius: 4px; overflow: hidden; }
+  .langs button { background: transparent; color: #d1d5db; border: 0; border-left: 1px solid #4b5563; padding: 6px 9px; font-size: 12px; font-weight: 700; cursor: pointer; }
+  .langs button:first-child { border-left: 0; }
+  .langs button[aria-pressed="true"] { background: #fff; color: #1b1b1b; }
+  .orig { margin: 0 18px 12px; }
+  .orig summary { cursor: pointer; font-size: 12.5px; color: var(--muted); }
+  .orig div { white-space: pre-wrap; font-size: 12.5px; color: var(--muted); padding: 8px 0 0; }
   .endpoint button { background: #62a03f; color: #fff; border: 0; border-radius: 0 4px 4px 0; padding: 0 18px; font-weight: 700; cursor: pointer; }
   h1 { font-size: 30px; margin: 28px 0 4px; }
   h1 .ver { font-size: 12px; background: #7d8492; color: #fff; border-radius: 57px; padding: 2px 9px; vertical-align: middle; margin-left: 8px; font-family: var(--mono); }
@@ -94,71 +101,343 @@
 </head>
 <body>
 <div class="topbar"><div class="wrap">
-  <div class="brand">entscheidsuche MCP<small>Testoberfläche</small></div>
+  <div class="brand">entscheidsuche MCP<small data-t="brandSub"></small></div>
   <form class="endpoint" id="endpoint-form">
-    <input id="endpoint" type="text" spellcheck="false" aria-label="MCP-Endpunkt">
-    <button type="submit">Laden</button>
+    <input id="endpoint" type="text" spellcheck="false" aria-label="MCP endpoint">
+    <button type="submit" data-t="load"></button>
   </form>
+  <span class="langs" role="group" aria-label="Sprache / Langue / Lingua / Language">
+    <button type="button" data-lang="de">DE</button>
+    <button type="button" data-lang="fr">FR</button>
+    <button type="button" data-lang="it">IT</button>
+    <button type="button" data-lang="en">EN</button>
+  </span>
 </div></div>
 
 <div class="wrap">
   <h1><span id="srv-name">entscheidsuche-mcp</span><span class="ver" id="srv-ver">__VERSION__</span><span class="ver proto" id="srv-proto" hidden></span></h1>
-  <p class="lead">Testoberfläche für die MCP-Schnittstelle von entscheidsuche.ch. Die Liste der Tools, ihre Parameter und Beschreibungen werden live über <code>tools/list</code> vom Server geladen – Sie sehen also genau das, was ein KI-Client sieht. Jeder Aufruf geht als JSON-RPC-Request per <code>POST</code> an den oben angegebenen Endpunkt.</p>
-  <p class="links"><a href="/">Dokumentation</a><a href="https://github.com/entscheidsuche/entscheidsuche-mcp">Repository</a><a href="https://entscheidsuche.ch">entscheidsuche.ch</a></p>
-  <div class="status" id="status">Verbinde …</div>
+  <p class="lead" data-t="lead"></p>
+  <p class="links"><a href="/" id="doc-link" data-t="linkDocs"></a><a href="https://github.com/entscheidsuche/entscheidsuche-mcp">Repository</a><a href="https://entscheidsuche.ch">entscheidsuche.ch</a></p>
+  <div class="status" id="status"></div>
 
-  <h2>Tools <small id="tool-count"></small></h2>
+  <h2><span data-t="hTools"></span> <small id="tool-count"></small></h2>
   <div id="tools"></div>
 
-  <h2>Protokoll <small>JSON-RPC-Methoden des MCP-Transports</small></h2>
+  <h2><span data-t="hProtocol"></span> <small data-t="hProtocolSub"></small></h2>
   <div id="rpc"></div>
 
-  <footer>Die Seite sendet Anfragen nur an den angegebenen MCP-Endpunkt und speichert nichts.</footer>
+  <footer data-t="footer"></footer>
 </div>
 
 <script>
 (function () {
   "use strict";
   var PROTOCOL = "2025-06-18";
+  var LANGS = ["de", "fr", "it", "en"];
   var endpointInput = document.getElementById("endpoint");
   endpointInput.value = location.origin + "__MCP_PATH__";
   var rpcId = 0;
+  var lang = "de";
+  var loaded = null;   // { tools, listBytes, initMs, listMs } nach erfolgreichem Laden
 
-  // Beispielwerte je Tool (nur für bekannte Tools; sonst bleibt das Formular leer).
+  // ---- Oberflächentexte -------------------------------------------------
+  var UI = {
+    de: {
+      brandSub: "Testoberfläche", load: "Laden", linkDocs: "Dokumentation",
+      lead: "Testoberfläche für die MCP-Schnittstelle von entscheidsuche.ch. Die Liste der Tools und ihre Parameter werden live über <code>tools/list</code> vom Server geladen. Jeder Aufruf geht als JSON-RPC-Request per <code>POST</code> an den oben angegebenen Endpunkt.",
+      hTools: "Tools", hProtocol: "Protokoll", hProtocolSub: "JSON-RPC-Methoden des MCP-Transports",
+      footer: "Die Seite sendet Anfragen nur an den angegebenen MCP-Endpunkt und speichert nichts.",
+      connecting: "Verbinde mit {url} …", connected: "Verbunden mit {url} · initialize {a} ms · tools/list {b} ms",
+      failed: "Verbindung fehlgeschlagen: {msg}", toolCount: "{n} Tools · tools/list: {bytes} Bytes",
+      params: "Parameter", colName: "Name", colValue: "Beschreibung / Wert", examples: "Beispiele:",
+      execute: "Ausführen", clear: "Leeren", running: "Läuft …", response: "Antwort", noParams: "Keine Parameter.",
+      required: "Pflicht", defaultValue: "Default: {v}", annotations: "Annotationen: {v}",
+      inputSchema: "Eingabeschema (inputSchema)", outputSchema: "Antwortschema (outputSchema)",
+      original: "Originalbeschreibung, wie sie KI-Clients erhalten (englisch)",
+      phList: "mehrere Werte mit Komma trennen, z. B. CH_BGer, ZH_OG", phJson: "JSON, z. B. [12.5, \"ID\"]",
+      badJson: "Parameter «{name}»: kein gültiges JSON", badParams: "params: kein gültiges JSON",
+      requestFailed: "Anfrage fehlgeschlagen: {msg}", request: "Request (JSON-RPC)",
+      tabResult: "Ergebnis", tabRaw: "Rohantwort", copy: "Kopieren", copied: "Kopiert",
+      rpcError: "JSON-RPC-Fehler {code}", rpcParams: "params (JSON)",
+      summary: "Suchart: {mode} · Treffer gesamt: {total} · geliefert: {n}",
+      modeSemantic: "KI-Suche", modeKeyword: "Stichwortsuche", serverNote: "Hinweis des Servers:",
+      noExcerpt: "kein Auszug", context: "Kontext ({n} Zeichen)", aggregations: "Verteilungen (aggregations)",
+      fullText: "Volltext: {n} Zeichen", truncated: " (abgeschnitten, vollständig unter document_url)",
+      noData: "Keine Daten.", noMessage: "Fehler ohne Meldung",
+      rpc_initialize: "Sitzung eröffnen, Server-Informationen und Fähigkeiten abfragen",
+      rpc_tools_list: "Alle Tools mit Beschreibung, Eingabe- und Ausgabeschema", rpc_ping: "Erreichbarkeit prüfen",
+      rpc_resources_list: "Ressourcen des Servers", rpc_resources_read: "Ressource lesen", rpc_prompts_list: "Prompts des Servers",
+      exQuestion: "Rechtsfrage", exCase: "Geschäftsnummer", exNewest: "Neueste zuerst", exFrench: "Französisch, nur BGer",
+      exContext: "Mit Kontext", exPhrase: "Phrase", exArticle: "Artikel", exFilter: "Filter + Datum", exAggs: "Verteilungen",
+      exExample: "Beispiel", exAll: "Alle", exForQuery: "Zu einer Anfrage"
+    },
+    fr: {
+      brandSub: "Interface de test", load: "Charger", linkDocs: "Documentation",
+      lead: "Interface de test pour l'interface MCP d'entscheidsuche.ch. La liste des outils et leurs paramètres sont chargés en direct depuis le serveur via <code>tools/list</code>. Chaque appel est envoyé comme requête JSON-RPC par <code>POST</code> au point d'accès indiqué ci-dessus.",
+      hTools: "Outils", hProtocol: "Protocole", hProtocolSub: "méthodes JSON-RPC du transport MCP",
+      footer: "La page n'envoie des requêtes qu'au point d'accès MCP indiqué et n'enregistre rien.",
+      connecting: "Connexion à {url} …", connected: "Connecté à {url} · initialize {a} ms · tools/list {b} ms",
+      failed: "Échec de la connexion : {msg}", toolCount: "{n} outils · tools/list : {bytes} octets",
+      params: "Paramètres", colName: "Nom", colValue: "Description / valeur", examples: "Exemples :",
+      execute: "Exécuter", clear: "Vider", running: "En cours …", response: "Réponse", noParams: "Aucun paramètre.",
+      required: "obligatoire", defaultValue: "Défaut : {v}", annotations: "Annotations : {v}",
+      inputSchema: "Schéma d'entrée (inputSchema)", outputSchema: "Schéma de réponse (outputSchema)",
+      original: "Description originale, telle que la reçoivent les clients IA (en anglais)",
+      phList: "séparer plusieurs valeurs par des virgules, p. ex. CH_BGer, ZH_OG", phJson: "JSON, p. ex. [12.5, \"ID\"]",
+      badJson: "Paramètre « {name} » : JSON non valide", badParams: "params : JSON non valide",
+      requestFailed: "Échec de la requête : {msg}", request: "Requête (JSON-RPC)",
+      tabResult: "Résultat", tabRaw: "Réponse brute", copy: "Copier", copied: "Copié",
+      rpcError: "erreur JSON-RPC {code}", rpcParams: "params (JSON)",
+      summary: "Type de recherche : {mode} · résultats au total : {total} · fournis : {n}",
+      modeSemantic: "recherche IA", modeKeyword: "recherche par mots-clés", serverNote: "Remarque du serveur :",
+      noExcerpt: "pas d'extrait", context: "Contexte ({n} caractères)", aggregations: "Répartitions (aggregations)",
+      fullText: "Texte intégral : {n} caractères", truncated: " (tronqué, version complète sous document_url)",
+      noData: "Aucune donnée.", noMessage: "Erreur sans message",
+      rpc_initialize: "Ouvrir une session, interroger les informations et les capacités du serveur",
+      rpc_tools_list: "Tous les outils avec description, schéma d'entrée et de sortie", rpc_ping: "Vérifier la disponibilité",
+      rpc_resources_list: "Ressources du serveur", rpc_resources_read: "Lire une ressource", rpc_prompts_list: "Prompts du serveur",
+      exQuestion: "Question juridique", exCase: "Numéro de dossier", exNewest: "Les plus récentes d'abord", exFrench: "Français, TF uniquement",
+      exContext: "Avec contexte", exPhrase: "Expression", exArticle: "Article", exFilter: "Filtre + date", exAggs: "Répartitions",
+      exExample: "Exemple", exAll: "Tout", exForQuery: "Pour une requête"
+    },
+    it: {
+      brandSub: "Interfaccia di prova", load: "Carica", linkDocs: "Documentazione",
+      lead: "Interfaccia di prova per l'interfaccia MCP di entscheidsuche.ch. L'elenco degli strumenti e i loro parametri vengono caricati in tempo reale dal server tramite <code>tools/list</code>. Ogni chiamata viene inviata come richiesta JSON-RPC con <code>POST</code> all'endpoint indicato sopra.",
+      hTools: "Strumenti", hProtocol: "Protocollo", hProtocolSub: "metodi JSON-RPC del trasporto MCP",
+      footer: "La pagina invia richieste soltanto all'endpoint MCP indicato e non salva nulla.",
+      connecting: "Connessione a {url} …", connected: "Connesso a {url} · initialize {a} ms · tools/list {b} ms",
+      failed: "Connessione non riuscita: {msg}", toolCount: "{n} strumenti · tools/list: {bytes} byte",
+      params: "Parametri", colName: "Nome", colValue: "Descrizione / valore", examples: "Esempi:",
+      execute: "Esegui", clear: "Svuota", running: "In corso …", response: "Risposta", noParams: "Nessun parametro.",
+      required: "obbligatorio", defaultValue: "Predefinito: {v}", annotations: "Annotazioni: {v}",
+      inputSchema: "Schema di ingresso (inputSchema)", outputSchema: "Schema della risposta (outputSchema)",
+      original: "Descrizione originale, così come la ricevono i client IA (in inglese)",
+      phList: "separare più valori con virgole, p. es. CH_BGer, ZH_OG", phJson: "JSON, p. es. [12.5, \"ID\"]",
+      badJson: "Parametro «{name}»: JSON non valido", badParams: "params: JSON non valido",
+      requestFailed: "Richiesta non riuscita: {msg}", request: "Richiesta (JSON-RPC)",
+      tabResult: "Risultato", tabRaw: "Risposta grezza", copy: "Copia", copied: "Copiato",
+      rpcError: "errore JSON-RPC {code}", rpcParams: "params (JSON)",
+      summary: "Tipo di ricerca: {mode} · risultati totali: {total} · forniti: {n}",
+      modeSemantic: "ricerca IA", modeKeyword: "ricerca per parole chiave", serverNote: "Indicazione del server:",
+      noExcerpt: "nessun estratto", context: "Contesto ({n} caratteri)", aggregations: "Distribuzioni (aggregations)",
+      fullText: "Testo integrale: {n} caratteri", truncated: " (troncato, versione completa sotto document_url)",
+      noData: "Nessun dato.", noMessage: "Errore senza messaggio",
+      rpc_initialize: "Aprire una sessione, interrogare informazioni e capacità del server",
+      rpc_tools_list: "Tutti gli strumenti con descrizione, schema di ingresso e di uscita", rpc_ping: "Verificare la raggiungibilità",
+      rpc_resources_list: "Risorse del server", rpc_resources_read: "Leggere una risorsa", rpc_prompts_list: "Prompt del server",
+      exQuestion: "Questione giuridica", exCase: "Numero di incarto", exNewest: "Prima le più recenti", exFrench: "Francese, solo TF",
+      exContext: "Con contesto", exPhrase: "Espressione", exArticle: "Articolo", exFilter: "Filtro + data", exAggs: "Distribuzioni",
+      exExample: "Esempio", exAll: "Tutto", exForQuery: "Per una richiesta"
+    },
+    en: {
+      brandSub: "Test interface", load: "Load", linkDocs: "Documentation",
+      lead: "Test interface for the MCP interface of entscheidsuche.ch. The list of tools and their parameters are loaded live from the server via <code>tools/list</code>. Every call is sent as a JSON-RPC request by <code>POST</code> to the endpoint given above.",
+      hTools: "Tools", hProtocol: "Protocol", hProtocolSub: "JSON-RPC methods of the MCP transport",
+      footer: "The page only sends requests to the MCP endpoint given above and stores nothing.",
+      connecting: "Connecting to {url} …", connected: "Connected to {url} · initialize {a} ms · tools/list {b} ms",
+      failed: "Connection failed: {msg}", toolCount: "{n} tools · tools/list: {bytes} bytes",
+      params: "Parameters", colName: "Name", colValue: "Description / value", examples: "Examples:",
+      execute: "Execute", clear: "Clear", running: "Running …", response: "Response", noParams: "No parameters.",
+      required: "required", defaultValue: "Default: {v}", annotations: "Annotations: {v}",
+      inputSchema: "Input schema (inputSchema)", outputSchema: "Response schema (outputSchema)",
+      original: "Original description as AI clients receive it",
+      phList: "separate several values with commas, e.g. CH_BGer, ZH_OG", phJson: "JSON, e.g. [12.5, \"ID\"]",
+      badJson: "Parameter “{name}”: not valid JSON", badParams: "params: not valid JSON",
+      requestFailed: "Request failed: {msg}", request: "Request (JSON-RPC)",
+      tabResult: "Result", tabRaw: "Raw response", copy: "Copy", copied: "Copied",
+      rpcError: "JSON-RPC error {code}", rpcParams: "params (JSON)",
+      summary: "Search type: {mode} · total hits: {total} · returned: {n}",
+      modeSemantic: "AI search", modeKeyword: "keyword search", serverNote: "Note from the server:",
+      noExcerpt: "no excerpt", context: "Context ({n} characters)", aggregations: "Distributions (aggregations)",
+      fullText: "Full text: {n} characters", truncated: " (cut off, complete version at document_url)",
+      noData: "No data.", noMessage: "Error without message",
+      rpc_initialize: "Open a session, query server information and capabilities",
+      rpc_tools_list: "All tools with description, input and output schema", rpc_ping: "Check availability",
+      rpc_resources_list: "Resources of the server", rpc_resources_read: "Read a resource", rpc_prompts_list: "Prompts of the server",
+      exQuestion: "Legal question", exCase: "Case number", exNewest: "Newest first", exFrench: "French, Federal Supreme Court only",
+      exContext: "With context", exPhrase: "Phrase", exArticle: "Article", exFilter: "Filter + date", exAggs: "Distributions",
+      exExample: "Example", exAll: "All", exForQuery: "For a query"
+    }
+  };
+
+  // ---- Tool-Texte: Titel [0] und Beschreibung [1] je Sprache -------------
+  // Für "en" gelten die Texte des Servers (das Original, das KI-Clients sehen).
+  var TOOLS = {
+    search: {
+      de: ["Standardsuche", "Die Suche für alle Fälle. Beschreiben Sie die Rechtsfrage oder den Sachverhalt in natürlicher Sprache, in beliebiger Sprache: Das Tool führt die KI-Suche nach Bedeutung aus (wie semantic_search) und liefert zu jedem Entscheid den am besten passenden Textabschnitt.\n\nEs wechselt automatisch zur Stichwortsuche (wie keyword_search), wenn die Anfrage eine Geschäftsnummer oder ein Zitat ist (z. B. 5A_396/2015, BGE 142 III 1), eine Phrase in Anführungszeichen, Boolesche Operatoren oder Wildcards enthält, leer oder * ist, oder wenn sort, search_after oder include_aggregations verwendet wird. Das Antwortfeld search_mode nennt die ausgeführte Suche.\n\nDen Volltext eines Treffers liefert fetch (oder fetch_document) mit der id des Treffers."],
+      fr: ["Recherche standard", "La recherche pour tous les cas. Décrivez la question juridique ou les faits en langage naturel, dans n'importe quelle langue : l'outil exécute la recherche IA par le sens (comme semantic_search) et fournit pour chaque décision le passage le plus pertinent.\n\nIl passe automatiquement à la recherche par mots-clés (comme keyword_search) lorsque la requête est un numéro de dossier ou une citation (p. ex. 5A_396/2015, BGE 142 III 1), contient une expression entre guillemets, des opérateurs booléens ou des caractères génériques, est vide ou vaut *, ou lorsque sort, search_after ou include_aggregations est utilisé. Le champ de réponse search_mode indique la recherche exécutée.\n\nLe texte intégral d'un résultat s'obtient avec fetch (ou fetch_document) et l'id du résultat."],
+      it: ["Ricerca standard", "La ricerca per tutti i casi. Descrivete la questione giuridica o i fatti in linguaggio naturale, in qualsiasi lingua: lo strumento esegue la ricerca IA per significato (come semantic_search) e fornisce per ogni decisione il passaggio più pertinente.\n\nPassa automaticamente alla ricerca per parole chiave (come keyword_search) quando la richiesta è un numero di incarto o una citazione (p. es. 5A_396/2015, BGE 142 III 1), contiene un'espressione tra virgolette, operatori booleani o caratteri jolly, è vuota o vale *, oppure quando si usa sort, search_after o include_aggregations. Il campo di risposta search_mode indica la ricerca eseguita.\n\nIl testo integrale di un risultato si ottiene con fetch (o fetch_document) e l'id del risultato."]
+    },
+    semantic_search: {
+      de: ["KI-Suche nach Bedeutung", "Sucht nicht nach Wörtern, sondern nach Bedeutung (Embeddings) – dasselbe Verfahren wie die Schaltfläche «KI-Suche» auf entscheidsuche.ch. Am besten geeignet für Rechtsfragen und Sachverhalte in ganzen Sätzen. Eine deutsche Anfrage findet auch französische und italienische Entscheide.\n\nAusgewertet werden die 100 am besten passenden Textabschnitte; mehrere Abschnitte desselben Entscheids ergeben einen Treffer. Die Treffer sind nach inhaltlicher Nähe geordnet (score); text enthält den am besten passenden Abschnitt. Keine Paginierung, keine andere Sortierung, keine Boolesche Syntax."],
+      fr: ["Recherche IA par le sens", "Ne cherche pas des mots, mais le sens (embeddings) – le même procédé que le bouton « Rechercher IA » sur entscheidsuche.ch. Convient le mieux aux questions juridiques et aux faits décrits en phrases complètes. Une requête en français trouve aussi des décisions en allemand et en italien.\n\nLes 100 passages les plus pertinents sont évalués ; plusieurs passages d'une même décision donnent un seul résultat. Les résultats sont classés par proximité de sens (score) ; text contient le passage le plus pertinent. Pas de pagination, pas d'autre tri, pas de syntaxe booléenne."],
+      it: ["Ricerca IA per significato", "Non cerca parole, ma il significato (embedding) – lo stesso procedimento del pulsante «Ricercare IA» su entscheidsuche.ch. Adatta soprattutto a questioni giuridiche e fatti descritti in frasi complete. Una richiesta in italiano trova anche decisioni in tedesco e in francese.\n\nVengono valutati i 100 passaggi più pertinenti; più passaggi della stessa decisione danno un solo risultato. I risultati sono ordinati per vicinanza di significato (score); text contiene il passaggio più pertinente. Nessuna paginazione, nessun altro ordinamento, nessuna sintassi booleana."]
+    },
+    keyword_search: {
+      de: ["Stichwortsuche", "Findet Entscheide, die die angegebenen Wörter enthalten. Geeignet für bestimmte Begriffe, Gesetzesartikel, Namen, Phrasen, vollständige Trefferlisten, Sortierung nach Datum und Paginierung.\n\nSyntax (Lucene): alle Begriffe müssen vorkommen (AND) · Phrase in Anführungszeichen: \"dringender Eigenbedarf\" · Operatoren in Grossbuchstaben: AND, OR, NOT · Wildcards * und ? (* allein findet alle Entscheide) · Gesetzesartikel wie geschrieben: Art. 271 OR · Geschäftsnummern in Anführungszeichen.\n\nIst die Anfrage keine gültige Syntax, wird sie als gewöhnliche Suchbegriffe ausgeführt; die Antwort weist darauf hin. text enthält einen Auszug mit den Fundstellen. Paginierung: next_cursor der Antwort als search_after im nächsten Aufruf übergeben."],
+      fr: ["Recherche par mots-clés", "Trouve les décisions qui contiennent les mots indiqués. Convient pour des termes précis, des articles de loi, des noms, des expressions, des listes de résultats complètes, le tri par date et la pagination.\n\nSyntaxe (Lucene) : tous les termes doivent figurer (AND) · expression entre guillemets : \"besoin propre\" · opérateurs en majuscules : AND, OR, NOT · caractères génériques * et ? (* seul trouve toutes les décisions) · numéros de dossier entre guillemets.\n\nSi la requête n'est pas une syntaxe valide, elle est exécutée comme des termes ordinaires ; la réponse le signale. text contient un extrait avec les occurrences. Pagination : transmettre next_cursor de la réponse comme search_after dans l'appel suivant."],
+      it: ["Ricerca per parole chiave", "Trova le decisioni che contengono le parole indicate. Adatta per termini precisi, articoli di legge, nomi, espressioni, elenchi completi di risultati, ordinamento per data e paginazione.\n\nSintassi (Lucene): tutti i termini devono comparire (AND) · espressione tra virgolette: \"bisogno personale\" · operatori in maiuscolo: AND, OR, NOT · caratteri jolly * e ? (* da solo trova tutte le decisioni) · numeri di incarto tra virgolette.\n\nSe la richiesta non è una sintassi valida, viene eseguita come normali termini di ricerca; la risposta lo segnala. text contiene un estratto con le occorrenze. Paginazione: trasmettere next_cursor della risposta come search_after nella chiamata successiva."]
+    },
+    search_by_case_number: {
+      de: ["Suche nach Geschäftsnummer", "Sucht eine Geschäftsnummer, ein Aktenzeichen oder ein BGE-Zitat als exakte Phrase, z. B. BGE 142 III 1, 5A_396/2015 oder ZB.2021.48. An erster Stelle steht in der Regel der Entscheid selbst, danach folgen Entscheide, die ihn zitieren."],
+      fr: ["Recherche par numéro de dossier", "Recherche un numéro de dossier, une référence ou une citation ATF comme expression exacte, p. ex. BGE 142 III 1, 5A_396/2015 ou ZB.2021.48. La décision elle-même figure en général en premier, suivie des décisions qui la citent."],
+      it: ["Ricerca per numero di incarto", "Cerca un numero di incarto, un riferimento o una citazione DTF come espressione esatta, p. es. BGE 142 III 1, 5A_396/2015 o ZB.2021.48. Di regola compare per prima la decisione stessa, seguita dalle decisioni che la citano."]
+    },
+    fetch_document: {
+      de: ["Entscheid abrufen (Volltext)", "Liefert einen einzelnen Entscheid anhand seiner Dokument-ID mit vollständigem Volltext, Titel, Gericht, Datum und Links. Die ID stammt aus dem Feld id eines Suchtreffers. Bei sehr langen Entscheiden ist der Text auf 100'000 Zeichen begrenzt; ist text_truncated gesetzt, steht das vollständige Dokument unter document_url."],
+      fr: ["Obtenir une décision (texte intégral)", "Fournit une décision à partir de son identifiant de document, avec le texte intégral, le titre, le tribunal, la date et les liens. L'identifiant provient du champ id d'un résultat de recherche. Pour les décisions très longues, le texte est limité à 100'000 caractères ; si text_truncated est défini, le document complet se trouve sous document_url."],
+      it: ["Ottenere una decisione (testo integrale)", "Fornisce una singola decisione in base al suo identificativo di documento, con testo integrale, titolo, tribunale, data e link. L'identificativo proviene dal campo id di un risultato di ricerca. Per decisioni molto lunghe il testo è limitato a 100'000 caratteri; se text_truncated è impostato, il documento completo si trova sotto document_url."]
+    },
+    list_hierarchy: {
+      de: ["Gerichte mit Anzahl Entscheide", "Liefert die Hierarchie-IDs der Kantone, Gerichte und Kammern mit der Zahl der Entscheide, wahlweise eingeschränkt auf die Treffer einer Stichwort-Anfrage. Die IDs werden im Filter hierarchy der Such-Tools verwendet."],
+      fr: ["Tribunaux avec nombre de décisions", "Fournit les identifiants de hiérarchie des cantons, tribunaux et chambres avec le nombre de décisions, au choix limité aux résultats d'une requête par mots-clés. Les identifiants s'utilisent dans le filtre hierarchy des outils de recherche."],
+      it: ["Tribunali con numero di decisioni", "Fornisce gli identificativi di gerarchia di cantoni, tribunali e camere con il numero di decisioni, a scelta limitato ai risultati di una richiesta per parole chiave. Gli identificativi si usano nel filtro hierarchy degli strumenti di ricerca."]
+    },
+    list_facets: {
+      de: ["Baum Kanton / Gericht / Kammer mit Namen", "Baum aller Kantone, Gerichte und Kammern mit ihren Bezeichnungen in Deutsch, Französisch und Italienisch. Die id-Werte sind im Filter hierarchy der Such-Tools verwendbar. Die Antwort ist gross (rund 160'000 Zeichen)."],
+      fr: ["Arborescence canton / tribunal / chambre avec noms", "Arborescence de tous les cantons, tribunaux et chambres avec leurs désignations en allemand, français et italien. Les valeurs id s'utilisent dans le filtre hierarchy des outils de recherche. La réponse est volumineuse (environ 160'000 caractères)."],
+      it: ["Albero cantone / tribunale / camera con nomi", "Albero di tutti i cantoni, tribunali e camere con le loro denominazioni in tedesco, francese e italiano. I valori id si possono usare nel filtro hierarchy degli strumenti di ricerca. La risposta è voluminosa (circa 160'000 caratteri)."]
+    },
+    server_info: {
+      de: ["Server-Informationen", "Version und konfigurierte Endpunkte dieses MCP-Servers."],
+      fr: ["Informations sur le serveur", "Version et points d'accès configurés de ce serveur MCP."],
+      it: ["Informazioni sul server", "Versione ed endpoint configurati di questo server MCP."]
+    }
+  };
+  TOOLS.fetch = {
+    de: ["Entscheid abrufen (Alias für fetch_document)", TOOLS.fetch_document.de[1] + " Identisch mit fetch_document."],
+    fr: ["Obtenir une décision (alias de fetch_document)", TOOLS.fetch_document.fr[1] + " Identique à fetch_document."],
+    it: ["Ottenere una decisione (alias di fetch_document)", TOOLS.fetch_document.it[1] + " Identico a fetch_document."]
+  };
+
+  // ---- Parameter-Texte: "tool.param" hat Vorrang vor "param" -------------
+  var PARAMS = {
+    de: {
+      "query": "Suchbegriffe. \"…\" für Phrasen, AND/OR/NOT als Operatoren, * und ? als Wildcards. \"*\" findet alles.",
+      "search.query": "Rechtsfrage oder Sachverhalt in natürlicher Sprache (beliebige Sprache) oder Geschäftsnummer / Zitat.",
+      "semantic_search.query": "Rechtsfrage oder Beschreibung des Sachverhalts, möglichst in ganzen Sätzen. Beliebige Sprache.",
+      "list_hierarchy.query": "Optionale Stichwort-Anfrage (Syntax wie keyword_search).",
+      "case_number": "Geschäftsnummer, Aktenzeichen oder BGE-Zitat, z. B. BGE 142 III 1 oder 5A_396/2015.",
+      "language": "Bevorzugte Sprache (de, fr, it) für Titel und Abstract. Kein Filter – dafür language_filter verwenden.",
+      "size": "Treffer pro Seite (1–100).",
+      "search.size": "Anzahl Entscheide (KI-Suche: höchstens 50).",
+      "semantic_search.size": "Anzahl Entscheide (1–50).",
+      "list_hierarchy.size": "Maximale Anzahl Einträge.",
+      "sort": "Sortierung: relevance (Relevanz) | date (Entscheiddatum, neueste zuerst) | scrapedate (Aufnahme in den Index, neueste zuerst).",
+      "search.sort": "Nur Stichwortsuche. Ein anderer Wert als relevance wechselt zur Stichwortsuche.",
+      "search_after": "Cursor aus next_cursor der vorigen Antwort.",
+      "search.search_after": "Nur Stichwortsuche: Cursor aus next_cursor der vorigen Antwort.",
+      "decision_date_from": "Frühestes Entscheiddatum (JJJJ-MM-TT, inklusive).",
+      "decision_date_to": "Spätestes Entscheiddatum (JJJJ-MM-TT, inklusive).",
+      "scrape_date_from": "Frühestes Datum der Aufnahme in den Index.",
+      "scrape_date_to": "Spätestes Datum der Aufnahme in den Index.",
+      "hierarchy": "Einschränkung auf Kantone, Gerichte oder Kammern über ihre Hierarchie-ID, z. B. CH_BGer oder ZH_OG, BE. Mehrere IDs gelten als ODER. Gross-/Kleinschreibung beachten.",
+      "language_filter": "Nur Entscheide in diesen Sprachen.",
+      "include_aggregations": "Zusätzlich die Verteilung der Treffer nach Gericht, Sprache und Datum liefern.",
+      "search.include_aggregations": "Nur Stichwortsuche: Verteilungen der Treffer mitliefern.",
+      "include_context": "Nur KI-Suche: pro Treffer zusätzlich den grösseren Abschnitt um den Auszug liefern (Feld context, bis etwa 6000 Zeichen).",
+      "id": "Dokument-ID eines Suchtreffers, z. B. CH_BGer_005_5A-396-2015_2017-06-22.",
+      "fetch_document.language": "Bevorzugte Sprache (de, fr, it) für Titel und Abstract.",
+      "fetch.language": "Bevorzugte Sprache (de, fr, it) für Titel und Abstract."
+    },
+    fr: {
+      "query": "Termes de recherche. \"…\" pour les expressions, AND/OR/NOT comme opérateurs, * et ? comme caractères génériques. \"*\" trouve tout.",
+      "search.query": "Question juridique ou faits en langage naturel (dans n'importe quelle langue), ou numéro de dossier / citation.",
+      "semantic_search.query": "Question juridique ou description des faits, si possible en phrases complètes. N'importe quelle langue.",
+      "list_hierarchy.query": "Requête par mots-clés facultative (syntaxe comme keyword_search).",
+      "case_number": "Numéro de dossier, référence ou citation ATF, p. ex. BGE 142 III 1 ou 5A_396/2015.",
+      "language": "Langue préférée (de, fr, it) pour le titre et le résumé. Pas un filtre – utiliser language_filter pour cela.",
+      "size": "Résultats par page (1–100).",
+      "search.size": "Nombre de décisions (recherche IA : 50 au maximum).",
+      "semantic_search.size": "Nombre de décisions (1–50).",
+      "list_hierarchy.size": "Nombre maximal d'entrées.",
+      "sort": "Tri : relevance (pertinence) | date (date de la décision, les plus récentes d'abord) | scrapedate (date de saisie dans l'index, les plus récentes d'abord).",
+      "search.sort": "Recherche par mots-clés uniquement. Toute valeur autre que relevance fait passer à la recherche par mots-clés.",
+      "search_after": "Curseur issu de next_cursor de la réponse précédente.",
+      "search.search_after": "Recherche par mots-clés uniquement : curseur issu de next_cursor de la réponse précédente.",
+      "decision_date_from": "Date de décision la plus ancienne (AAAA-MM-JJ, incluse).",
+      "decision_date_to": "Date de décision la plus récente (AAAA-MM-JJ, incluse).",
+      "scrape_date_from": "Date de saisie dans l'index la plus ancienne.",
+      "scrape_date_to": "Date de saisie dans l'index la plus récente.",
+      "hierarchy": "Limitation à des cantons, tribunaux ou chambres par leur identifiant de hiérarchie, p. ex. CH_BGer ou ZH_OG, BE. Plusieurs identifiants sont combinés par OU. Respecter les majuscules et minuscules.",
+      "language_filter": "Uniquement les décisions rédigées dans ces langues.",
+      "include_aggregations": "Fournir aussi la répartition des résultats par tribunal, langue et date.",
+      "search.include_aggregations": "Recherche par mots-clés uniquement : fournir aussi les répartitions des résultats.",
+      "include_context": "Recherche IA uniquement : fournir aussi, pour chaque résultat, le passage plus large autour de l'extrait (champ context, jusqu'à environ 6000 caractères).",
+      "id": "Identifiant de document d'un résultat de recherche, p. ex. CH_BGer_005_5A-396-2015_2017-06-22.",
+      "fetch_document.language": "Langue préférée (de, fr, it) pour le titre et le résumé.",
+      "fetch.language": "Langue préférée (de, fr, it) pour le titre et le résumé."
+    },
+    it: {
+      "query": "Termini di ricerca. \"…\" per le espressioni, AND/OR/NOT come operatori, * e ? come caratteri jolly. \"*\" trova tutto.",
+      "search.query": "Questione giuridica o fatti in linguaggio naturale (in qualsiasi lingua), oppure numero di incarto / citazione.",
+      "semantic_search.query": "Questione giuridica o descrizione dei fatti, possibilmente in frasi complete. Qualsiasi lingua.",
+      "list_hierarchy.query": "Richiesta per parole chiave facoltativa (sintassi come keyword_search).",
+      "case_number": "Numero di incarto, riferimento o citazione DTF, p. es. BGE 142 III 1 o 5A_396/2015.",
+      "language": "Lingua preferita (de, fr, it) per titolo e riassunto. Non è un filtro – per questo usare language_filter.",
+      "size": "Risultati per pagina (1–100).",
+      "search.size": "Numero di decisioni (ricerca IA: al massimo 50).",
+      "semantic_search.size": "Numero di decisioni (1–50).",
+      "list_hierarchy.size": "Numero massimo di voci.",
+      "sort": "Ordinamento: relevance (pertinenza) | date (data della decisione, prima le più recenti) | scrapedate (acquisizione nell'indice, prima le più recenti).",
+      "search.sort": "Solo ricerca per parole chiave. Un valore diverso da relevance fa passare alla ricerca per parole chiave.",
+      "search_after": "Cursore da next_cursor della risposta precedente.",
+      "search.search_after": "Solo ricerca per parole chiave: cursore da next_cursor della risposta precedente.",
+      "decision_date_from": "Data della decisione più remota (AAAA-MM-GG, inclusa).",
+      "decision_date_to": "Data della decisione più recente (AAAA-MM-GG, inclusa).",
+      "scrape_date_from": "Data di acquisizione nell'indice più remota.",
+      "scrape_date_to": "Data di acquisizione nell'indice più recente.",
+      "hierarchy": "Limitazione a cantoni, tribunali o camere tramite il loro identificativo di gerarchia, p. es. CH_BGer oppure ZH_OG, BE. Più identificativi sono combinati con O. Rispettare maiuscole e minuscole.",
+      "language_filter": "Solo decisioni redatte in queste lingue.",
+      "include_aggregations": "Fornire anche la distribuzione dei risultati per tribunale, lingua e data.",
+      "search.include_aggregations": "Solo ricerca per parole chiave: fornire anche le distribuzioni dei risultati.",
+      "include_context": "Solo ricerca IA: fornire anche, per ogni risultato, il passaggio più ampio attorno all'estratto (campo context, fino a circa 6000 caratteri).",
+      "id": "Identificativo di documento di un risultato di ricerca, p. es. CH_BGer_005_5A-396-2015_2017-06-22.",
+      "fetch_document.language": "Lingua preferita (de, fr, it) per titolo e riassunto.",
+      "fetch.language": "Lingua preferita (de, fr, it) per titolo e riassunto."
+    }
+  };
+
+  function t(key, values) {
+    var text = (UI[lang] && UI[lang][key]) || UI.de[key] || key;
+    Object.keys(values || {}).forEach(function (name) { text = text.split("{" + name + "}").join(values[name]); });
+    return text;
+  }
+
+  // Beispielwerte je Tool (Label ist ein UI-Schlüssel).
   var EXAMPLES = {
     search: [
-      { label: "Rechtsfrage", args: { query: "Darf der Vermieter wegen Eigenbedarf kündigen, wenn seine Tochter einziehen will?", size: 5 } },
-      { label: "Geschäftsnummer", args: { query: "5A_396/2015" } },
-      { label: "Neueste zuerst", args: { query: "Eigenbedarf", sort: "date", size: 5 } }
+      { label: "exQuestion", args: { query: "Darf der Vermieter wegen Eigenbedarf kündigen, wenn seine Tochter einziehen will?", size: 5 } },
+      { label: "exCase", args: { query: "5A_396/2015" } },
+      { label: "exNewest", args: { query: "Eigenbedarf", sort: "date", size: 5 } }
     ],
     semantic_search: [
-      { label: "Rechtsfrage", args: { query: "Haftet der Hundehalter für einen Biss, wenn der Hund angeleint war?", size: 5 } },
-      { label: "Französisch, nur BGer", args: { query: "résiliation du bail pour besoin propre du bailleur", hierarchy: ["CH_BGer"], language_filter: ["fr"], size: 5 } },
-      { label: "Mit Kontext", args: { query: "Missbräuchliche Kündigung während Krankheit", size: 3, include_context: true } }
+      { label: "exQuestion", args: { query: "Haftet der Hundehalter für einen Biss, wenn der Hund angeleint war?", size: 5 } },
+      { label: "exFrench", args: { query: "résiliation du bail pour besoin propre du bailleur", hierarchy: ["CH_BGer"], language_filter: ["fr"], size: 5 } },
+      { label: "exContext", args: { query: "Missbräuchliche Kündigung während Krankheit", size: 3, include_context: true } }
     ],
     keyword_search: [
-      { label: "Phrase", args: { query: "\"dringender Eigenbedarf\"", size: 5 } },
-      { label: "Artikel", args: { query: "Art. 271 OR", size: 5 } },
-      { label: "Filter + Datum", args: { query: "Mietzins", hierarchy: ["ZH_OG"], decision_date_from: "2024-01-01", sort: "date", size: 5 } },
-      { label: "Verteilungen", args: { query: "Eigenbedarf", size: 1, include_aggregations: true } }
+      { label: "exPhrase", args: { query: "\"dringender Eigenbedarf\"", size: 5 } },
+      { label: "exArticle", args: { query: "Art. 271 OR", size: 5 } },
+      { label: "exFilter", args: { query: "Mietzins", hierarchy: ["ZH_OG"], decision_date_from: "2024-01-01", sort: "date", size: 5 } },
+      { label: "exAggs", args: { query: "Eigenbedarf", size: 1, include_aggregations: true } }
     ],
     search_by_case_number: [
       { label: "BGE", args: { case_number: "BGE 142 III 1", size: 3 } },
       { label: "BGer", args: { case_number: "5A_396/2015", size: 3 } }
     ],
-    fetch_document: [ { label: "Beispiel", args: { id: "CH_BGer_005_5A-396-2015_2017-06-22" } } ],
-    fetch: [ { label: "Beispiel", args: { id: "CH_BGer_005_5A-396-2015_2017-06-22" } } ],
-    list_hierarchy: [ { label: "Alle", args: {} }, { label: "Zu einer Anfrage", args: { query: "Eigenbedarf", size: 10 } } ]
+    fetch_document: [ { label: "exExample", args: { id: "CH_BGer_005_5A-396-2015_2017-06-22" } } ],
+    fetch: [ { label: "exExample", args: { id: "CH_BGer_005_5A-396-2015_2017-06-22" } } ],
+    list_hierarchy: [ { label: "exAll", args: {} }, { label: "exForQuery", args: { query: "Eigenbedarf", size: 10 } } ]
   };
 
   var RPC_METHODS = [
-    { method: "initialize", title: "Sitzung eröffnen, Server-Informationen und Fähigkeiten abfragen",
-      params: { protocolVersion: PROTOCOL, capabilities: {}, clientInfo: { name: "entscheidsuche-test-ui", version: "1" } } },
-    { method: "tools/list", title: "Alle Tools mit Beschreibung, Eingabe- und Ausgabeschema", params: {} },
-    { method: "ping", title: "Erreichbarkeit prüfen", params: null },
-    { method: "resources/list", title: "Ressourcen des Servers", params: {} },
-    { method: "resources/read", title: "Ressource lesen", params: { uri: "mcp://server-card.json" } },
-    { method: "prompts/list", title: "Prompts des Servers", params: {} }
+    { method: "initialize", params: { protocolVersion: PROTOCOL, capabilities: {}, clientInfo: { name: "entscheidsuche-test-ui", version: "1" } } },
+    { method: "tools/list", params: {} },
+    { method: "ping", params: null },
+    { method: "resources/list", params: {} },
+    { method: "resources/read", params: { uri: "mcp://server-card.json" } },
+    { method: "prompts/list", params: {} }
   ];
 
   function el(tag, attrs, children) {
@@ -174,6 +453,8 @@
     });
     return node;
   }
+
+  function number(value) { return Number(value).toLocaleString("de-CH"); }
 
   function post(body) {
     var started = performance.now();
@@ -279,17 +560,17 @@
       };
       set = function (v) { boxes.forEach(function (b) { b.box.checked = !!v && v.indexOf(b.box.value) >= 0; }); };
     } else if (info.type === "array" && info.items.type === "string") {
-      node = el("input", { type: "text", name: name, placeholder: "mehrere Werte mit Komma trennen, z. B. CH_BGer, ZH_OG" });
+      node = el("input", { type: "text", name: name, placeholder: t("phList") });
       get = function () {
         var values = node.value.split(",").map(function (s) { return s.trim(); }).filter(Boolean);
         return values.length ? values : undefined;
       };
       set = function (v) { node.value = v == null ? "" : v.join(", "); };
     } else if (info.type === "array" || info.type === "object" || info.type === "any") {
-      node = el("input", { type: "text", name: name, placeholder: "JSON, z. B. [12.5, \"ID\"]" });
+      node = el("input", { type: "text", name: name, placeholder: t("phJson") });
       get = function () {
         if (node.value.trim() === "") return undefined;
-        try { return JSON.parse(node.value); } catch (e) { throw new Error("Parameter „" + name + "“: kein gültiges JSON"); }
+        try { return JSON.parse(node.value); } catch (e) { throw new Error(t("badJson", { name: name })); }
       };
       set = function (v) { node.value = v == null ? "" : JSON.stringify(v); };
     } else {
@@ -315,37 +596,39 @@
     var title = el("a", { "class": "t", href: hit.url || hit.document_url || "#", target: "_blank", rel: "noopener" }, [highlight((index + 1) + ". " + (hit.title || hit.id))]);
     var text = (hit.text || "").replace(/[ \t ]*\n\s*/g, "\n").trim();
     var body = text ? el("div", { "class": "x" }, [highlight(text.length > 1500 ? text.slice(0, 1500) + " …" : text)])
-                    : el("div", { "class": "x none", text: "kein Auszug" });
+                    : el("div", { "class": "x none", text: t("noExcerpt") });
     var card = el("div", { "class": "hit" }, [title, el("div", { "class": "m", text: meta }), body]);
     if (hit.abstract) card.insertBefore(el("div", { "class": "pdesc" }, [highlight(hit.abstract)]), body);
-    if (hit.context) card.appendChild(el("details", {}, [el("summary", { text: "Kontext (" + hit.context.length + " Zeichen)" }), el("div", { "class": "x", text: hit.context })]));
+    if (hit.context) card.appendChild(el("details", {}, [el("summary", { text: t("context", { n: number(hit.context.length) }) }), el("div", { "class": "x", text: hit.context })]));
     return card;
   }
 
   function renderResult(result) {
     var box = el("div", {});
-    if (!result) { box.appendChild(el("div", { "class": "summary", text: "Keine Daten." })); return box; }
+    if (!result) { box.appendChild(el("div", { "class": "summary", text: t("noData") })); return box; }
     if (result.isError) {
       var message = (result.content || []).map(function (c) { return c.text || ""; }).join("\n");
-      box.appendChild(el("div", { "class": "errbox", text: message || "Fehler ohne Meldung" }));
+      box.appendChild(el("div", { "class": "errbox", text: message || t("noMessage") }));
       return box;
     }
     var data = result.structuredContent;
     if (data && data.result !== undefined && Object.keys(data).length === 1) data = data.result;
     if (data && Array.isArray(data.hits)) {
-      if (data.note) box.appendChild(el("div", { "class": "note", text: data.note }));
+      // Der Hinweis ist Ausgabe des Servers und bleibt im Original (englisch).
+      if (data.note) box.appendChild(el("div", { "class": "note" }, [el("b", { text: t("serverNote") + " " }), data.note]));
       box.appendChild(el("div", { "class": "summary", text:
-        "Suchart: " + data.search_mode + " · Treffer gesamt: " + data.total + " · geliefert: " + data.hits.length +
+        t("summary", { mode: data.search_mode === "semantic" ? t("modeSemantic") : t("modeKeyword"), total: number(data.total), n: data.hits.length }) +
         (data.next_cursor ? " · next_cursor: " + JSON.stringify(data.next_cursor) : "") }));
       data.hits.forEach(function (hit, i) { box.appendChild(hitCard(hit, i)); });
       if (data.aggregations) {
-        box.appendChild(el("details", {}, [el("summary", { text: "Verteilungen (aggregations)" }),
+        box.appendChild(el("details", {}, [el("summary", { text: t("aggregations") }),
           el("pre", { "class": "code", text: JSON.stringify(data.aggregations, null, 2) })]));
       }
     } else if (data && typeof data.text === "string" && data.id) {
       box.appendChild(hitCard({ id: data.id, title: data.title, url: data.url, document_url: data.document_url,
-        decision_date: data.decision_date, court: data.court, is_pdf: data.is_pdf, abstract: data.abstract, text: "" }, 0));
-      box.appendChild(el("div", { "class": "summary", text: "Volltext: " + data.text.length + " Zeichen" + (data.text_truncated ? " (abgeschnitten, vollständig unter document_url)" : "") }));
+        decision_date: data.decision_date, court: data.court, is_pdf: data.is_pdf, abstract: data.abstract, text: " " }, 0));
+      box.lastChild.removeChild(box.lastChild.lastChild);
+      box.appendChild(el("div", { "class": "summary", text: t("fullText", { n: number(data.text.length) }) + (data.text_truncated ? t("truncated") : "") }));
       box.appendChild(el("pre", { "class": "code", text: data.text.replace(/[ \t ]*\n\s*\n\s*/g, "\n\n").trim() }));
     } else if (data !== undefined && data !== null) {
       box.appendChild(el("pre", { "class": "code", text: JSON.stringify(data, null, 2) }));
@@ -357,8 +640,8 @@
 
   function codeBlock(text) {
     var pre = el("pre", { "class": "code", text: text });
-    var copy = el("button", { "class": "btn small copy", type: "button", text: "Kopieren", onclick: function () {
-      navigator.clipboard.writeText(text).then(function () { copy.textContent = "Kopiert"; setTimeout(function () { copy.textContent = "Kopieren"; }, 1200); });
+    var copy = el("button", { "class": "btn small copy", type: "button", text: t("copy"), onclick: function () {
+      navigator.clipboard.writeText(text).then(function () { copy.textContent = t("copied"); setTimeout(function () { copy.textContent = t("copy"); }, 1200); });
     } });
     return el("div", { "class": "codewrap" }, [copy, pre]);
   }
@@ -366,23 +649,23 @@
   function showResponse(container, body, answer, isTool) {
     container.innerHTML = "";
     container.appendChild(el("h4", { text: "curl" })); container.appendChild(codeBlock(curlFor(body)));
-    container.appendChild(el("h4", { text: "Request (JSON-RPC)" })); container.appendChild(codeBlock(JSON.stringify(body, null, 2)));
+    container.appendChild(el("h4", { text: t("request") })); container.appendChild(codeBlock(JSON.stringify(body, null, 2)));
     if (!answer) return;
     var rpcError = answer.data && answer.data.error;
     var toolError = answer.data && answer.data.result && answer.data.result.isError;
     var bad = answer.status >= 400 || rpcError || toolError;
     container.appendChild(el("div", { "class": "meta" }, [
-      el("span", { "class": "code-pill" + (bad ? " bad" : ""), text: "HTTP " + answer.status + (rpcError ? " · JSON-RPC-Fehler " + rpcError.code : toolError ? " · isError" : "") }),
+      el("span", { "class": "code-pill" + (bad ? " bad" : ""), text: "HTTP " + answer.status + (rpcError ? " · " + t("rpcError", { code: rpcError.code }) : toolError ? " · isError" : "") }),
       el("span", { text: answer.ms + " ms" }),
-      el("span", { text: answer.bytes.toLocaleString("de-CH") + " Bytes" }),
+      el("span", { text: number(answer.bytes) + " Bytes" }),
       el("span", { text: answer.contentType })
     ]));
     var panes = [];
     if (isTool && answer.data && answer.data.result) {
-      panes.push(["Ergebnis", renderResult(answer.data.result)]);
+      panes.push([t("tabResult"), renderResult(answer.data.result)]);
       if (answer.data.result.structuredContent !== undefined) panes.push(["structuredContent", codeBlock(JSON.stringify(answer.data.result.structuredContent, null, 2))]);
     }
-    panes.push(["Rohantwort", codeBlock(answer.data ? JSON.stringify(answer.data, null, 2) : answer.text)]);
+    panes.push([t("tabRaw"), codeBlock(answer.data ? JSON.stringify(answer.data, null, 2) : answer.text)]);
     var tabs = el("div", { "class": "tabs" });
     container.appendChild(tabs);
     panes.forEach(function (pane, i) {
@@ -397,39 +680,51 @@
   }
 
   function run(button, container, body, isTool) {
-    button.disabled = true; var label = button.textContent; button.textContent = "Läuft …";
+    button.disabled = true; var label = button.textContent; button.textContent = t("running");
     showResponse(container, body, null, isTool);
     post(body).then(function (answer) { showResponse(container, body, answer, isTool); })
-      .catch(function (error) { container.appendChild(el("div", { "class": "errbox", text: "Anfrage fehlgeschlagen: " + error.message })); })
+      .catch(function (error) { container.appendChild(el("div", { "class": "errbox", text: t("requestFailed", { msg: error.message }) })); })
       .then(function () { button.disabled = false; button.textContent = label; });
   }
 
   // ---- Tools -------------------------------------------------------------
+  function toolText(tool) {
+    var local = TOOLS[tool.name] && TOOLS[tool.name][lang];
+    return { title: local ? local[0] : (tool.title || ""), description: local ? local[1] : (tool.description || ""), localized: !!local };
+  }
+
+  function paramText(tool, name, prop) {
+    var table = PARAMS[lang] || {};
+    return table[tool.name + "." + name] || table[name] || prop.description || "";
+  }
+
   function toolBlock(tool) {
     var schema = tool.inputSchema || {};
     var required = schema.required || [];
     var controls = {};
+    var texts = toolText(tool);
     var rows = Object.keys(schema.properties || {}).map(function (name) {
       var prop = schema.properties[name];
       var info = describe(prop, schema);
       var ctl = controls[name] = control(name, info);
       var isRequired = required.indexOf(name) >= 0;
       var def = prop["default"];
+      var description = paramText(tool, name, prop);
       return el("tr", {}, [
-        el("td", { "class": "pname" }, [el("b", { text: name }), isRequired ? el("span", { "class": "req", text: "* required" }) : null, el("span", { "class": "ptype", text: typeLabel(info) })]),
+        el("td", { "class": "pname" }, [el("b", { text: name }), isRequired ? el("span", { "class": "req", text: "* " + t("required") }) : null, el("span", { "class": "ptype", text: typeLabel(info) })]),
         el("td", {}, [
-          prop.description ? el("div", { "class": "pdesc", text: prop.description }) : null,
+          description ? el("div", { "class": "pdesc", text: description }) : null,
           ctl.node,
-          def !== undefined && def !== null && def !== "" ? el("div", { "class": "pdef", text: "Default: " + JSON.stringify(def) }) : null
+          def !== undefined && def !== null && def !== "" ? el("div", { "class": "pdef", text: t("defaultValue", { v: JSON.stringify(def) }) }) : null
         ])
       ]);
     });
     var response = el("div", { "class": "resp" });
     function fill(args) { Object.keys(controls).forEach(function (name) { controls[name].set(args[name]); }); }
     var examples = (EXAMPLES[tool.name] || []).map(function (example) {
-      return el("button", { "class": "btn small", type: "button", text: example.label, onclick: function () { fill(example.args); } });
+      return el("button", { "class": "btn small", type: "button", text: t(example.label), onclick: function () { fill(example.args); } });
     });
-    var exec = el("button", { "class": "exec", type: "submit", text: "Ausführen" });
+    var exec = el("button", { "class": "exec", type: "submit", text: t("execute") });
     var form = el("form", { onsubmit: function (event) {
       event.preventDefault();
       var args = {};
@@ -438,22 +733,23 @@
       } catch (error) { response.innerHTML = ""; response.appendChild(el("div", { "class": "errbox", text: error.message })); return; }
       run(exec, response, request("tools/call", { name: tool.name, arguments: args }), true);
     } }, [
-      el("div", { "class": "bar" }, ["Parameter", el("span", { "class": "ex" }, examples.length ? [el("span", { "class": "pdef", text: "Beispiele:" })].concat(examples) : [])]),
-      rows.length ? el("table", { "class": "params" }, [el("thead", {}, [el("tr", {}, [el("th", { text: "Name" }), el("th", { text: "Beschreibung / Wert" })])]), el("tbody", {}, rows)])
-                  : el("div", { "class": "desc pdef", text: "Keine Parameter." }),
-      el("div", { "class": "actions" }, [exec, el("button", { "class": "clear", type: "button", text: "Leeren", onclick: function () { fill({}); response.innerHTML = ""; } })])
+      el("div", { "class": "bar" }, [t("params"), el("span", { "class": "ex" }, examples.length ? [el("span", { "class": "pdef", text: t("examples") })].concat(examples) : [])]),
+      rows.length ? el("table", { "class": "params" }, [el("thead", {}, [el("tr", {}, [el("th", { text: t("colName") }), el("th", { text: t("colValue") })])]), el("tbody", {}, rows)])
+                  : el("div", { "class": "desc pdef", text: t("noParams") }),
+      el("div", { "class": "actions" }, [exec, el("button", { "class": "clear", type: "button", text: t("clear"), onclick: function () { fill({}); response.innerHTML = ""; } })])
     ]);
     var annotations = tool.annotations ? Object.keys(tool.annotations).filter(function (k) { return tool.annotations[k] === true; }).join(", ") : "";
     return el("details", { "class": "op", id: "tool-" + tool.name }, [
-      el("summary", {}, [el("span", { "class": "badge", text: "TOOL" }), el("span", { "class": "op-name", text: tool.name }), el("span", { "class": "op-title", text: tool.title || "" }), el("span", { "class": "chev", text: "▾" })]),
+      el("summary", {}, [el("span", { "class": "badge", text: "TOOL" }), el("span", { "class": "op-name", text: tool.name }), el("span", { "class": "op-title", text: texts.title }), el("span", { "class": "chev", text: "▾" })]),
       el("div", { "class": "op-body" }, [
-        el("div", { "class": "desc", text: tool.description || "" }),
-        annotations ? el("div", { "class": "desc pdef", style: "padding-top:0", text: "Annotationen: " + annotations }) : null,
+        el("div", { "class": "desc", text: texts.description }),
+        annotations ? el("div", { "class": "desc pdef", style: "padding-top:0", text: t("annotations", { v: annotations }) }) : null,
+        texts.localized ? el("details", { "class": "orig" }, [el("summary", { text: t("original") }), el("div", { text: (tool.title ? tool.title + "\n\n" : "") + (tool.description || "") })]) : null,
         form,
-        el("div", { "class": "bar", text: "Antwort" }),
+        el("div", { "class": "bar", text: t("response") }),
         response,
-        el("details", { "class": "schema" }, [el("summary", { text: "Eingabeschema (inputSchema)" }), el("pre", { "class": "code", text: JSON.stringify(tool.inputSchema, null, 2) })]),
-        tool.outputSchema ? el("details", { "class": "schema" }, [el("summary", { text: "Antwortschema (outputSchema)" }), el("pre", { "class": "code", text: JSON.stringify(tool.outputSchema, null, 2) })]) : null
+        el("details", { "class": "schema" }, [el("summary", { text: t("inputSchema") }), el("pre", { "class": "code", text: JSON.stringify(tool.inputSchema, null, 2) })]),
+        tool.outputSchema ? el("details", { "class": "schema" }, [el("summary", { text: t("outputSchema") }), el("pre", { "class": "code", text: JSON.stringify(tool.outputSchema, null, 2) })]) : null
       ])
     ]);
   }
@@ -462,55 +758,97 @@
     var area = el("textarea", { spellcheck: "false" });
     area.value = spec.params == null ? "" : JSON.stringify(spec.params, null, 2);
     var response = el("div", { "class": "resp" });
-    var exec = el("button", { "class": "exec", type: "submit", text: "Ausführen" });
+    var exec = el("button", { "class": "exec", type: "submit", text: t("execute") });
     var form = el("form", { onsubmit: function (event) {
       event.preventDefault();
       var params = null;
       if (area.value.trim() !== "") {
-        try { params = JSON.parse(area.value); } catch (e) { response.innerHTML = ""; response.appendChild(el("div", { "class": "errbox", text: "params: kein gültiges JSON" })); return; }
+        try { params = JSON.parse(area.value); } catch (e) { response.innerHTML = ""; response.appendChild(el("div", { "class": "errbox", text: t("badParams") })); return; }
       }
       run(exec, response, request(spec.method, params), false);
     } }, [
-      el("div", { "class": "bar", text: "params (JSON)" }),
+      el("div", { "class": "bar", text: t("rpcParams") }),
       el("div", { style: "padding:12px 18px 0" }, [area]),
       el("div", { "class": "actions" }, [exec])
     ]);
     return el("details", { "class": "op rpc" }, [
-      el("summary", {}, [el("span", { "class": "badge", text: "RPC" }), el("span", { "class": "op-name", text: spec.method }), el("span", { "class": "op-title", text: spec.title }), el("span", { "class": "chev", text: "▾" })]),
-      el("div", { "class": "op-body" }, [form, el("div", { "class": "bar", text: "Antwort" }), response])
+      el("summary", {}, [el("span", { "class": "badge", text: "RPC" }), el("span", { "class": "op-name", text: spec.method }), el("span", { "class": "op-title", text: t("rpc_" + spec.method.replace("/", "_")) }), el("span", { "class": "chev", text: "▾" })]),
+      el("div", { "class": "op-body" }, [form, el("div", { "class": "bar", text: t("response") }), response])
     ]);
   }
 
-  // ---- Laden -------------------------------------------------------------
+  // ---- Aufbau und Sprache ------------------------------------------------
+  function renderStatic() {
+    document.documentElement.lang = lang;
+    document.title = "entscheidsuche MCP – " + t("brandSub");
+    Array.prototype.forEach.call(document.querySelectorAll("[data-t]"), function (node) { node.innerHTML = t(node.getAttribute("data-t")); });
+    Array.prototype.forEach.call(document.querySelectorAll(".langs button"), function (button) {
+      button.setAttribute("aria-pressed", String(button.getAttribute("data-lang") === lang));
+    });
+    document.getElementById("doc-link").setAttribute("href", "/?lang=" + lang);
+    var rpcBox = document.getElementById("rpc");
+    rpcBox.innerHTML = "";
+    RPC_METHODS.forEach(function (spec) { rpcBox.appendChild(rpcBlock(spec)); });
+  }
+
+  function renderTools() {
+    var toolsBox = document.getElementById("tools");
+    var status = document.getElementById("status");
+    var open = Array.prototype.map.call(toolsBox.querySelectorAll("details.op[open]"), function (d) { return d.id; });
+    toolsBox.innerHTML = "";
+    if (!loaded) return;
+    loaded.tools.forEach(function (tool) { toolsBox.appendChild(toolBlock(tool)); });
+    open.forEach(function (id) { var d = document.getElementById(id); if (d) d.open = true; });
+    document.getElementById("tool-count").textContent = t("toolCount", { n: loaded.tools.length, bytes: number(loaded.listBytes) });
+    status.className = "status";
+    status.textContent = t("connected", { url: endpointInput.value.trim(), a: loaded.initMs, b: loaded.listMs });
+  }
+
   function load() {
     var status = document.getElementById("status");
-    var toolsBox = document.getElementById("tools");
-    status.className = "status"; status.textContent = "Verbinde mit " + endpointInput.value.trim() + " …";
-    toolsBox.innerHTML = "";
+    status.className = "status"; status.textContent = t("connecting", { url: endpointInput.value.trim() });
+    loaded = null; renderTools(); document.getElementById("tool-count").textContent = "";
     post(request("initialize", RPC_METHODS[0].params)).then(function (init) {
       if (!init.data || !init.data.result) throw new Error("initialize: HTTP " + init.status + " " + init.text.slice(0, 200));
       var result = init.data.result;
-      document.getElementById("srv-name").textContent = (result.serverInfo && result.serverInfo.name) || "MCP-Server";
+      document.getElementById("srv-name").textContent = (result.serverInfo && result.serverInfo.name) || "MCP";
       document.getElementById("srv-ver").textContent = (result.serverInfo && result.serverInfo.version) || "";
       var proto = document.getElementById("srv-proto"); proto.hidden = false; proto.textContent = "MCP " + result.protocolVersion;
       return post(request("tools/list", {})).then(function (list) {
         if (!list.data || !list.data.result) throw new Error("tools/list: HTTP " + list.status);
-        var tools = list.data.result.tools || [];
-        tools.forEach(function (tool) { toolsBox.appendChild(toolBlock(tool)); });
-        document.getElementById("tool-count").textContent = tools.length + " Tools · tools/list: " + list.bytes.toLocaleString("de-CH") + " Bytes";
-        status.textContent = "Verbunden mit " + endpointInput.value.trim() + " · initialize " + init.ms + " ms · tools/list " + list.ms + " ms";
+        loaded = { tools: list.data.result.tools || [], listBytes: list.bytes, initMs: init.ms, listMs: list.ms };
+        renderTools();
         var wanted = document.getElementById(location.hash.replace("#", ""));
         if (wanted && wanted.tagName === "DETAILS") { wanted.open = true; wanted.scrollIntoView(); }
       });
     }).catch(function (error) {
       status.className = "status bad";
-      status.textContent = "Verbindung fehlgeschlagen: " + error.message;
+      status.textContent = t("failed", { msg: error.message });
     });
   }
 
-  var rpcBox = document.getElementById("rpc");
-  RPC_METHODS.forEach(function (spec) { rpcBox.appendChild(rpcBlock(spec)); });
+  function pickLanguage() {
+    var fromUrl = (location.search.match(/[?&]lang=([a-z]{2})/) || [])[1];
+    var stored = null;
+    try { stored = localStorage.getItem("lang"); } catch (e) { /* Speicher nicht verfügbar */ }
+    var fromBrowser = (navigator.language || "de").slice(0, 2).toLowerCase();
+    var wanted = [fromUrl, stored, fromBrowser];
+    for (var i = 0; i < wanted.length; i++) {
+      if (wanted[i] && LANGS.indexOf(wanted[i]) >= 0) return wanted[i];
+    }
+    return "de";
+  }
+
+  Array.prototype.forEach.call(document.querySelectorAll(".langs button"), function (button) {
+    button.addEventListener("click", function () {
+      lang = button.getAttribute("data-lang");
+      try { localStorage.setItem("lang", lang); } catch (e) { /* Speicher nicht verfügbar */ }
+      renderStatic(); renderTools();
+    });
+  });
   document.getElementById("endpoint-form").addEventListener("submit", function (event) { event.preventDefault(); load(); });
+  lang = pickLanguage();
+  renderStatic();
   load();
 })();
 </script>

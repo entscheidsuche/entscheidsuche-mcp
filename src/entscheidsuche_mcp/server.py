@@ -398,7 +398,6 @@ def _server_card_payload() -> dict[str, Any]:
             "entscheidsuche.ch: AI search by meaning and keyword search."
         ),
         "version": __version__,
-        "beta": True,
         "website_url": "https://entscheidsuche.ch",
         "documentation_url": base_url,
         "transports": {

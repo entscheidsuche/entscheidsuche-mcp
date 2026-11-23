@@ -1,12 +1,12 @@
 # entscheidsuche-mcp
 
-**MCP-Server für die offene Schweizer Rechtsprechung** (Beta) —
+**MCP-Server für die offene Schweizer Rechtsprechung** —
 KI-Suche nach Bedeutung, Stichwortsuche und Volltextzugriff auf publizierte Gerichtsentscheide
 aller Schweizer Instanzen (Bundesgerichte, kantonale Gerichte,
 Verwaltungsbehörden, Strafbefehle) in Deutsch, Französisch und
 Italienisch — über das [Model Context Protocol](https://modelcontextprotocol.io).
 
-> **MCP Server for Swiss case law (beta).** AI search by meaning, keyword
+> **MCP Server for Swiss case law.** AI search by meaning, keyword
 > search and full-text retrieval of published
 > court decisions from all Swiss instances (federal courts, all 26 cantons,
 > administrative authorities, penal orders) in German, French, and Italian.
@@ -24,7 +24,6 @@ sich primär an Entwickler, Drittanwendungen und Selbst-Betreiber.
 
 [![Lizenz Code](https://img.shields.io/badge/code-MIT-blue.svg)](#lizenz)
 [![Daten](https://img.shields.io/badge/data-open-green.svg)](https://entscheidsuche.ch)
-[![Status](https://img.shields.io/badge/status-beta-yellow.svg)](https://mcp.entscheidsuche.ch)
 [![Betrieb](https://img.shields.io/badge/operator-Verein%20entscheidsuche.ch-orange.svg)](https://entscheidsuche.ch)
 
 ---
