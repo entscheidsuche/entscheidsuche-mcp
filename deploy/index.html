@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>entscheidsuche-mcp</title>
+    <title>entscheidsuche-mcp — MCP-Schnittstelle für Schweizer Gerichtsentscheide</title>
     <style>
       /* Design-Tokens übernommen von entscheidsuche.ch */
       :root {
@@ -79,6 +79,57 @@
         color: #fff;
         font-size: 0.95rem;
         font-weight: 600;
+      }
+
+      /* Navigation rechts im Kopf: Link zur Testoberfläche, Sprachumschalter */
+      .site-nav {
+        margin-left: auto;
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        flex-wrap: wrap;
+      }
+
+      .site-nav .nav-link {
+        color: #fff;
+        font-size: 0.9rem;
+        font-weight: 600;
+        text-decoration: none;
+        border: 1px solid rgba(255, 255, 255, 0.7);
+        border-radius: 4px;
+        padding: 0.3rem 0.7rem;
+      }
+
+      .site-nav .nav-link:hover {
+        background: rgba(255, 255, 255, 0.15);
+      }
+
+      .lang-switch {
+        display: inline-flex;
+        border: 1px solid rgba(255, 255, 255, 0.7);
+        border-radius: 4px;
+        overflow: hidden;
+      }
+
+      .lang-switch button {
+        background: transparent;
+        color: #fff;
+        border: 0;
+        border-left: 1px solid rgba(255, 255, 255, 0.4);
+        padding: 0.3rem 0.55rem;
+        font: inherit;
+        font-size: 0.82rem;
+        font-weight: 600;
+        cursor: pointer;
+      }
+
+      .lang-switch button:first-child {
+        border-left: 0;
+      }
+
+      .lang-switch button[aria-pressed="true"] {
+        background: #fff;
+        color: var(--accent);
       }
 
       main {
@@ -370,15 +421,24 @@
       <div class="inner">
         <a class="logo" href="https://entscheidsuche.ch" aria-label="entscheidsuche.ch"></a>
         <span class="sep">/</span>
-        <span class="tag">MCP-Interface</span>
+        <span class="tag" data-i18n="t8db47f">MCP-Interface</span>
+        <nav class="site-nav">
+          <a class="nav-link" href="/test" data-i18n="tc0f436">Testoberfläche</a>
+          <span class="lang-switch" role="group" aria-label="Sprache / Langue / Lingua / Language">
+            <button type="button" data-lang="de" aria-pressed="true">DE</button>
+            <button type="button" data-lang="fr" aria-pressed="false">FR</button>
+            <button type="button" data-lang="it" aria-pressed="false">IT</button>
+            <button type="button" data-lang="en" aria-pressed="false">EN</button>
+          </span>
+        </nav>
       </div>
     </header>
 
     <main>
-      <div class="eyebrow">Model Context Protocol</div>
-      <h1>entscheidsuche-mcp</h1>
-      <p>
-        MCP-Server (beta-Version) für <a href="https://entscheidsuche.ch">entscheidsuche.ch</a>.
+      <div class="eyebrow" data-i18n="tde09bd">Model Context Protocol</div>
+      <h1 data-i18n="t3b8c9a">entscheidsuche-mcp</h1>
+      <p data-i18n="te93267">
+        MCP-Server für <a href="https://entscheidsuche.ch">entscheidsuche.ch</a>.
         Diese Instanz stellt die Suche in Schweizer Gerichtsentscheiden,
         Gerichtsurteilen und Rechtsprechung über einen MCP-Endpunkt bereit:
         Bundesgerichte und kantonale Gerichte, Verwaltungsbehörden und auch Strafbefehle.
@@ -386,28 +446,30 @@
         Bedeutung und die <strong>Stichwortsuche</strong> nach Wörtern.
       </p>
 
+      <a class="cta" href="/test" data-i18n="t5d8bca">Schnittstelle im Browser ausprobieren</a>
+
       <div class="panel">
-        <strong>MCP-Endpunkt</strong>
+        <strong data-i18n="t71824c">MCP-Endpunkt</strong>
         <pre><code>https://mcp.entscheidsuche.ch/mcp</code></pre>
       </div>
 
       <div class="panel">
-        <strong>Verfügbare Tools</strong>
+        <strong data-i18n="t6f5a8e">Verfügbare Tools</strong>
         <ul>
-          <li><code>search</code> — Standardsuche: Rechtsfrage oder Sachverhalt in natürlicher Sprache (KI-Suche); bei Geschäftsnummern, Phrasen und Booleschen Ausdrücken automatisch Stichwortsuche</li>
-          <li><code>semantic_search</code> — KI-Suche nach Bedeutung, sprachübergreifend, mit dem am besten passenden Textabschnitt je Entscheid</li>
-          <li><code>keyword_search</code> — Stichwortsuche in Schweizer Rechtsprechung, case law und Gerichtsurteilen mit Filtern, Sortierung und Paginierung</li>
-          <li><code>search_by_case_number</code> für exakte Suche nach Geschäftsnummern, Aktenzeichen, Urteilsnummern und BGE-Zitaten</li>
-          <li><code>fetch_document</code> (Alias <code>fetch</code>) für den Abruf eines einzelnen Entscheids mit vollständigem Volltext</li>
-          <li><code>list_hierarchy</code> für Hierarchie-IDs und Trefferzahlen</li>
-          <li><code>list_facets</code> für den Baum Kanton / Gericht / Kammer mit Bezeichnungen</li>
-          <li><code>server_info</code> für Server- und Versionsinformationen</li>
+          <li data-i18n="t35004b"><code>search</code> — Standardsuche: Rechtsfrage oder Sachverhalt in natürlicher Sprache (KI-Suche); bei Geschäftsnummern, Phrasen und Booleschen Ausdrücken automatisch Stichwortsuche</li>
+          <li data-i18n="t063d3f"><code>semantic_search</code> — KI-Suche nach Bedeutung, sprachübergreifend, mit dem am besten passenden Textabschnitt je Entscheid</li>
+          <li data-i18n="teddca1"><code>keyword_search</code> — Stichwortsuche in Schweizer Rechtsprechung, case law und Gerichtsurteilen mit Filtern, Sortierung und Paginierung</li>
+          <li data-i18n="t6883c9"><code>search_by_case_number</code> für exakte Suche nach Geschäftsnummern, Aktenzeichen, Urteilsnummern und BGE-Zitaten</li>
+          <li data-i18n="t477f9e"><code>fetch_document</code> (Alias <code>fetch</code>) für den Abruf eines einzelnen Entscheids mit vollständigem Volltext</li>
+          <li data-i18n="t9638d1"><code>list_hierarchy</code> für Hierarchie-IDs und Trefferzahlen</li>
+          <li data-i18n="t8f1c6a"><code>list_facets</code> für den Baum Kanton / Gericht / Kammer mit Bezeichnungen</li>
+          <li data-i18n="t70f93e"><code>server_info</code> für Server- und Versionsinformationen</li>
         </ul>
       </div>
 
       <div class="panel">
-        <strong>Selbst ausprobieren</strong>
-        <p class="small">
+        <strong data-i18n="t72f99a">Selbst ausprobieren</strong>
+        <p class="small" data-i18n="tc74a50">
           Unter <a href="/test">mcp.entscheidsuche.ch/test</a> steht eine
           Testoberfläche bereit: alle Tools mit Formular, Beispielwerten,
           <code>curl</code>-Befehl und Antwort — ohne eigenen MCP-Client.
@@ -415,21 +477,21 @@
       </div>
 
       <div class="panel">
-        <strong>KI-Suche oder Stichwortsuche?</strong>
+        <strong data-i18n="t40a994">KI-Suche oder Stichwortsuche?</strong>
         <table>
           <thead>
-            <tr><th></th><th>KI-Suche <code>semantic_search</code></th><th>Stichwortsuche <code>keyword_search</code></th></tr>
+            <tr><th></th><th data-i18n="tf78146">KI-Suche <code>semantic_search</code></th><th data-i18n="t984afe">Stichwortsuche <code>keyword_search</code></th></tr>
           </thead>
           <tbody>
-            <tr><td>Sucht nach</td><td>Bedeutung</td><td>Wörtern</td></tr>
-            <tr><td>Geeignete Anfrage</td><td>Rechtsfrage oder Sachverhalt in ganzen Sätzen</td><td>Begriffe, Phrasen, Artikel, Namen</td></tr>
-            <tr><td>Sprache</td><td>sprachübergreifend: eine deutsche Frage findet auch französische und italienische Entscheide</td><td>findet nur die eingegebenen Wörter</td></tr>
-            <tr><td>Reihenfolge</td><td>inhaltliche Nähe</td><td>Relevanz, Entscheiddatum oder Scrape-Datum</td></tr>
-            <tr><td>Umfang</td><td>Entscheide unter den 100 am besten passenden Textabschnitten, keine Paginierung</td><td>alle Treffer, Paginierung</td></tr>
-            <tr><td>Auszug</td><td>am besten passender Abschnitt</td><td>Fundstellen, hervorgehoben</td></tr>
+            <tr><td data-i18n="ta96c98">Sucht nach</td><td data-i18n="t86a9dd">Bedeutung</td><td data-i18n="tf84d1b">Wörtern</td></tr>
+            <tr><td data-i18n="t5f5c08">Geeignete Anfrage</td><td data-i18n="t46c2ba">Rechtsfrage oder Sachverhalt in ganzen Sätzen</td><td data-i18n="tc68837">Begriffe, Phrasen, Artikel, Namen</td></tr>
+            <tr><td data-i18n="t3d9f5c">Sprache</td><td data-i18n="t95b2c5">sprachübergreifend: eine deutsche Frage findet auch französische und italienische Entscheide</td><td data-i18n="t23d5b5">findet nur die eingegebenen Wörter</td></tr>
+            <tr><td data-i18n="ta1aa0a">Reihenfolge</td><td data-i18n="t4ee17a">inhaltliche Nähe</td><td data-i18n="ta20f57">Relevanz, Entscheiddatum oder Scrape-Datum</td></tr>
+            <tr><td data-i18n="t4e3edf">Umfang</td><td data-i18n="t4f0d07">Entscheide unter den 100 am besten passenden Textabschnitten, keine Paginierung</td><td data-i18n="t9c6c3c">alle Treffer, Paginierung</td></tr>
+            <tr><td data-i18n="t09ce89">Auszug</td><td data-i18n="t15cd15">am besten passender Abschnitt</td><td data-i18n="t52dd9a">Fundstellen, hervorgehoben</td></tr>
           </tbody>
         </table>
-        <p class="small">
+        <p class="small" data-i18n="tec9c8b">
           Wer nicht wählen will, nimmt <code>search</code>: Das Tool führt die
           KI-Suche aus und wechselt von selbst zur Stichwortsuche, wenn die
           Anfrage eine Geschäftsnummer, eine Phrase in Anführungszeichen,
@@ -438,8 +500,8 @@
       </div>
 
       <div class="panel api">
-        <strong>Methoden im Detail</strong>
-        <p class="small">
+        <strong data-i18n="td040df">Methoden im Detail</strong>
+        <p class="small" data-i18n="t679b36">
           Ein- und Ausgabeparameter jeder Methode. Alle Parameter mit einem
           Default sind optional; nur die mit <span class="req">Pflicht</span>
           gekennzeichneten müssen angegeben werden. Die Beispiele sind echte,
@@ -447,51 +509,51 @@
         </p>
 
         <details>
-          <summary>search <span class="badge">Standardsuche</span></summary>
-          <p class="small">
+          <summary data-i18n="t7332b6">search <span class="badge">Standardsuche</span></summary>
+          <p class="small" data-i18n="t9098a8">
             Die Suche für alle Fälle. Beschreiben Sie die Rechtsfrage oder den
             Sachverhalt in natürlicher Sprache — das Tool führt die KI-Suche aus
             (wie <code>semantic_search</code>). Es wechselt automatisch zur
             Stichwortsuche (wie <code>keyword_search</code>), wenn
           </p>
           <ul class="small">
-            <li><code>sort</code> nicht <code>relevance</code> ist oder <code>search_after</code> bzw. <code>include_aggregations</code> gesetzt ist,</li>
-            <li>die Anfrage leer oder <code>*</code> ist,</li>
-            <li>die Anfrage als Ganzes eine Geschäftsnummer oder ein Zitat ist (<code>5A_396/2015</code>, <code>BGE 142 III 1</code>, <code>ZB.2021.48</code>) — sie wird dann als exakte Phrase gesucht,</li>
-            <li>die Anfrage eine Phrase in Anführungszeichen, Boolesche Operatoren (<code>AND</code>, <code>OR</code>, <code>NOT</code>) zwischen zwei Begriffen oder Wildcards enthält. <code>OR</code> direkt nach einer Artikelangabe (<code>Art. 271 OR</code>) gilt als Obligationenrecht.</li>
+            <li data-i18n="tfa762a"><code>sort</code> nicht <code>relevance</code> ist oder <code>search_after</code> bzw. <code>include_aggregations</code> gesetzt ist,</li>
+            <li data-i18n="t4de745">die Anfrage leer oder <code>*</code> ist,</li>
+            <li data-i18n="t615315">die Anfrage als Ganzes eine Geschäftsnummer oder ein Zitat ist (<code>5A_396/2015</code>, <code>BGE 142 III 1</code>, <code>ZB.2021.48</code>) — sie wird dann als exakte Phrase gesucht,</li>
+            <li data-i18n="t54e5ee">die Anfrage eine Phrase in Anführungszeichen, Boolesche Operatoren (<code>AND</code>, <code>OR</code>, <code>NOT</code>) zwischen zwei Begriffen oder Wildcards enthält. <code>OR</code> direkt nach einer Artikelangabe (<code>Art. 271 OR</code>) gilt als Obligationenrecht.</li>
           </ul>
-          <p class="small">
+          <p class="small" data-i18n="t8a3ee8">
             Welche Suche gelaufen ist, steht in <code>search_mode</code>; bei
             einem Wechsel nennt <code>note</code> den Grund.
           </p>
 
-          <h4>Eingabe</h4>
+          <h4 data-i18n="td3a77f">Eingabe</h4>
           <table>
             <thead>
-              <tr><th>Parameter</th><th>Typ</th><th>Default</th><th>Beschreibung</th></tr>
+              <tr><th data-i18n="tf699f2">Parameter</th><th data-i18n="tedcaf9">Typ</th><th data-i18n="t808d7d">Default</th><th data-i18n="tb3c8de">Beschreibung</th></tr>
             </thead>
             <tbody>
-              <tr><td><code>query</code></td><td class="type">string</td><td class="type">"*"</td><td>Rechtsfrage oder Sachverhalt in natürlicher Sprache (beliebige Sprache) oder Geschäftsnummer / Zitat.</td></tr>
-              <tr><td><code>language</code></td><td class="type">"de"|"fr"|"it"</td><td class="type">null</td><td>Bevorzugte Sprache für Titel und Abstract. <strong>Kein Filter</strong> — dafür <code>language_filter</code>.</td></tr>
-              <tr><td><code>size</code></td><td class="type">integer 1–100</td><td class="type">10</td><td>Anzahl Entscheide (KI-Suche: höchstens 50).</td></tr>
-              <tr><td><code>decision_date_from</code>, <code>decision_date_to</code></td><td class="type">date</td><td class="type">null</td><td>Entscheiddatum von / bis (YYYY-MM-DD, inklusive).</td></tr>
-              <tr><td><code>scrape_date_from</code>, <code>scrape_date_to</code></td><td class="type">date</td><td class="type">null</td><td>Scrape-Datum von / bis.</td></tr>
-              <tr><td><code>hierarchy</code></td><td class="type">string[]</td><td class="type">null</td><td>Hierarchie-IDs (Kanton/Gericht/Kammer). Mehrere werden mit OR verknüpft.</td></tr>
-              <tr><td><code>language_filter</code></td><td class="type">("de"|"fr"|"it")[]</td><td class="type">null</td><td>Filter nach Dokumentsprache(n).</td></tr>
-              <tr><td><code>include_context</code></td><td class="type">boolean</td><td class="type">false</td><td>Nur KI-Suche: grösseren Abschnitt um den Auszug mitliefern (Feld <code>context</code>).</td></tr>
-              <tr><td><code>sort</code>, <code>search_after</code>, <code>include_aggregations</code></td><td class="type">wie <code>keyword_search</code></td><td class="type">–</td><td>Nur Stichwortsuche; ihre Verwendung wechselt zur Stichwortsuche.</td></tr>
+              <tr><td><code>query</code></td><td class="type">string</td><td class="type">"*"</td><td data-i18n="t67621e">Rechtsfrage oder Sachverhalt in natürlicher Sprache (beliebige Sprache) oder Geschäftsnummer / Zitat.</td></tr>
+              <tr><td><code>language</code></td><td class="type">"de"|"fr"|"it"</td><td class="type">null</td><td data-i18n="td5e13b">Bevorzugte Sprache für Titel und Abstract. <strong>Kein Filter</strong> — dafür <code>language_filter</code>.</td></tr>
+              <tr><td><code>size</code></td><td class="type">integer 1–100</td><td class="type">10</td><td data-i18n="te3a931">Anzahl Entscheide (KI-Suche: höchstens 50).</td></tr>
+              <tr><td><code>decision_date_from</code>, <code>decision_date_to</code></td><td class="type">date</td><td class="type">null</td><td data-i18n="t25e694">Entscheiddatum von / bis (YYYY-MM-DD, inklusive).</td></tr>
+              <tr><td><code>scrape_date_from</code>, <code>scrape_date_to</code></td><td class="type">date</td><td class="type">null</td><td data-i18n="tf6b11a">Scrape-Datum von / bis.</td></tr>
+              <tr><td><code>hierarchy</code></td><td class="type">string[]</td><td class="type">null</td><td data-i18n="t70dd5d">Hierarchie-IDs (Kanton/Gericht/Kammer). Mehrere werden mit OR verknüpft.</td></tr>
+              <tr><td><code>language_filter</code></td><td class="type">("de"|"fr"|"it")[]</td><td class="type">null</td><td data-i18n="t36c74a">Filter nach Dokumentsprache(n).</td></tr>
+              <tr><td><code>include_context</code></td><td class="type">boolean</td><td class="type">false</td><td data-i18n="t49505b">Nur KI-Suche: grösseren Abschnitt um den Auszug mitliefern (Feld <code>context</code>).</td></tr>
+              <tr><td><code>sort</code>, <code>search_after</code>, <code>include_aggregations</code></td><td class="type" data-i18n="t93140a">wie <code>keyword_search</code></td><td class="type">–</td><td data-i18n="t6c87a0">Nur Stichwortsuche; ihre Verwendung wechselt zur Stichwortsuche.</td></tr>
             </tbody>
           </table>
 
-          <h4>Ausgabe</h4>
-          <p class="small">
+          <h4 data-i18n="tdbeb8b">Ausgabe</h4>
+          <p class="small" data-i18n="tee8e97">
             Wie <code>semantic_search</code> bzw. <code>keyword_search</code>.
             Zusätzlich enthält <code>results</code> eine kompakte Liste
             <code>{id, title, url}</code> derselben Entscheide — dieses Format
             erwartet ChatGPT von einem Tool namens <code>search</code>.
           </p>
 
-          <h4>Beispiel</h4>
+          <h4 data-i18n="t540294">Beispiel</h4>
 <pre><code>// Aufruf
 { "query": "5A_396/2015" }
 
@@ -512,8 +574,8 @@
         </details>
 
         <details>
-          <summary>semantic_search <span class="badge">KI-Suche nach Bedeutung</span></summary>
-          <p class="small">
+          <summary data-i18n="t2a9ad1">semantic_search <span class="badge">KI-Suche nach Bedeutung</span></summary>
+          <p class="small" data-i18n="t5f9fc1">
             Sucht nicht nach Wörtern, sondern nach Bedeutung — dasselbe Verfahren
             wie die Schaltfläche «KI-Suche» auf entscheidsuche.ch. Die Anfrage
             wird in einen Embedding-Vektor umgerechnet und mit den
@@ -521,7 +583,7 @@
             sie mit einem oder mehreren ganzen Sätzen; die Sprache der Anfrage
             spielt keine Rolle.
           </p>
-          <p class="small">
+          <p class="small" data-i18n="tedf0a0">
             Ausgewertet werden die 100 am besten passenden Textabschnitte;
             mehrere Abschnitte desselben Entscheids ergeben einen Treffer. Die
             Liste ist nach inhaltlicher Nähe geordnet (<code>score</code>); es
@@ -530,7 +592,7 @@
             Auswahl der Abschnitte ein; Sprach- und Scrape-Datum-Filter wirken
             danach (dann werden 300 Abschnitte ausgewertet).
           </p>
-          <p class="small">
+          <p class="small" data-i18n="tc9877d">
             <strong>Auszug:</strong> <code>text</code> enthält den am besten
             passenden Abschnitt des Entscheids. Sind die Feinabschnitte eines
             Entscheids noch nicht indexiert, stösst der Server die Indexierung
@@ -538,37 +600,37 @@
             vor, bleibt <code>text</code> leer.
           </p>
 
-          <h4>Eingabe</h4>
+          <h4 data-i18n="td3a77f">Eingabe</h4>
           <table>
             <thead>
-              <tr><th>Parameter</th><th>Typ</th><th>Default</th><th>Beschreibung</th></tr>
+              <tr><th data-i18n="tf699f2">Parameter</th><th data-i18n="tedcaf9">Typ</th><th data-i18n="t808d7d">Default</th><th data-i18n="tb3c8de">Beschreibung</th></tr>
             </thead>
             <tbody>
-              <tr><td><code>query</code></td><td class="type">string</td><td><span class="req">Pflicht</span></td><td>Rechtsfrage oder Beschreibung des Sachverhalts, möglichst in ganzen Sätzen.</td></tr>
-              <tr><td><code>language</code></td><td class="type">"de"|"fr"|"it"</td><td class="type">null</td><td>Bevorzugte Sprache für Titel und Abstract. <strong>Kein Filter</strong>.</td></tr>
-              <tr><td><code>size</code></td><td class="type">integer 1–50</td><td class="type">10</td><td>Anzahl Entscheide.</td></tr>
-              <tr><td><code>decision_date_from</code>, <code>decision_date_to</code></td><td class="type">date</td><td class="type">null</td><td>Entscheiddatum von / bis (YYYY-MM-DD, inklusive).</td></tr>
-              <tr><td><code>scrape_date_from</code>, <code>scrape_date_to</code></td><td class="type">date</td><td class="type">null</td><td>Scrape-Datum von / bis.</td></tr>
-              <tr><td><code>hierarchy</code></td><td class="type">string[]</td><td class="type">null</td><td>Hierarchie-IDs (Kanton/Gericht/Kammer). Mehrere werden mit OR verknüpft.</td></tr>
-              <tr><td><code>language_filter</code></td><td class="type">("de"|"fr"|"it")[]</td><td class="type">null</td><td>Filter nach Dokumentsprache(n).</td></tr>
-              <tr><td><code>include_context</code></td><td class="type">boolean</td><td class="type">false</td><td>Grösseren Abschnitt um den Auszug mitliefern (Feld <code>context</code>, bis etwa 6000 Zeichen je Treffer).</td></tr>
+              <tr><td><code>query</code></td><td class="type">string</td><td data-i18n="tc9602e"><span class="req">Pflicht</span></td><td data-i18n="te02ef2">Rechtsfrage oder Beschreibung des Sachverhalts, möglichst in ganzen Sätzen.</td></tr>
+              <tr><td><code>language</code></td><td class="type">"de"|"fr"|"it"</td><td class="type">null</td><td data-i18n="t7f602f">Bevorzugte Sprache für Titel und Abstract. <strong>Kein Filter</strong>.</td></tr>
+              <tr><td><code>size</code></td><td class="type">integer 1–50</td><td class="type">10</td><td data-i18n="t2b04df">Anzahl Entscheide.</td></tr>
+              <tr><td><code>decision_date_from</code>, <code>decision_date_to</code></td><td class="type">date</td><td class="type">null</td><td data-i18n="t25e694">Entscheiddatum von / bis (YYYY-MM-DD, inklusive).</td></tr>
+              <tr><td><code>scrape_date_from</code>, <code>scrape_date_to</code></td><td class="type">date</td><td class="type">null</td><td data-i18n="tf6b11a">Scrape-Datum von / bis.</td></tr>
+              <tr><td><code>hierarchy</code></td><td class="type">string[]</td><td class="type">null</td><td data-i18n="t70dd5d">Hierarchie-IDs (Kanton/Gericht/Kammer). Mehrere werden mit OR verknüpft.</td></tr>
+              <tr><td><code>language_filter</code></td><td class="type">("de"|"fr"|"it")[]</td><td class="type">null</td><td data-i18n="t36c74a">Filter nach Dokumentsprache(n).</td></tr>
+              <tr><td><code>include_context</code></td><td class="type">boolean</td><td class="type">false</td><td data-i18n="t13cee4">Grösseren Abschnitt um den Auszug mitliefern (Feld <code>context</code>, bis etwa 6000 Zeichen je Treffer).</td></tr>
             </tbody>
           </table>
 
-          <h4>Ausgabe</h4>
+          <h4 data-i18n="tdbeb8b">Ausgabe</h4>
           <table>
             <thead>
-              <tr><th>Feld</th><th>Typ</th><th>Beschreibung</th></tr>
+              <tr><th data-i18n="tdaa359">Feld</th><th data-i18n="tedcaf9">Typ</th><th data-i18n="tb3c8de">Beschreibung</th></tr>
             </thead>
             <tbody>
-              <tr><td><code>search_mode</code></td><td class="type">string</td><td>Immer <code>"semantic"</code>.</td></tr>
-              <tr><td><code>note</code></td><td class="type">string</td><td>Hinweis zur Suchart.</td></tr>
-              <tr><td><code>total</code></td><td class="type">integer</td><td>Zahl der Entscheide unter den ausgewerteten Abschnitten — nicht die Zahl aller einschlägigen Entscheide.</td></tr>
-              <tr><td><code>hits</code></td><td class="type">Treffer[]</td><td>Die Treffer, absteigend nach <code>score</code> — Felder siehe „Treffer-Objekt“ unten.</td></tr>
+              <tr><td><code>search_mode</code></td><td class="type">string</td><td data-i18n="t152efa">Immer <code>"semantic"</code>.</td></tr>
+              <tr><td><code>note</code></td><td class="type">string</td><td data-i18n="t2c2c9b">Hinweis zur Suchart.</td></tr>
+              <tr><td><code>total</code></td><td class="type">integer</td><td data-i18n="t63b8c0">Zahl der Entscheide unter den ausgewerteten Abschnitten — nicht die Zahl aller einschlägigen Entscheide.</td></tr>
+              <tr><td><code>hits</code></td><td class="type" data-i18n="t8157dc">Treffer[]</td><td data-i18n="t9971d4">Die Treffer, absteigend nach <code>score</code> — Felder siehe „Treffer-Objekt“ unten.</td></tr>
             </tbody>
           </table>
 
-          <h4>Beispiel</h4>
+          <h4 data-i18n="t540294">Beispiel</h4>
 <pre><code>// Aufruf
 { "query": "Darf der Vermieter wegen Eigenbedarf kündigen, wenn seine Tochter einziehen will?", "size": 3 }
 
@@ -594,15 +656,15 @@
         </details>
 
         <details>
-          <summary>keyword_search <span class="badge">Stichwortsuche</span></summary>
-          <p class="small">
+          <summary data-i18n="t443e17">keyword_search <span class="badge">Stichwortsuche</span></summary>
+          <p class="small" data-i18n="t98e959">
             Stichwortsuche über alle Entscheide (bis Version 0.1 hiess dieses Tool
             <code>search</code>). <code>query</code> versteht
             Lucene-Syntax: <code>"…"</code> für Phrasen, <code>AND</code>/<code>OR</code>/<code>NOT</code>,
             Wildcards <code>*</code> und <code>?</code>. Default-Operator zwischen
             Begriffen ist <code>AND</code>; Filter werden mit <code>AND</code> verknüpft.
           </p>
-          <p class="small">
+          <p class="small" data-i18n="t27c585">
             Ist die Anfrage keine gültige Syntax (z.&nbsp;B. <code>5A_396/2015</code>
             ohne Anführungszeichen oder eine offene Klammer), wird sie als Folge
             gewöhnlicher Suchbegriffe ausgeführt; <code>note</code> weist darauf
@@ -610,43 +672,43 @@
             (<code>Art. 271 OR</code>) gilt als Obligationenrecht, nicht als Operator.
           </p>
 
-          <h4>Eingabe</h4>
+          <h4 data-i18n="td3a77f">Eingabe</h4>
           <table>
             <thead>
-              <tr><th>Parameter</th><th>Typ</th><th>Default</th><th>Beschreibung</th></tr>
+              <tr><th data-i18n="tf699f2">Parameter</th><th data-i18n="tedcaf9">Typ</th><th data-i18n="t808d7d">Default</th><th data-i18n="tb3c8de">Beschreibung</th></tr>
             </thead>
             <tbody>
-              <tr><td><code>query</code></td><td class="type">string</td><td class="type">"*"</td><td>Volltext-Anfrage. <code>"*"</code> matcht alles.</td></tr>
-              <tr><td><code>language</code></td><td class="type">"de"|"fr"|"it"</td><td class="type">null</td><td>Bevorzugte Sprache für Titel/Highlight. <strong>Kein Filter</strong> — dafür <code>language_filter</code>.</td></tr>
-              <tr><td><code>sort</code></td><td class="type">"relevance"|"date"|"scrapedate"</td><td class="type">"relevance"</td><td>Sortierung; <code>date</code> = Entscheiddatum.</td></tr>
-              <tr><td><code>size</code></td><td class="type">integer 1–100</td><td class="type">20</td><td>Treffer pro Seite.</td></tr>
-              <tr><td><code>search_after</code></td><td class="type">array</td><td class="type">null</td><td>Cursor: <code>next_cursor</code> der vorigen Antwort.</td></tr>
-              <tr><td><code>decision_date_from</code></td><td class="type">date</td><td class="type">null</td><td>Untergrenze Entscheiddatum (YYYY-MM-DD, inklusive).</td></tr>
-              <tr><td><code>decision_date_to</code></td><td class="type">date</td><td class="type">null</td><td>Obergrenze Entscheiddatum (YYYY-MM-DD, inklusive).</td></tr>
-              <tr><td><code>scrape_date_from</code></td><td class="type">date</td><td class="type">null</td><td>Untergrenze Scrape-Datum.</td></tr>
-              <tr><td><code>scrape_date_to</code></td><td class="type">date</td><td class="type">null</td><td>Obergrenze Scrape-Datum.</td></tr>
-              <tr><td><code>hierarchy</code></td><td class="type">string[]</td><td class="type">null</td><td>Hierarchie-IDs (Kanton/Gericht/Kammer) aus <code>list_hierarchy</code>. Mehrere werden mit OR verknüpft.</td></tr>
-              <tr><td><code>language_filter</code></td><td class="type">("de"|"fr"|"it")[]</td><td class="type">null</td><td>Echter Filter nach Dokumentsprache(n).</td></tr>
-              <tr><td><code>include_aggregations</code></td><td class="type">boolean</td><td class="type">false</td><td>Aggregationen (Verteilungen) mitliefern.</td></tr>
+              <tr><td><code>query</code></td><td class="type">string</td><td class="type">"*"</td><td data-i18n="tf12394">Volltext-Anfrage. <code>"*"</code> matcht alles.</td></tr>
+              <tr><td><code>language</code></td><td class="type">"de"|"fr"|"it"</td><td class="type">null</td><td data-i18n="ta78492">Bevorzugte Sprache für Titel/Highlight. <strong>Kein Filter</strong> — dafür <code>language_filter</code>.</td></tr>
+              <tr><td><code>sort</code></td><td class="type">"relevance"|"date"|"scrapedate"</td><td class="type">"relevance"</td><td data-i18n="t33b060">Sortierung; <code>date</code> = Entscheiddatum.</td></tr>
+              <tr><td><code>size</code></td><td class="type">integer 1–100</td><td class="type">20</td><td data-i18n="t55aaab">Treffer pro Seite.</td></tr>
+              <tr><td><code>search_after</code></td><td class="type">array</td><td class="type">null</td><td data-i18n="t9d0411">Cursor: <code>next_cursor</code> der vorigen Antwort.</td></tr>
+              <tr><td><code>decision_date_from</code></td><td class="type">date</td><td class="type">null</td><td data-i18n="t9278ec">Untergrenze Entscheiddatum (YYYY-MM-DD, inklusive).</td></tr>
+              <tr><td><code>decision_date_to</code></td><td class="type">date</td><td class="type">null</td><td data-i18n="tfa27e6">Obergrenze Entscheiddatum (YYYY-MM-DD, inklusive).</td></tr>
+              <tr><td><code>scrape_date_from</code></td><td class="type">date</td><td class="type">null</td><td data-i18n="taefdfe">Untergrenze Scrape-Datum.</td></tr>
+              <tr><td><code>scrape_date_to</code></td><td class="type">date</td><td class="type">null</td><td data-i18n="t8dc0ae">Obergrenze Scrape-Datum.</td></tr>
+              <tr><td><code>hierarchy</code></td><td class="type">string[]</td><td class="type">null</td><td data-i18n="t4dc8fe">Hierarchie-IDs (Kanton/Gericht/Kammer) aus <code>list_hierarchy</code>. Mehrere werden mit OR verknüpft.</td></tr>
+              <tr><td><code>language_filter</code></td><td class="type">("de"|"fr"|"it")[]</td><td class="type">null</td><td data-i18n="te8c98f">Echter Filter nach Dokumentsprache(n).</td></tr>
+              <tr><td><code>include_aggregations</code></td><td class="type">boolean</td><td class="type">false</td><td data-i18n="tbcd715">Aggregationen (Verteilungen) mitliefern.</td></tr>
             </tbody>
           </table>
 
-          <h4>Ausgabe</h4>
+          <h4 data-i18n="tdbeb8b">Ausgabe</h4>
           <table>
             <thead>
-              <tr><th>Feld</th><th>Typ</th><th>Beschreibung</th></tr>
+              <tr><th data-i18n="tdaa359">Feld</th><th data-i18n="tedcaf9">Typ</th><th data-i18n="tb3c8de">Beschreibung</th></tr>
             </thead>
             <tbody>
-              <tr><td><code>search_mode</code></td><td class="type">string</td><td>Immer <code>"keyword"</code>.</td></tr>
-              <tr><td><code>note</code></td><td class="type">string|null</td><td>Hinweis, falls die Anfrage angepasst wurde (siehe oben).</td></tr>
-              <tr><td><code>total</code></td><td class="type">integer</td><td>Gesamtzahl der Treffer (nicht nur dieser Seite).</td></tr>
-              <tr><td><code>hits</code></td><td class="type">Treffer[]</td><td>Die Treffer dieser Seite — Felder siehe „Treffer-Objekt“ unten.</td></tr>
-              <tr><td><code>next_cursor</code></td><td class="type">array|null</td><td>Als <code>search_after</code> im nächsten Request mitgeben. <code>null</code> = keine weiteren Treffer.</td></tr>
-              <tr><td><code>aggregations</code></td><td class="type">object|null</td><td>Nur bei <code>include_aggregations: true</code>; je Feld eine Liste von <code>{key, count}</code>.</td></tr>
+              <tr><td><code>search_mode</code></td><td class="type">string</td><td data-i18n="t8a465c">Immer <code>"keyword"</code>.</td></tr>
+              <tr><td><code>note</code></td><td class="type">string|null</td><td data-i18n="t31d044">Hinweis, falls die Anfrage angepasst wurde (siehe oben).</td></tr>
+              <tr><td><code>total</code></td><td class="type">integer</td><td data-i18n="tf8dd42">Gesamtzahl der Treffer (nicht nur dieser Seite).</td></tr>
+              <tr><td><code>hits</code></td><td class="type" data-i18n="t8157dc">Treffer[]</td><td data-i18n="tbb7bde">Die Treffer dieser Seite — Felder siehe „Treffer-Objekt“ unten.</td></tr>
+              <tr><td><code>next_cursor</code></td><td class="type">array|null</td><td data-i18n="t4456d8">Als <code>search_after</code> im nächsten Request mitgeben. <code>null</code> = keine weiteren Treffer.</td></tr>
+              <tr><td><code>aggregations</code></td><td class="type">object|null</td><td data-i18n="tf2ca84">Nur bei <code>include_aggregations: true</code>; je Feld eine Liste von <code>{key, count}</code>.</td></tr>
             </tbody>
           </table>
 
-          <h4>Beispiel</h4>
+          <h4 data-i18n="t540294">Beispiel</h4>
 <pre><code>// Aufruf
 { "query": "Mietrecht Kündigung", "sort": "date", "size": 3 }
 
@@ -679,39 +741,39 @@
         </details>
 
         <details>
-          <summary>search_by_case_number <span class="badge">Geschäftsnummer / BGE-Zitat</span></summary>
-          <p class="small">
+          <summary data-i18n="t71bdb3">search_by_case_number <span class="badge">Geschäftsnummer / BGE-Zitat</span></summary>
+          <p class="small" data-i18n="t7b27e9">
             Setzt <code>case_number</code> automatisch in Anführungszeichen und
             sucht als exakte Phrase. Ansonsten identisch zu <code>keyword_search</code> —
             gleiche Filter, gleiche Antwortstruktur.
           </p>
 
-          <h4>Eingabe</h4>
+          <h4 data-i18n="td3a77f">Eingabe</h4>
           <table>
             <thead>
-              <tr><th>Parameter</th><th>Typ</th><th>Default</th><th>Beschreibung</th></tr>
+              <tr><th data-i18n="tf699f2">Parameter</th><th data-i18n="tedcaf9">Typ</th><th data-i18n="t808d7d">Default</th><th data-i18n="tb3c8de">Beschreibung</th></tr>
             </thead>
             <tbody>
-              <tr><td><code>case_number</code></td><td class="type">string</td><td><span class="req">Pflicht</span></td><td>Geschäftsnummer, Aktenzeichen, Urteilsnummer oder BGE-Zitat, z.&nbsp;B. <code>BGE 142 III 1</code> oder <code>5A_396/2015</code>.</td></tr>
-              <tr><td><code>language</code></td><td class="type">"de"|"fr"|"it"</td><td class="type">null</td><td>Bevorzugte Sprache für Titel/Highlight (kein Filter).</td></tr>
-              <tr><td><code>sort</code></td><td class="type">"relevance"|"date"|"scrapedate"</td><td class="type">"relevance"</td><td>Sortierung.</td></tr>
-              <tr><td><code>size</code></td><td class="type">integer 1–100</td><td class="type">20</td><td>Treffer pro Seite.</td></tr>
-              <tr><td><code>search_after</code></td><td class="type">array</td><td class="type">null</td><td>Paginierungs-Cursor.</td></tr>
-              <tr><td><code>decision_date_from</code> / <code>decision_date_to</code></td><td class="type">date</td><td class="type">null</td><td>Zeitraum Entscheiddatum (YYYY-MM-DD).</td></tr>
-              <tr><td><code>scrape_date_from</code> / <code>scrape_date_to</code></td><td class="type">date</td><td class="type">null</td><td>Zeitraum Scrape-Datum.</td></tr>
-              <tr><td><code>hierarchy</code></td><td class="type">string[]</td><td class="type">null</td><td>Hierarchie-IDs für Kanton/Gericht/Kammer.</td></tr>
-              <tr><td><code>language_filter</code></td><td class="type">("de"|"fr"|"it")[]</td><td class="type">null</td><td>Filter nach Dokumentsprache(n).</td></tr>
-              <tr><td><code>include_aggregations</code></td><td class="type">boolean</td><td class="type">false</td><td>Aggregationen mitliefern.</td></tr>
+              <tr><td><code>case_number</code></td><td class="type">string</td><td data-i18n="tc9602e"><span class="req">Pflicht</span></td><td data-i18n="tbc27a4">Geschäftsnummer, Aktenzeichen, Urteilsnummer oder BGE-Zitat, z.&nbsp;B. <code>BGE 142 III 1</code> oder <code>5A_396/2015</code>.</td></tr>
+              <tr><td><code>language</code></td><td class="type">"de"|"fr"|"it"</td><td class="type">null</td><td data-i18n="t684c7c">Bevorzugte Sprache für Titel/Highlight (kein Filter).</td></tr>
+              <tr><td><code>sort</code></td><td class="type">"relevance"|"date"|"scrapedate"</td><td class="type">"relevance"</td><td data-i18n="t51ee6f">Sortierung.</td></tr>
+              <tr><td><code>size</code></td><td class="type">integer 1–100</td><td class="type">20</td><td data-i18n="t55aaab">Treffer pro Seite.</td></tr>
+              <tr><td><code>search_after</code></td><td class="type">array</td><td class="type">null</td><td data-i18n="t487f55">Paginierungs-Cursor.</td></tr>
+              <tr><td><code>decision_date_from</code> / <code>decision_date_to</code></td><td class="type">date</td><td class="type">null</td><td data-i18n="te4789b">Zeitraum Entscheiddatum (YYYY-MM-DD).</td></tr>
+              <tr><td><code>scrape_date_from</code> / <code>scrape_date_to</code></td><td class="type">date</td><td class="type">null</td><td data-i18n="t1d705f">Zeitraum Scrape-Datum.</td></tr>
+              <tr><td><code>hierarchy</code></td><td class="type">string[]</td><td class="type">null</td><td data-i18n="t437bfb">Hierarchie-IDs für Kanton/Gericht/Kammer.</td></tr>
+              <tr><td><code>language_filter</code></td><td class="type">("de"|"fr"|"it")[]</td><td class="type">null</td><td data-i18n="t36c74a">Filter nach Dokumentsprache(n).</td></tr>
+              <tr><td><code>include_aggregations</code></td><td class="type">boolean</td><td class="type">false</td><td data-i18n="t2813e1">Aggregationen mitliefern.</td></tr>
             </tbody>
           </table>
 
-          <h4>Ausgabe</h4>
-          <p class="small">
+          <h4 data-i18n="tdbeb8b">Ausgabe</h4>
+          <p class="small" data-i18n="t4e9a42">
             Identisch zu <code>keyword_search</code>: <code>total</code>, <code>hits</code>,
             <code>next_cursor</code>, <code>aggregations</code>.
           </p>
 
-          <h4>Beispiel</h4>
+          <h4 data-i18n="t540294">Beispiel</h4>
 <pre><code>// Aufruf
 { "case_number": "BGE 142 III 1", "size": 1 }
 
@@ -736,15 +798,15 @@
         </details>
 
         <details>
-          <summary>fetch_document / fetch <span class="badge">Einzelentscheid inkl. Volltext</span></summary>
-          <p class="small">
+          <summary data-i18n="t44ae6c">fetch_document / fetch <span class="badge">Einzelentscheid inkl. Volltext</span></summary>
+          <p class="small" data-i18n="t6b1447">
             Liefert einen einzelnen Entscheid anhand seiner Dokument-ID — im
             Unterschied zur Suche mit dem <strong>vollständigen</strong> Volltext
             in <code>text</code> (nicht nur einem Auszug). <code>fetch</code> ist
             ein Alias mit identischem Verhalten; ChatGPT erwartet für Deep
             Research ein Tool mit diesem Namen.
           </p>
-          <p class="small">
+          <p class="small" data-i18n="tecc610">
             <strong>Sehr lange Entscheide:</strong> Der indexierte Text ist auf
             100'000 Zeichen begrenzt. Ist er abgeschnitten, wird <code>text_truncated</code>
             auf <code>true</code> gesetzt, <code>content_length</code> nennt die Zeichenzahl,
@@ -753,28 +815,28 @@
             angehängt.
           </p>
 
-          <h4>Eingabe</h4>
+          <h4 data-i18n="td3a77f">Eingabe</h4>
           <table>
             <thead>
-              <tr><th>Parameter</th><th>Typ</th><th>Default</th><th>Beschreibung</th></tr>
+              <tr><th data-i18n="tf699f2">Parameter</th><th data-i18n="tedcaf9">Typ</th><th data-i18n="t808d7d">Default</th><th data-i18n="tb3c8de">Beschreibung</th></tr>
             </thead>
             <tbody>
-              <tr><td><code>id</code></td><td class="type">string</td><td><span class="req">Pflicht</span></td><td>Dokument-ID aus einem Suchtreffer, z.&nbsp;B. <code>CH_BGE_005_BGE-142-III-1_2016</code>.</td></tr>
-              <tr><td><code>language</code></td><td class="type">"de"|"fr"|"it"</td><td class="type">null</td><td>Bevorzugte Sprache für Titel/Abstract. Ohne Angabe das erste vorhandene Sprachfeld.</td></tr>
+              <tr><td><code>id</code></td><td class="type">string</td><td data-i18n="tc9602e"><span class="req">Pflicht</span></td><td data-i18n="tdc09e2">Dokument-ID aus einem Suchtreffer, z.&nbsp;B. <code>CH_BGE_005_BGE-142-III-1_2016</code>.</td></tr>
+              <tr><td><code>language</code></td><td class="type">"de"|"fr"|"it"</td><td class="type">null</td><td data-i18n="t50e202">Bevorzugte Sprache für Titel/Abstract. Ohne Angabe das erste vorhandene Sprachfeld.</td></tr>
             </tbody>
           </table>
 
-          <h4>Ausgabe</h4>
+          <h4 data-i18n="tdbeb8b">Ausgabe</h4>
           <table>
             <thead>
-              <tr><th>Feld</th><th>Typ</th><th>Beschreibung</th></tr>
+              <tr><th data-i18n="tdaa359">Feld</th><th data-i18n="tedcaf9">Typ</th><th data-i18n="tb3c8de">Beschreibung</th></tr>
             </thead>
             <tbody>
-              <tr><td>(Objekt)</td><td class="type">Treffer</td><td>Das Treffer-Objekt (Felder siehe unten) mit vollständigem <code>text</code>. <code>sort</code> ist hier immer <code>null</code>. Existiert die ID nicht, antwortet das Tool mit einem Fehler (<code>isError</code>) und einem Hinweis.</td></tr>
+              <tr><td data-i18n="tcb7d81">(Objekt)</td><td class="type" data-i18n="t2404b9">Treffer</td><td data-i18n="t7c05c1">Das Treffer-Objekt (Felder siehe unten) mit vollständigem <code>text</code>. <code>sort</code> ist hier immer <code>null</code>. Existiert die ID nicht, antwortet das Tool mit einem Fehler (<code>isError</code>) und einem Hinweis.</td></tr>
             </tbody>
           </table>
 
-          <h4>Beispiel</h4>
+          <h4 data-i18n="t540294">Beispiel</h4>
 <pre><code>// Aufruf
 { "id": "CH_BGE_005_BGE-142-III-1_2016" }
 
@@ -800,38 +862,38 @@
         </details>
 
         <details>
-          <summary>list_hierarchy <span class="badge">Hierarchie-IDs mit Trefferzahlen</span></summary>
-          <p class="small">
+          <summary data-i18n="tf5d59f">list_hierarchy <span class="badge">Hierarchie-IDs mit Trefferzahlen</span></summary>
+          <p class="small" data-i18n="tb253d6">
             Liefert die Hierarchie-IDs für Kantone, Gerichte und Kammern mit
             Trefferzahlen. Die IDs werden im <code>hierarchy</code>-Filter der
             Such-Tools verwendet. Mit <code>query</code> beziehen sich die
             Zahlen auf die Treffer dieser Anfrage.
           </p>
 
-          <h4>Eingabe</h4>
+          <h4 data-i18n="td3a77f">Eingabe</h4>
           <table>
             <thead>
-              <tr><th>Parameter</th><th>Typ</th><th>Default</th><th>Beschreibung</th></tr>
+              <tr><th data-i18n="tf699f2">Parameter</th><th data-i18n="tedcaf9">Typ</th><th data-i18n="t808d7d">Default</th><th data-i18n="tb3c8de">Beschreibung</th></tr>
             </thead>
             <tbody>
-              <tr><td><code>query</code></td><td class="type">string</td><td class="type">"*"</td><td>Optionale Volltext-Anfrage zur Eingrenzung der Aggregation.</td></tr>
-              <tr><td><code>size</code></td><td class="type">integer 1–10000</td><td class="type">1000</td><td>Maximale Anzahl Einträge.</td></tr>
+              <tr><td><code>query</code></td><td class="type">string</td><td class="type">"*"</td><td data-i18n="tddcbfd">Optionale Volltext-Anfrage zur Eingrenzung der Aggregation.</td></tr>
+              <tr><td><code>size</code></td><td class="type">integer 1–10000</td><td class="type">1000</td><td data-i18n="t9d0638">Maximale Anzahl Einträge.</td></tr>
             </tbody>
           </table>
 
-          <h4>Ausgabe</h4>
+          <h4 data-i18n="tdbeb8b">Ausgabe</h4>
           <table>
             <thead>
-              <tr><th>Feld</th><th>Typ</th><th>Beschreibung</th></tr>
+              <tr><th data-i18n="tdaa359">Feld</th><th data-i18n="tedcaf9">Typ</th><th data-i18n="tb3c8de">Beschreibung</th></tr>
             </thead>
             <tbody>
-              <tr><td><code>entries</code></td><td class="type">array</td><td>Liste von <code>{ id, count }</code>, absteigend nach <code>count</code>.</td></tr>
-              <tr><td><code>entries[].id</code></td><td class="type">string</td><td>Hierarchie-ID, z.&nbsp;B. <code>CH_BGer</code>, <code>ZH</code>.</td></tr>
-              <tr><td><code>entries[].count</code></td><td class="type">integer</td><td>Anzahl Dokumente unter dieser ID.</td></tr>
+              <tr><td><code>entries</code></td><td class="type">array</td><td data-i18n="t862e78">Liste von <code>{ id, count }</code>, absteigend nach <code>count</code>.</td></tr>
+              <tr><td><code>entries[].id</code></td><td class="type">string</td><td data-i18n="ta40b92">Hierarchie-ID, z.&nbsp;B. <code>CH_BGer</code>, <code>ZH</code>.</td></tr>
+              <tr><td><code>entries[].count</code></td><td class="type">integer</td><td data-i18n="tda3d3a">Anzahl Dokumente unter dieser ID.</td></tr>
             </tbody>
           </table>
 
-          <h4>Beispiel</h4>
+          <h4 data-i18n="t540294">Beispiel</h4>
 <pre><code>// Aufruf
 { "query": "Mietrecht", "size": 4 }
 
@@ -847,8 +909,8 @@
         </details>
 
         <details>
-          <summary>list_facets <span class="badge">Kanton / Gericht / Kammer mit Namen</span></summary>
-          <p class="small">
+          <summary data-i18n="t72501a">list_facets <span class="badge">Kanton / Gericht / Kammer mit Namen</span></summary>
+          <p class="small" data-i18n="t665375">
             Baum aller Kantone, Gerichte und Kammern mit ihren Bezeichnungen. Anders als
             <code>list_hierarchy</code> ohne Trefferzahlen, dafür mit Klartext-Namen
             in Deutsch, Französisch und Italienisch. Die <code>id</code>-Werte sind im
@@ -856,23 +918,23 @@
             (rund 160'000 Zeichen).
           </p>
 
-          <h4>Eingabe</h4>
-          <p class="small">Keine Parameter.</p>
+          <h4 data-i18n="td3a77f">Eingabe</h4>
+          <p class="small" data-i18n="t62b2c8">Keine Parameter.</p>
 
-          <h4>Ausgabe</h4>
+          <h4 data-i18n="tdbeb8b">Ausgabe</h4>
           <table>
             <thead>
-              <tr><th>Feld</th><th>Typ</th><th>Beschreibung</th></tr>
+              <tr><th data-i18n="tdaa359">Feld</th><th data-i18n="tedcaf9">Typ</th><th data-i18n="tb3c8de">Beschreibung</th></tr>
             </thead>
             <tbody>
-              <tr><td><code>facets</code></td><td class="type">Knoten[]</td><td>Die Kantone (und <code>CH</code> für den Bund).</td></tr>
-              <tr><td><code>…id</code></td><td class="type">string</td><td>Hierarchie-ID des Knotens (im <code>hierarchy</code>-Filter verwendbar).</td></tr>
-              <tr><td><code>…label</code></td><td class="type">object</td><td>Bezeichnungen je Sprache: <code>de</code>, <code>fr</code>, <code>it</code>, <code>en</code> (einzelne können <code>null</code> sein).</td></tr>
-              <tr><td><code>…children</code></td><td class="type">Knoten[]|null</td><td>Untergeordnete Knoten gleicher Struktur: Gerichte eines Kantons, Kammern eines Gerichts.</td></tr>
+              <tr><td><code>facets</code></td><td class="type" data-i18n="t30e10b">Knoten[]</td><td data-i18n="tad0e20">Die Kantone (und <code>CH</code> für den Bund).</td></tr>
+              <tr><td><code>…id</code></td><td class="type">string</td><td data-i18n="t8e1dc1">Hierarchie-ID des Knotens (im <code>hierarchy</code>-Filter verwendbar).</td></tr>
+              <tr><td><code>…label</code></td><td class="type">object</td><td data-i18n="te26291">Bezeichnungen je Sprache: <code>de</code>, <code>fr</code>, <code>it</code>, <code>en</code> (einzelne können <code>null</code> sein).</td></tr>
+              <tr><td><code>…children</code></td><td class="type" data-i18n="t8c692f">Knoten[]|null</td><td data-i18n="t167e2b">Untergeordnete Knoten gleicher Struktur: Gerichte eines Kantons, Kammern eines Gerichts.</td></tr>
             </tbody>
           </table>
 
-          <h4>Beispiel</h4>
+          <h4 data-i18n="t540294">Beispiel</h4>
 <pre><code>// Aufruf
 {}
 
@@ -898,34 +960,34 @@
         </details>
 
         <details>
-          <summary>server_info <span class="badge">Version und Endpunkte</span></summary>
-          <p class="small">
+          <summary data-i18n="tb35ee5">server_info <span class="badge">Version und Endpunkte</span></summary>
+          <p class="small" data-i18n="tbdbe65">
             Diagnose-Endpunkt: Version des Servers und die konfigurierten
             Upstream-URLs. Nützlich, um zu prüfen, welche Version tatsächlich läuft.
           </p>
 
-          <h4>Eingabe</h4>
-          <p class="small">Keine Parameter.</p>
+          <h4 data-i18n="td3a77f">Eingabe</h4>
+          <p class="small" data-i18n="t62b2c8">Keine Parameter.</p>
 
-          <h4>Ausgabe</h4>
+          <h4 data-i18n="tdbeb8b">Ausgabe</h4>
           <table>
             <thead>
-              <tr><th>Feld</th><th>Typ</th><th>Beschreibung</th></tr>
+              <tr><th data-i18n="tdaa359">Feld</th><th data-i18n="tedcaf9">Typ</th><th data-i18n="tb3c8de">Beschreibung</th></tr>
             </thead>
             <tbody>
-              <tr><td><code>name</code></td><td class="type">string</td><td>Servername.</td></tr>
-              <tr><td><code>version</code></td><td class="type">string</td><td>Version des laufenden Servers.</td></tr>
-              <tr><td><code>search_url</code></td><td class="type">string</td><td>Angebundene Such-API.</td></tr>
-              <tr><td><code>semantic_search</code></td><td class="type">boolean</td><td>Ob die KI-Suche aktiv ist.</td></tr>
-              <tr><td><code>embedding_model</code></td><td class="type">string|null</td><td>Embedding-Modell der KI-Suche.</td></tr>
-              <tr><td><code>facets_url</code></td><td class="type">string</td><td>Quelle des Facettenbaums.</td></tr>
-              <tr><td><code>languages</code></td><td class="type">string[]</td><td>Unterstützte Sprachen.</td></tr>
-              <tr><td><code>sort_orders</code></td><td class="type">string[]</td><td>Zulässige Werte für <code>sort</code>.</td></tr>
-              <tr><td><code>tools</code></td><td class="type">string[]</td><td>Namen der Tools.</td></tr>
+              <tr><td><code>name</code></td><td class="type">string</td><td data-i18n="tc70044">Servername.</td></tr>
+              <tr><td><code>version</code></td><td class="type">string</td><td data-i18n="tf8811c">Version des laufenden Servers.</td></tr>
+              <tr><td><code>search_url</code></td><td class="type">string</td><td data-i18n="t816700">Angebundene Such-API.</td></tr>
+              <tr><td><code>semantic_search</code></td><td class="type">boolean</td><td data-i18n="t87c1e3">Ob die KI-Suche aktiv ist.</td></tr>
+              <tr><td><code>embedding_model</code></td><td class="type">string|null</td><td data-i18n="t6eeb3e">Embedding-Modell der KI-Suche.</td></tr>
+              <tr><td><code>facets_url</code></td><td class="type">string</td><td data-i18n="t70bb02">Quelle des Facettenbaums.</td></tr>
+              <tr><td><code>languages</code></td><td class="type">string[]</td><td data-i18n="t39f40a">Unterstützte Sprachen.</td></tr>
+              <tr><td><code>sort_orders</code></td><td class="type">string[]</td><td data-i18n="t69425e">Zulässige Werte für <code>sort</code>.</td></tr>
+              <tr><td><code>tools</code></td><td class="type">string[]</td><td data-i18n="t857217">Namen der Tools.</td></tr>
             </tbody>
           </table>
 
-          <h4>Beispiel</h4>
+          <h4 data-i18n="t540294">Beispiel</h4>
 <pre><code>// Aufruf
 {}
 
@@ -945,8 +1007,8 @@
         </details>
 
         <details>
-          <summary>Treffer-Objekt <span class="badge">gemeinsame Felder</span></summary>
-          <p class="small">
+          <summary data-i18n="t44fbee">Treffer-Objekt <span class="badge">gemeinsame Felder</span></summary>
+          <p class="small" data-i18n="te59e73">
             Diese Struktur liefern die Such-Tools (<code>search</code>,
             <code>semantic_search</code>, <code>keyword_search</code>,
             <code>search_by_case_number</code>) in <code>hits[]</code> sowie
@@ -954,52 +1016,52 @@
           </p>
           <table>
             <thead>
-              <tr><th>Feld</th><th>Typ</th><th>Beschreibung</th></tr>
+              <tr><th data-i18n="tdaa359">Feld</th><th data-i18n="tedcaf9">Typ</th><th data-i18n="tb3c8de">Beschreibung</th></tr>
             </thead>
             <tbody>
-              <tr><td><code>id</code></td><td class="type">string</td><td>Dokument-ID — für <code>fetch_document</code> verwendbar.</td></tr>
-              <tr><td><code>title</code></td><td class="type">string</td><td>Titel des Entscheids.</td></tr>
-              <tr><td><code>abstract</code></td><td class="type">string</td><td>Regeste bzw. Kurzfassung, sofern vorhanden.</td></tr>
-              <tr><td><code>text</code></td><td class="type">string</td><td>Stichwortsuche: Auszug mit den Fundstellen in <code>&lt;em&gt;</code>. KI-Suche: der am besten passende Abschnitt des Entscheids (kann leer sein). <code>fetch_document</code>: der vollständige Volltext (bei sehr langen Entscheiden bis 100'000 Zeichen, dann mit angehängtem Hinweis).</td></tr>
-              <tr><td><code>meta</code></td><td class="type">string</td><td>Klartext-Bezeichnung des Gerichts.</td></tr>
-              <tr><td><code>canton</code></td><td class="type">string</td><td>Kantonskürzel, <code>CH</code> für Bundesbehörden.</td></tr>
-              <tr><td><code>court</code></td><td class="type">string</td><td>Gerichts-ID (aus der Dokument-ID abgeleitet).</td></tr>
-              <tr><td><code>decision_date</code></td><td class="type">string|null</td><td>Entscheiddatum, ISO <code>YYYY-MM-DD</code>.</td></tr>
-              <tr><td><code>scrape_date</code></td><td class="type">string|null</td><td>Datum der Erfassung, ISO <code>YYYY-MM-DD</code>.</td></tr>
-              <tr><td><code>is_pdf</code></td><td class="type">boolean</td><td>Ob das Originaldokument ein PDF ist.</td></tr>
-              <tr><td><code>url</code></td><td class="type">string|null</td><td>Seite des Entscheids auf entscheidsuche.ch — für Zitate und Links.</td></tr>
-              <tr><td><code>document_url</code></td><td class="type">string|null</td><td>Direktlink auf das Originaldokument.</td></tr>
-              <tr><td><code>original_url</code></td><td class="type">string|null</td><td>URL der ursprünglichen Quell-Webseite.</td></tr>
-              <tr><td><code>content_length</code></td><td class="type">integer|null</td><td>Länge des indexierten Volltexts in Zeichen. Nur bei <code>fetch_document</code> gesetzt.</td></tr>
-              <tr><td><code>text_truncated</code></td><td class="type">boolean</td><td><code>true</code>, wenn der Text bei 100'000 Zeichen abgeschnitten wurde; das vollständige Dokument liegt dann unter <code>document_url</code>.</td></tr>
-              <tr><td><code>sort</code></td><td class="type">array|null</td><td>Nur Stichwortsuche: Sortierwerte des Treffers (Basis für <code>search_after</code>).</td></tr>
-              <tr><td><code>score</code></td><td class="type">number|null</td><td>Nur KI-Suche: Ähnlichkeit zwischen Anfrage und bestem Abschnitt (höher ist besser).</td></tr>
-              <tr><td><code>context</code></td><td class="type">string|null</td><td>Nur KI-Suche mit <code>include_context: true</code>: grösserer Abschnitt um den Auszug.</td></tr>
+              <tr><td><code>id</code></td><td class="type">string</td><td data-i18n="t8e9b36">Dokument-ID — für <code>fetch_document</code> verwendbar.</td></tr>
+              <tr><td><code>title</code></td><td class="type">string</td><td data-i18n="t28e6d0">Titel des Entscheids.</td></tr>
+              <tr><td><code>abstract</code></td><td class="type">string</td><td data-i18n="tb08aeb">Regeste bzw. Kurzfassung, sofern vorhanden.</td></tr>
+              <tr><td><code>text</code></td><td class="type">string</td><td data-i18n="t3321bc">Stichwortsuche: Auszug mit den Fundstellen in <code>&lt;em&gt;</code>. KI-Suche: der am besten passende Abschnitt des Entscheids (kann leer sein). <code>fetch_document</code>: der vollständige Volltext (bei sehr langen Entscheiden bis 100'000 Zeichen, dann mit angehängtem Hinweis).</td></tr>
+              <tr><td><code>meta</code></td><td class="type">string</td><td data-i18n="t374f1f">Klartext-Bezeichnung des Gerichts.</td></tr>
+              <tr><td><code>canton</code></td><td class="type">string</td><td data-i18n="td4e221">Kantonskürzel, <code>CH</code> für Bundesbehörden.</td></tr>
+              <tr><td><code>court</code></td><td class="type">string</td><td data-i18n="tfdea69">Gerichts-ID (aus der Dokument-ID abgeleitet).</td></tr>
+              <tr><td><code>decision_date</code></td><td class="type">string|null</td><td data-i18n="taba5ec">Entscheiddatum, ISO <code>YYYY-MM-DD</code>.</td></tr>
+              <tr><td><code>scrape_date</code></td><td class="type">string|null</td><td data-i18n="t4b9bae">Datum der Erfassung, ISO <code>YYYY-MM-DD</code>.</td></tr>
+              <tr><td><code>is_pdf</code></td><td class="type">boolean</td><td data-i18n="t20eaee">Ob das Originaldokument ein PDF ist.</td></tr>
+              <tr><td><code>url</code></td><td class="type">string|null</td><td data-i18n="t692c67">Seite des Entscheids auf entscheidsuche.ch — für Zitate und Links.</td></tr>
+              <tr><td><code>document_url</code></td><td class="type">string|null</td><td data-i18n="t5ad80c">Direktlink auf das Originaldokument.</td></tr>
+              <tr><td><code>original_url</code></td><td class="type">string|null</td><td data-i18n="t9f34f7">URL der ursprünglichen Quell-Webseite.</td></tr>
+              <tr><td><code>content_length</code></td><td class="type">integer|null</td><td data-i18n="t7ceca5">Länge des indexierten Volltexts in Zeichen. Nur bei <code>fetch_document</code> gesetzt.</td></tr>
+              <tr><td><code>text_truncated</code></td><td class="type">boolean</td><td data-i18n="t7c1f80"><code>true</code>, wenn der Text bei 100'000 Zeichen abgeschnitten wurde; das vollständige Dokument liegt dann unter <code>document_url</code>.</td></tr>
+              <tr><td><code>sort</code></td><td class="type">array|null</td><td data-i18n="t108e99">Nur Stichwortsuche: Sortierwerte des Treffers (Basis für <code>search_after</code>).</td></tr>
+              <tr><td><code>score</code></td><td class="type">number|null</td><td data-i18n="td62ceb">Nur KI-Suche: Ähnlichkeit zwischen Anfrage und bestem Abschnitt (höher ist besser).</td></tr>
+              <tr><td><code>context</code></td><td class="type">string|null</td><td data-i18n="t505db6">Nur KI-Suche mit <code>include_context: true</code>: grösserer Abschnitt um den Auszug.</td></tr>
             </tbody>
           </table>
         </details>
       </div>
 
       <div class="panel">
-        <strong>Typische Anwendungsfälle</strong>
+        <strong data-i18n="t4a17dd">Typische Anwendungsfälle</strong>
         <ul>
-          <li>Eine Rechtsfrage in eigenen Worten stellen und passende Entscheide samt einschlägiger Textstelle finden.</li>
-          <li>Entscheide mit Schlüsselwörtern suchen.</li>
-          <li>Geschäftsnummern wie <code>BGE 142 III 1</code> oder <code>5A_396/2015</code> direkt nachschlagen.</li>
-          <li>Instruieren Sie Ihre KI, Referenzen in einem Dokument zu überprüfen.</li>
-          <li>Lassen Sie Entscheide von Ihrer KI zusammenfassen.</li>
+          <li data-i18n="tafafe9">Eine Rechtsfrage in eigenen Worten stellen und passende Entscheide samt einschlägiger Textstelle finden.</li>
+          <li data-i18n="t1fb117">Entscheide mit Schlüsselwörtern suchen.</li>
+          <li data-i18n="tf3a11c">Geschäftsnummern wie <code>BGE 142 III 1</code> oder <code>5A_396/2015</code> direkt nachschlagen.</li>
+          <li data-i18n="te6cdcf">Instruieren Sie Ihre KI, Referenzen in einem Dokument zu überprüfen.</li>
+          <li data-i18n="t3dafdb">Lassen Sie Entscheide von Ihrer KI zusammenfassen.</li>
         </ul>
       </div>
 
       <div class="panel">
-        <strong>Einbindung in Clients</strong>
-        <p class="small">
+        <strong data-i18n="t236fad">Einbindung in Clients</strong>
+        <p class="small" data-i18n="t66d9a9">
           Der Server arbeitet ohne Authentifizierung. Was Sie brauchen, ist ein
           Client, der das Model Context Protocol über Streamable HTTP spricht.
           Was Sie an Subscription brauchen, hängt vom Client ab — die folgenden
           Abschnitte fassen das pro Client zusammen.
         </p>
-        <p class="notice">
+        <p class="notice" data-i18n="tcd3ea6">
           <strong>Hinweis:</strong> Nicht jede der folgenden Anleitungen ist
           praktisch durchgespielt; einige beruhen auf den offiziellen
           Dokumentationen der jeweiligen Anbieter. MCP ist ein junges
@@ -1011,22 +1073,22 @@
         </p>
 
         <details>
-          <summary>Claude.ai (Web, Mobile, Desktop) <span class="badge">Pro / Max / Team / Enterprise</span></summary>
+          <summary data-i18n="t472e01">Claude.ai (Web, Mobile, Desktop) <span class="badge">Pro / Max / Team / Enterprise</span></summary>
           <ol>
-            <li>claude.ai → <strong>Settings → Connectors</strong> (in einigen Tarifen <em>Integrations</em>).</li>
-            <li><em>„Add custom connector"</em> wählen.</li>
+            <li data-i18n="t534379">claude.ai → <strong>Settings → Connectors</strong> (in einigen Tarifen <em>Integrations</em>).</li>
+            <li data-i18n="t2ffec8"><em>„Add custom connector"</em> wählen.</li>
             <li>
-              Eintragen:
+              <span data-i18n="teintra">Eintragen:</span>
               <ul>
                 <li>Name: <code>entscheidsuche</code></li>
-                <li>Remote MCP server URL: <code>https://mcp.entscheidsuche.ch/mcp</code></li>
-                <li>Authentication: <em>None</em></li>
-                <li>Transport: <em>Streamable HTTP</em> (nicht <em>SSE</em> &mdash; SSE ist nur Legacy-Fallback).</li>
+                <li data-i18n="t18672b">Remote MCP server URL: <code>https://mcp.entscheidsuche.ch/mcp</code></li>
+                <li data-i18n="ted80c4">Authentication: <em>None</em></li>
+                <li data-i18n="t5dd03f">Transport: <em>Streamable HTTP</em> (nicht <em>SSE</em> &mdash; SSE ist nur Legacy-Fallback).</li>
               </ul>
             </li>
-            <li>Connector pro Chat aktivieren (Tool-Symbol unter dem Eingabefeld).</li>
+            <li data-i18n="tbf4230">Connector pro Chat aktivieren (Tool-Symbol unter dem Eingabefeld).</li>
           </ol>
-          <p class="small">
+          <p class="small" data-i18n="t2d9c59">
             In Free-Konten sind Custom-Connectors nicht verfügbar. Team- und
             Enterprise-Workspaces können verlangen, dass der Workspace-Admin den
             Connector zentral freischaltet. Doku:
@@ -1035,8 +1097,8 @@
         </details>
 
         <details>
-          <summary>Claude Desktop <span class="badge">App gratis · benötigt Node.js</span></summary>
-          <p>Claude Desktop spricht stdio. Über die Bridge <code>mcp-remote</code> klappt der HTTP-Server trotzdem:</p>
+          <summary data-i18n="t194fd4">Claude Desktop <span class="badge">App gratis · benötigt Node.js</span></summary>
+          <p data-i18n="t3fa16b">Claude Desktop spricht stdio. Über die Bridge <code>mcp-remote</code> klappt der HTTP-Server trotzdem:</p>
           <pre><code>{
   "mcpServers": {
     "entscheidsuche": {
@@ -1045,7 +1107,7 @@
     }
   }
 }</code></pre>
-          <p class="small">
+          <p class="small" data-i18n="tc706f4">
             Pfad der Konfigurationsdatei:<br>
             macOS: <code>~/Library/Application Support/Claude/claude_desktop_config.json</code><br>
             Windows: <code>%APPDATA%\Claude\claude_desktop_config.json</code><br>
@@ -1054,9 +1116,9 @@
         </details>
 
         <details>
-          <summary>Claude Code (CLI) <span class="badge">API-Credits oder Pro/Max</span></summary>
+          <summary data-i18n="t656777">Claude Code (CLI) <span class="badge">API-Credits oder Pro/Max</span></summary>
           <pre><code>claude mcp add --transport http entscheidsuche https://mcp.entscheidsuche.ch/mcp</code></pre>
-          <p class="small">
+          <p class="small" data-i18n="t3a924e">
             Status prüfen mit <code>claude mcp list</code>, entfernen mit
             <code>claude mcp remove entscheidsuche</code>. Doku:
             <a href="https://docs.claude.com/en/docs/claude-code/mcp">docs.claude.com</a>.
@@ -1064,7 +1126,7 @@
         </details>
 
         <details>
-          <summary>Claude API (eigener Code) <span class="badge">Anthropic-API-Konto</span></summary>
+          <summary data-i18n="t272580">Claude API (eigener Code) <span class="badge">Anthropic-API-Konto</span></summary>
           <pre><code>import anthropic
 
 client = anthropic.Anthropic()
@@ -1081,20 +1143,20 @@ resp = client.messages.create(
     messages=[{"role": "user", "content": "Suche BGE 142 III 1."}],
     extra_headers={"anthropic-beta": "mcp-client-2025-04-04"},
 )</code></pre>
-          <p class="small">
+          <p class="small" data-i18n="te84676">
             Doku: <a href="https://docs.claude.com/en/docs/agents-and-tools/mcp-connector">docs.claude.com</a>.
           </p>
         </details>
 
         <details>
-          <summary>ChatGPT <span class="badge">Pro / Team / Enterprise / Edu</span></summary>
+          <summary data-i18n="t73e52f">ChatGPT <span class="badge">Pro / Team / Enterprise / Edu</span></summary>
           <ol>
-            <li>chatgpt.com → <strong>Settings → Connectors</strong> → <em>„Create"</em>.</li>
-            <li>MCP Server URL: <code>https://mcp.entscheidsuche.ch/mcp</code>, Auth = <em>No authentication</em>.</li>
-            <li>Falls ein Transport-Feld erscheint: <em>Streamable HTTP</em> wählen (nicht <em>SSE</em>).</li>
-            <li>Connector im Chat aktivieren (Tools-Menü) bzw. in einem Deep-Research-Run anhaken.</li>
+            <li data-i18n="t14dcb2">chatgpt.com → <strong>Settings → Connectors</strong> → <em>„Create"</em>.</li>
+            <li data-i18n="t84fa55">MCP Server URL: <code>https://mcp.entscheidsuche.ch/mcp</code>, Auth = <em>No authentication</em>.</li>
+            <li data-i18n="t585bd9">Falls ein Transport-Feld erscheint: <em>Streamable HTTP</em> wählen (nicht <em>SSE</em>).</li>
+            <li data-i18n="tab6113">Connector im Chat aktivieren (Tools-Menü) bzw. in einem Deep-Research-Run anhaken.</li>
           </ol>
-          <p class="small">
+          <p class="small" data-i18n="t340566">
             Hinweis: OpenAIs Deep-Research-Modus verlangt Tools mit den Namen
             <code>search</code> und <code>fetch</code>. Beide stellt der Server
             bereit. Doku:
@@ -1103,21 +1165,21 @@ resp = client.messages.create(
         </details>
 
         <details>
-          <summary>Perplexity <span class="badge">Pro / Enterprise · Verfügbarkeit ändert sich</span></summary>
+          <summary data-i18n="t4a7a22">Perplexity <span class="badge">Pro / Enterprise · Verfügbarkeit ändert sich</span></summary>
           <ol>
-            <li>perplexity.ai → <strong>Settings → Connectors</strong> (bzw. <em>„Integrations"</em>; im Enterprise-Workspace unter <em>„Workspace settings"</em>).</li>
-            <li><em>„Add custom connector" / „Add MCP server"</em> wählen.</li>
+            <li data-i18n="t1f33ad">perplexity.ai → <strong>Settings → Connectors</strong> (bzw. <em>„Integrations"</em>; im Enterprise-Workspace unter <em>„Workspace settings"</em>).</li>
+            <li data-i18n="te994cc"><em>„Add custom connector" / „Add MCP server"</em> wählen.</li>
             <li>
-              Eintragen:
+              <span data-i18n="teintra">Eintragen:</span>
               <ul>
                 <li>Name: <code>entscheidsuche</code></li>
-                <li>Server URL: <code>https://mcp.entscheidsuche.ch/mcp</code></li>
-                <li>Authentication: <em>None</em></li>
+                <li data-i18n="t7f95f4">Server URL: <code>https://mcp.entscheidsuche.ch/mcp</code></li>
+                <li data-i18n="ted80c4">Authentication: <em>None</em></li>
               </ul>
             </li>
-            <li>Connector im Chat über das Tools-/Connectors-Symbol aktivieren.</li>
+            <li data-i18n="tdde434">Connector im Chat über das Tools-/Connectors-Symbol aktivieren.</li>
           </ol>
-          <p class="small">
+          <p class="small" data-i18n="t605fae">
             Custom-MCP-Connectors sind in den kostenpflichtigen Tarifen
             vorgesehen, typischerweise Perplexity Pro, Enterprise oder
             Business. Verfügbarkeit und UI-Pfade ändern sich bei Perplexity
@@ -1128,8 +1190,8 @@ resp = client.messages.create(
         </details>
 
         <details>
-          <summary>VS Code mit GitHub Copilot <span class="badge">Copilot Pro o.ä.</span></summary>
-          <p>Workspace-lokal in <code>.vscode/mcp.json</code>:</p>
+          <summary data-i18n="t16995c">VS Code mit GitHub Copilot <span class="badge">Copilot Pro o.ä.</span></summary>
+          <p data-i18n="tbea324">Workspace-lokal in <code>.vscode/mcp.json</code>:</p>
           <pre><code>{
   "servers": {
     "entscheidsuche": {
@@ -1138,7 +1200,7 @@ resp = client.messages.create(
     }
   }
 }</code></pre>
-          <p class="small">
+          <p class="small" data-i18n="tbb97a2">
             Im Chat <em>„Agent"</em>-Modus wählen, Werkzeug-Symbol klicken,
             Tools aktivieren. Doku:
             <a href="https://code.visualstudio.com/docs/copilot/customization/mcp-servers">code.visualstudio.com</a>.
@@ -1146,8 +1208,8 @@ resp = client.messages.create(
         </details>
 
         <details>
-          <summary>Cursor <span class="badge">gratis möglich</span></summary>
-          <p>UI: <strong>Settings → MCP → Add new MCP server</strong>. Oder in <code>~/.cursor/mcp.json</code>:</p>
+          <summary data-i18n="t5b8567">Cursor <span class="badge">gratis möglich</span></summary>
+          <p data-i18n="t6ef052">UI: <strong>Settings → MCP → Add new MCP server</strong>. Oder in <code>~/.cursor/mcp.json</code>:</p>
           <pre><code>{
   "mcpServers": {
     "entscheidsuche": {
@@ -1158,8 +1220,8 @@ resp = client.messages.create(
         </details>
 
         <details>
-          <summary>Weitere Open-Source-Clients <span class="badge">gratis</span></summary>
-          <p>
+          <summary data-i18n="t3eb0d6">Weitere Open-Source-Clients <span class="badge">gratis</span></summary>
+          <p data-i18n="tf09b42">
             Cline, Continue.dev, Zed, 5ire, goose, LibreChat, Open WebUI,
             LobeChat — jeweils ein <em>Custom MCP server</em>-Eintrag mit der URL
             <code>https://mcp.entscheidsuche.ch/mcp</code>. Was bei diesen Tools
@@ -1168,16 +1230,16 @@ resp = client.messages.create(
         </details>
 
         <details>
-          <summary>MCP Inspector (zum Testen) <span class="badge">gratis · Node 18+</span></summary>
+          <summary data-i18n="t029964">MCP Inspector (zum Testen) <span class="badge">gratis · Node 18+</span></summary>
           <pre><code>npx @modelcontextprotocol/inspector</code></pre>
-          <p class="small">
+          <p class="small" data-i18n="tc8a9be">
             Im Browser-UI: Transport <em>HTTP / Streamable HTTP</em>, URL
             <code>https://mcp.entscheidsuche.ch/mcp</code>, Auth leer. Ideal zum
             Ausprobieren, ohne irgendein Konto.
           </p>
         </details>
 
-        <p class="small">
+        <p class="small" data-i18n="t7273b7">
           Eine ausführlichere Anleitung mit allen Voraussetzungen finden Sie in
           <a href="https://github.com/entscheidsuche/entscheidsuche-mcp/blob/main/docs/CLIENTS.md">docs/CLIENTS.md</a>
           im Repository.
@@ -1185,22 +1247,95 @@ resp = client.messages.create(
       </div>
 
       <div class="panel">
-        <strong>Hinweis</strong>
-        <p>
+        <strong data-i18n="tad6c49">Hinweis</strong>
+        <p data-i18n="t01853f">
           Die eigentliche MCP-Schnittstelle liegt unter <code>/mcp</code>.
           Auf dieser Startseite finden Sie nur die kurze Dokumentation und den
           Einstieg für MCP-Clients.
         </p>
       </div>
 
-      <a class="cta" href="https://github.com/entscheidsuche/entscheidsuche-mcp">Zum Repository auf Github.</a>
+      <a class="cta" href="https://github.com/entscheidsuche/entscheidsuche-mcp" data-i18n="tdbac71">Zum Repository auf Github.</a>
     </main>
 
     <footer class="site-footer">
       <div class="inner">
-        <span><a href="https://entscheidsuche.ch">entscheidsuche.ch</a> — Suche in Schweizer Gerichtsentscheiden</span>
-        <span><a href="https://github.com/entscheidsuche/entscheidsuche-mcp">Quellcode auf GitHub</a></span>
+        <span data-i18n="tdeccaa"><a href="https://entscheidsuche.ch">entscheidsuche.ch</a> — Suche in Schweizer Gerichtsentscheiden</span>
+        <span data-i18n="td089ad"><a href="https://github.com/entscheidsuche/entscheidsuche-mcp">Quellcode auf GitHub</a></span>
       </div>
     </footer>
+    <!-- Mehrsprachigkeit: Deutsch steht im HTML; Französisch, Italienisch und Englisch
+         kommen aus der Tabelle unten und ersetzen die Elemente mit data-i18n. -->
+    <script>
+      (function () {
+        "use strict";
+        var LANGS = ["de", "fr", "it", "en"];
+        var I18N = {"fr":{"td3a77f":"Entrée","tdbeb8b":"Sortie","t540294":"Exemple","te93267":"Serveur MCP pour <a href=\"https://entscheidsuche.ch\">entscheidsuche.ch<\/a>. Cette instance met à disposition, via un point d'accès MCP, la recherche dans les décisions judiciaires et la jurisprudence suisses : tribunaux fédéraux et cantonaux, autorités administratives ainsi qu'ordonnances pénales. Deux types de recherche sont proposés : la <strong>recherche IA<\/strong> par le sens et la <strong>recherche par mots-clés<\/strong>.","tc74a50":"Une interface de test est disponible sous <a href=\"/test\">mcp.entscheidsuche.ch/test<\/a> : tous les outils avec formulaire, valeurs d'exemple, commande <code>curl<\/code> et réponse — sans client MCP.","tec9c8b":"Si vous ne souhaitez pas choisir, utilisez <code>search<\/code> : l'outil exécute la recherche IA et passe de lui-même à la recherche par mots-clés lorsque la requête contient un numéro de dossier, une expression entre guillemets, des opérateurs booléens ou des caractères génériques.","t679b36":"Paramètres d'entrée et de sortie de chaque méthode. Tous les paramètres ayant une valeur par défaut sont facultatifs ; seuls ceux marqués <span class=\"req\">obligatoire<\/span> doivent être indiqués. Les exemples sont de vraies réponses, abrégées, de ce serveur.","t9098a8":"La recherche pour tous les cas. Décrivez la question juridique ou les faits en langage naturel — l'outil exécute la recherche IA (comme <code>semantic_search<\/code>). Il passe automatiquement à la recherche par mots-clés (comme <code>keyword_search<\/code>) lorsque","t8a3ee8":"Le champ <code>search_mode<\/code> indique quelle recherche a été exécutée ; en cas de changement, <code>note<\/code> en donne la raison.","tee8e97":"Comme <code>semantic_search<\/code> ou <code>keyword_search<\/code>. En plus, <code>results<\/code> contient une liste compacte <code>{id, title, url}<\/code> des mêmes décisions — c'est le format que ChatGPT attend d'un outil nommé <code>search<\/code>.","t5f9fc1":"Ne cherche pas des mots, mais le sens — le même procédé que le bouton « Rechercher IA » sur entscheidsuche.ch. La requête est convertie en vecteur d'embedding et comparée aux passages de toutes les décisions. Elle fonctionne le mieux avec une ou plusieurs phrases complètes ; la langue de la requête n'a pas d'importance.","tedf0a0":"Les 100 passages les plus pertinents sont évalués ; plusieurs passages d'une même décision donnent un seul résultat. La liste est classée par proximité de sens (<code>score<\/code>) ; il n'y a ni pagination ni autre tri. <code>hierarchy<\/code> et la date de la décision limitent déjà le choix des passages ; les filtres de langue et de date de saisie s'appliquent ensuite (300 passages sont alors évalués).","tc9877d":"<strong>Extrait :<\/strong> <code>text<\/code> contient le passage de la décision qui correspond le mieux. Si les sous-passages d'une décision ne sont pas encore indexés, le serveur lance l'indexation et attend au maximum 20 secondes ; si l'extrait n'est pas disponible à ce moment-là, <code>text<\/code> reste vide.","t98e959":"Recherche par mots-clés dans toutes les décisions (jusqu'à la version 0.1, cet outil s'appelait <code>search<\/code>). <code>query<\/code> comprend la syntaxe Lucene : <code>\"…\"<\/code> pour les expressions, <code>AND<\/code>/<code>OR<\/code>/<code>NOT<\/code>, caractères génériques <code>*<\/code> et <code>?<\/code>. L'opérateur par défaut entre les termes est <code>AND<\/code> ; les filtres sont combinés par <code>AND<\/code>.","t27c585":"Si la requête n'est pas une syntaxe valide (p.&nbsp;ex. <code>5A_396/2015<\/code> sans guillemets ou une parenthèse ouverte), elle est exécutée comme une suite de termes ordinaires ; <code>note<\/code> le signale. <code>OR<\/code> placé directement après un numéro d'article (<code>Art. 271 OR<\/code>) est compris comme l'abréviation allemande du Code des obligations, non comme opérateur.","t7b27e9":"Met automatiquement <code>case_number<\/code> entre guillemets et le recherche comme expression exacte. Pour le reste identique à <code>keyword_search<\/code> — mêmes filtres, même structure de réponse.","t4e9a42":"Identique à <code>keyword_search<\/code> : <code>total<\/code>, <code>hits<\/code>, <code>next_cursor<\/code>, <code>aggregations<\/code>.","t6b1447":"Fournit une décision à partir de son identifiant de document — contrairement à la recherche, avec le texte <strong>intégral<\/strong> dans <code>text<\/code> (et non un simple extrait). <code>fetch<\/code> est un alias au comportement identique ; ChatGPT attend un outil de ce nom pour Deep Research.","tecc610":"<strong>Décisions très longues :<\/strong> le texte indexé est limité à 100'000 caractères. S'il est tronqué, <code>text_truncated<\/code> vaut <code>true<\/code>, <code>content_length<\/code> indique le nombre de caractères et une remarque dans la langue de la décision (à défaut en anglais), avec un lien vers le document complet (<code>document_url<\/code>), est ajoutée à la fin de <code>text<\/code>.","tb253d6":"Fournit les identifiants de hiérarchie des cantons, tribunaux et chambres avec le nombre de décisions. Ces identifiants s'utilisent dans le filtre <code>hierarchy<\/code> des outils de recherche. Avec <code>query<\/code>, les nombres se rapportent aux résultats de cette requête.","t665375":"Arborescence de tous les cantons, tribunaux et chambres avec leurs désignations. Contrairement à <code>list_hierarchy<\/code>, sans nombre de décisions, mais avec les noms en allemand, français et italien. Les valeurs <code>id<\/code> s'utilisent dans le filtre <code>hierarchy<\/code>. La réponse est volumineuse (environ 160'000 caractères).","t62b2c8":"Aucun paramètre.","tbdbe65":"Point de diagnostic : version du serveur et URL configurées en amont. Utile pour vérifier quelle version tourne réellement.","te59e73":"Cette structure est fournie par les outils de recherche (<code>search<\/code>, <code>semantic_search<\/code>, <code>keyword_search<\/code>, <code>search_by_case_number<\/code>) dans <code>hits[]<\/code> ainsi que par <code>fetch_document<\/code> / <code>fetch<\/code> comme réponse.","t66d9a9":"Le serveur fonctionne sans authentification. Il vous faut un client qui parle le Model Context Protocol via Streamable HTTP. L'abonnement nécessaire dépend du client — les sections suivantes le résument pour chaque client.","tcd3ea6":"<strong>Remarque :<\/strong> les instructions suivantes n'ont pas toutes été testées en pratique ; certaines reposent sur la documentation officielle des fournisseurs. MCP est un protocole récent. Les listes d'outils, les tarifs et les chemins de configuration changent régulièrement, et parfois à bref délai, chez Anthropic, OpenAI et d'autres. En cas de divergence, la documentation officielle du client fait foi — et un bref retour de votre part est le bienvenu si quelque chose ne correspond plus.","t2d9c59":"Les connecteurs personnalisés ne sont pas disponibles dans les comptes gratuits. Les espaces de travail Team et Enterprise peuvent exiger que l'administrateur active le connecteur de manière centralisée. Documentation : <a href=\"https://support.claude.com/en/articles/11175166-getting-started-with-custom-connectors-using-remote-mcp\">support.claude.com<\/a>.","t3fa16b":"Claude Desktop parle stdio. Avec la passerelle <code>mcp-remote<\/code>, le serveur HTTP fonctionne malgré tout :","tc706f4":"Emplacement du fichier de configuration :<br> macOS : <code>~/Library/Application Support/Claude/claude_desktop_config.json<\/code><br> Windows : <code>%APPDATA%\\Claude\\claude_desktop_config.json<\/code><br> Quittez ensuite complètement Claude Desktop et relancez-le.","t3a924e":"Vérifier l'état avec <code>claude mcp list<\/code>, supprimer avec <code>claude mcp remove entscheidsuche<\/code>. Documentation : <a href=\"https://docs.claude.com/en/docs/claude-code/mcp\">docs.claude.com<\/a>.","te84676":"Documentation : <a href=\"https://docs.claude.com/en/docs/agents-and-tools/mcp-connector\">docs.claude.com<\/a>.","t340566":"Remarque : le mode Deep Research d'OpenAI exige des outils nommés <code>search<\/code> et <code>fetch<\/code>. Le serveur fournit les deux. Documentation : <a href=\"https://platform.openai.com/docs/mcp\">platform.openai.com<\/a>.","t605fae":"Les connecteurs MCP personnalisés sont prévus dans les offres payantes, en général Perplexity Pro, Enterprise ou Business. La disponibilité et les chemins de l'interface changent plus souvent chez Perplexity que chez d'autres fournisseurs ; cette entrée n'a pas été testée par nos soins. Documentation : <a href=\"https://www.perplexity.ai/help-center\">perplexity.ai/help-center<\/a>.","tbea324":"Localement dans l'espace de travail, dans <code>.vscode/mcp.json<\/code> :","tbb97a2":"Dans le chat, choisir le mode <em>« Agent »<\/em>, cliquer sur l'icône des outils et activer les outils. Documentation : <a href=\"https://code.visualstudio.com/docs/copilot/customization/mcp-servers\">code.visualstudio.com<\/a>.","t6ef052":"Interface : <strong>Settings → MCP → Add new MCP server<\/strong>. Ou dans <code>~/.cursor/mcp.json<\/code> :","tf09b42":"Cline, Continue.dev, Zed, 5ire, goose, LibreChat, Open WebUI, LobeChat — chaque fois une entrée <em>Custom MCP server<\/em> avec l'URL <code>https://mcp.entscheidsuche.ch/mcp<\/code>. Avec ces outils, seul le modèle de langage choisi est payant.","tc8a9be":"Dans l'interface du navigateur : transport <em>HTTP / Streamable HTTP<\/em>, URL <code>https://mcp.entscheidsuche.ch/mcp<\/code>, authentification vide. Idéal pour essayer sans aucun compte.","t7273b7":"Des instructions plus détaillées, avec toutes les conditions préalables, se trouvent dans <a href=\"https://github.com/entscheidsuche/entscheidsuche-mcp/blob/main/docs/CLIENTS.md\">docs/CLIENTS.md<\/a> dans le dépôt (en allemand).","t01853f":"L'interface MCP proprement dite se trouve sous <code>/mcp<\/code>. Cette page d'accueil ne contient que la documentation abrégée et le point d'entrée pour les clients MCP.","t35004b":"<code>search<\/code> — recherche standard : question juridique ou faits en langage naturel (recherche IA) ; recherche par mots-clés automatique pour les numéros de dossier, les expressions et les requêtes booléennes","t063d3f":"<code>semantic_search<\/code> — recherche IA par le sens, indépendante de la langue, avec le passage le plus pertinent de chaque décision","teddca1":"<code>keyword_search<\/code> — recherche par mots-clés dans la jurisprudence suisse, avec filtres, tri et pagination","t6883c9":"<code>search_by_case_number<\/code> pour la recherche exacte de numéros de dossier, de références et de citations ATF","t477f9e":"<code>fetch_document<\/code> (alias <code>fetch<\/code>) pour obtenir une décision avec son texte intégral","t9638d1":"<code>list_hierarchy<\/code> pour les identifiants de hiérarchie et le nombre de décisions","t8f1c6a":"<code>list_facets<\/code> pour l'arborescence canton / tribunal / chambre avec les désignations","t70f93e":"<code>server_info<\/code> pour les informations sur le serveur et sa version","tfa762a":"<code>sort<\/code> n'est pas <code>relevance<\/code>, ou <code>search_after<\/code> ou <code>include_aggregations<\/code> est défini,","t4de745":"la requête est vide ou vaut <code>*<\/code>,","t615315":"la requête est, dans son ensemble, un numéro de dossier ou une citation (<code>5A_396/2015<\/code>, <code>BGE 142 III 1<\/code>, <code>ZB.2021.48<\/code>) — elle est alors recherchée comme expression exacte,","t54e5ee":"la requête contient une expression entre guillemets, des opérateurs booléens (<code>AND<\/code>, <code>OR<\/code>, <code>NOT<\/code>) entre deux termes ou des caractères génériques. <code>OR<\/code> placé directement après un numéro d'article (<code>Art. 271 OR<\/code>) est compris comme le Code des obligations.","tafafe9":"Poser une question juridique avec ses propres mots et trouver les décisions pertinentes ainsi que le passage déterminant.","t1fb117":"Rechercher des décisions par mots-clés.","tf3a11c":"Retrouver directement des numéros de dossier comme <code>BGE 142 III 1<\/code> ou <code>5A_396/2015<\/code>.","te6cdcf":"Demandez à votre IA de vérifier les références d'un document.","t3dafdb":"Faites résumer des décisions par votre IA.","t534379":"claude.ai → <strong>Settings → Connectors<\/strong> (<em>Integrations<\/em> dans certaines offres).","t2ffec8":"Choisir <em>« Add custom connector »<\/em>.","teintra":"Saisir :","t5dd03f":"Transport : <em>Streamable HTTP<\/em> (pas <em>SSE<\/em> &mdash; SSE n'est qu'une solution de repli historique).","tbf4230":"Activer le connecteur pour chaque conversation (icône des outils sous le champ de saisie).","t14dcb2":"chatgpt.com → <strong>Settings → Connectors<\/strong> → <em>« Create »<\/em>.","t84fa55":"MCP Server URL : <code>https://mcp.entscheidsuche.ch/mcp<\/code>, Auth = <em>No authentication<\/em>.","t585bd9":"Si un champ de transport apparaît : choisir <em>Streamable HTTP<\/em> (pas <em>SSE<\/em>).","tab6113":"Activer le connecteur dans la conversation (menu des outils) ou le cocher pour une exécution Deep Research.","t1f33ad":"perplexity.ai → <strong>Settings → Connectors<\/strong> (ou <em>« Integrations »<\/em> ; dans un espace Enterprise, sous <em>« Workspace settings »<\/em>).","te994cc":"Choisir <em>« Add custom connector » / « Add MCP server »<\/em>.","tdde434":"Activer le connecteur dans la conversation via l'icône des outils ou des connecteurs.","t7332b6":"search <span class=\"badge\">recherche standard<\/span>","t2a9ad1":"semantic_search <span class=\"badge\">recherche IA par le sens<\/span>","t443e17":"keyword_search <span class=\"badge\">recherche par mots-clés<\/span>","t71bdb3":"search_by_case_number <span class=\"badge\">numéro de dossier / citation ATF<\/span>","t44ae6c":"fetch_document / fetch <span class=\"badge\">décision avec texte intégral<\/span>","tf5d59f":"list_hierarchy <span class=\"badge\">identifiants de hiérarchie avec nombre de décisions<\/span>","t72501a":"list_facets <span class=\"badge\">canton / tribunal / chambre avec noms<\/span>","tb35ee5":"server_info <span class=\"badge\">version et points d'accès<\/span>","t44fbee":"Objet résultat <span class=\"badge\">champs communs<\/span>","t472e01":"Claude.ai (web, mobile, bureau) <span class=\"badge\">Pro / Max / Team / Enterprise<\/span>","t194fd4":"Claude Desktop <span class=\"badge\">application gratuite · nécessite Node.js<\/span>","t656777":"Claude Code (CLI) <span class=\"badge\">crédits API ou Pro/Max<\/span>","t272580":"API Claude (votre propre code) <span class=\"badge\">compte API Anthropic<\/span>","t4a7a22":"Perplexity <span class=\"badge\">Pro / Enterprise · disponibilité variable<\/span>","t16995c":"VS Code avec GitHub Copilot <span class=\"badge\">Copilot Pro ou équivalent<\/span>","t5b8567":"Cursor <span class=\"badge\">gratuit possible<\/span>","t3eb0d6":"Autres clients open source <span class=\"badge\">gratuit<\/span>","t029964":"MCP Inspector (pour tester) <span class=\"badge\">gratuit · Node 18+<\/span>","tf78146":"Recherche IA <code>semantic_search<\/code>","t984afe":"Recherche par mots-clés <code>keyword_search<\/code>","tf699f2":"Paramètre","tedcaf9":"Type","t808d7d":"Défaut","tb3c8de":"Description","tdaa359":"Champ","ta96c98":"Recherche selon","t86a9dd":"le sens","tf84d1b":"les mots","t5f5c08":"Requête adaptée","t46c2ba":"question juridique ou faits en phrases complètes","tc68837":"termes, expressions, articles, noms","t3d9f5c":"Langue","t95b2c5":"indépendante de la langue : une question en allemand trouve aussi des décisions en français et en italien","t23d5b5":"ne trouve que les mots saisis","ta1aa0a":"Ordre","t4ee17a":"proximité de sens","ta20f57":"pertinence, date de la décision ou date de saisie","t4e3edf":"Étendue","t4f0d07":"décisions parmi les 100 passages les plus pertinents, sans pagination","t9c6c3c":"tous les résultats, pagination","t09ce89":"Extrait","t15cd15":"passage le plus pertinent","t52dd9a":"occurrences, mises en évidence","t67621e":"Question juridique ou faits en langage naturel (dans n'importe quelle langue), ou numéro de dossier / citation.","td5e13b":"Langue préférée pour le titre et le résumé. <strong>Pas un filtre<\/strong> — utiliser <code>language_filter<\/code> pour cela.","te3a931":"Nombre de décisions (recherche IA : 50 au maximum).","t25e694":"Date de la décision du / au (AAAA-MM-JJ, bornes incluses).","tf6b11a":"Date de saisie du / au.","t70dd5d":"Identifiants de hiérarchie (canton/tribunal/chambre). Plusieurs valeurs sont combinées par OR.","t36c74a":"Filtre selon la ou les langues du document.","t49505b":"Recherche IA uniquement : fournir aussi le passage plus large autour de l'extrait (champ <code>context<\/code>).","t6c87a0":"Recherche par mots-clés uniquement ; leur utilisation fait passer à la recherche par mots-clés.","tc9602e":"<span class=\"req\">obligatoire<\/span>","te02ef2":"Question juridique ou description des faits, si possible en phrases complètes.","t7f602f":"Langue préférée pour le titre et le résumé. <strong>Pas un filtre<\/strong>.","t2b04df":"Nombre de décisions.","t13cee4":"Fournir aussi le passage plus large autour de l'extrait (champ <code>context<\/code>, jusqu'à environ 6000 caractères par résultat).","t152efa":"Toujours <code>\"semantic\"<\/code>.","t2c2c9b":"Remarque sur le type de recherche.","t63b8c0":"Nombre de décisions parmi les passages évalués — et non le nombre de toutes les décisions pertinentes.","t9971d4":"Les résultats, par <code>score<\/code> décroissant — champs : voir « Objet résultat » ci-dessous.","tf12394":"Requête en texte intégral. <code>\"*\"<\/code> correspond à tout.","ta78492":"Langue préférée pour le titre et la mise en évidence. <strong>Pas un filtre<\/strong> — utiliser <code>language_filter<\/code> pour cela.","t33b060":"Tri ; <code>date<\/code> = date de la décision.","t55aaab":"Résultats par page.","t9d0411":"Curseur : <code>next_cursor<\/code> de la réponse précédente.","t9278ec":"Date de décision la plus ancienne (AAAA-MM-JJ, incluse).","tfa27e6":"Date de décision la plus récente (AAAA-MM-JJ, incluse).","taefdfe":"Date de saisie la plus ancienne.","t8dc0ae":"Date de saisie la plus récente.","t4dc8fe":"Identifiants de hiérarchie (canton/tribunal/chambre) issus de <code>list_hierarchy<\/code>. Plusieurs valeurs sont combinées par OR.","te8c98f":"Véritable filtre selon la ou les langues du document.","tbcd715":"Fournir aussi les agrégations (répartitions).","t8a465c":"Toujours <code>\"keyword\"<\/code>.","t31d044":"Remarque si la requête a été adaptée (voir ci-dessus).","tf8dd42":"Nombre total de résultats (pas seulement ceux de cette page).","tbb7bde":"Les résultats de cette page — champs : voir « Objet résultat » ci-dessous.","t4456d8":"À transmettre comme <code>search_after<\/code> dans la requête suivante. <code>null<\/code> = plus aucun résultat.","tf2ca84":"Uniquement avec <code>include_aggregations: true<\/code> ; pour chaque champ, une liste de <code>{key, count}<\/code>.","tbc27a4":"Numéro de dossier, référence, numéro d'arrêt ou citation ATF, p.&nbsp;ex. <code>BGE 142 III 1<\/code> ou <code>5A_396/2015<\/code>.","t684c7c":"Langue préférée pour le titre et la mise en évidence (pas un filtre).","t51ee6f":"Tri.","t487f55":"Curseur de pagination.","te4789b":"Période de la date de décision (AAAA-MM-JJ).","t1d705f":"Période de la date de saisie.","t437bfb":"Identifiants de hiérarchie pour canton/tribunal/chambre.","t2813e1":"Fournir aussi les agrégations.","tdc09e2":"Identifiant de document issu d'un résultat de recherche, p.&nbsp;ex. <code>CH_BGE_005_BGE-142-III-1_2016<\/code>.","t50e202":"Langue préférée pour le titre et le résumé. À défaut, le premier champ de langue disponible.","tcb7d81":"(objet)","t7c05c1":"L'objet résultat (champs : voir ci-dessous) avec le <code>text<\/code> intégral. <code>sort<\/code> vaut ici toujours <code>null<\/code>. Si l'identifiant n'existe pas, l'outil répond par une erreur (<code>isError<\/code>) accompagnée d'une indication.","tddcbfd":"Requête en texte intégral facultative pour restreindre l'agrégation.","t9d0638":"Nombre maximal d'entrées.","t862e78":"Liste de <code>{ id, count }<\/code>, par <code>count<\/code> décroissant.","ta40b92":"Identifiant de hiérarchie, p.&nbsp;ex. <code>CH_BGer<\/code>, <code>ZH<\/code>.","tda3d3a":"Nombre de documents sous cet identifiant.","tad0e20":"Les cantons (et <code>CH<\/code> pour la Confédération).","t8e1dc1":"Identifiant de hiérarchie du nœud (utilisable dans le filtre <code>hierarchy<\/code>).","te26291":"Désignations par langue : <code>de<\/code>, <code>fr<\/code>, <code>it<\/code>, <code>en<\/code> (certaines peuvent valoir <code>null<\/code>).","t167e2b":"Nœuds subordonnés de même structure : tribunaux d'un canton, chambres d'un tribunal.","tc70044":"Nom du serveur.","tf8811c":"Version du serveur en cours d'exécution.","t816700":"API de recherche utilisée.","t87c1e3":"Indique si la recherche IA est active.","t6eeb3e":"Modèle d'embedding de la recherche IA.","t70bb02":"Source de l'arborescence.","t39f40a":"Langues prises en charge.","t69425e":"Valeurs admises pour <code>sort<\/code>.","t857217":"Noms des outils.","t8e9b36":"Identifiant de document — utilisable avec <code>fetch_document<\/code>.","t28e6d0":"Titre de la décision.","tb08aeb":"Regeste ou résumé, s'il existe.","t3321bc":"Recherche par mots-clés : extrait avec les occurrences dans <code>&lt;em&gt;<\/code>. Recherche IA : le passage de la décision qui correspond le mieux (peut être vide). <code>fetch_document<\/code> : le texte intégral (pour les décisions très longues, jusqu'à 100'000 caractères, avec alors une remarque ajoutée).","t374f1f":"Désignation du tribunal en clair.","td4e221":"Abréviation du canton, <code>CH<\/code> pour les autorités fédérales.","tfdea69":"Identifiant du tribunal (dérivé de l'identifiant de document).","taba5ec":"Date de la décision, ISO <code>YYYY-MM-DD<\/code>.","t4b9bae":"Date de saisie, ISO <code>YYYY-MM-DD<\/code>.","t20eaee":"Indique si le document original est un PDF.","t692c67":"Page de la décision sur entscheidsuche.ch — pour les citations et les liens.","t5ad80c":"Lien direct vers le document original.","t9f34f7":"URL de la page web d'origine.","t7ceca5":"Longueur du texte intégral indexé, en caractères. Défini uniquement par <code>fetch_document<\/code>.","t7c1f80":"<code>true<\/code> si le texte a été tronqué à 100'000 caractères ; le document complet se trouve alors sous <code>document_url<\/code>.","t108e99":"Recherche par mots-clés uniquement : valeurs de tri du résultat (base pour <code>search_after<\/code>).","td62ceb":"Recherche IA uniquement : similarité entre la requête et le meilleur passage (plus la valeur est élevée, mieux c'est).","t505db6":"Recherche IA avec <code>include_context: true<\/code> uniquement : passage plus large autour de l'extrait.","t71824c":"Point d'accès MCP","t6f5a8e":"Outils disponibles","t72f99a":"Essayer soi-même","t40a994":"Recherche IA ou recherche par mots-clés ?","td040df":"Les méthodes en détail","t4a17dd":"Cas d'utilisation typiques","t236fad":"Intégration dans les clients","tad6c49":"Remarque","t8db47f":"Interface MCP","t5d8bca":"Essayer l'interface dans le navigateur","tdbac71":"Vers le dépôt sur GitHub.","tc0f436":"Interface de test","tdeccaa":"<a href=\"https://entscheidsuche.ch\">entscheidsuche.ch<\/a> — recherche dans les décisions judiciaires suisses","td089ad":"<a href=\"https://github.com/entscheidsuche/entscheidsuche-mcp\">Code source sur GitHub<\/a>","t93140a":"comme <code>keyword_search<\/code>","t8157dc":"Résultat[]","t2404b9":"Résultat","t30e10b":"Nœud[]","t8c692f":"Nœud[]|null"},"it":{"td3a77f":"Ingresso","tdbeb8b":"Uscita","t540294":"Esempio","te93267":"Server MCP per <a href=\"https://entscheidsuche.ch\">entscheidsuche.ch<\/a>. Questa istanza mette a disposizione, tramite un endpoint MCP, la ricerca nelle decisioni giudiziarie e nella giurisprudenza svizzere: tribunali federali e cantonali, autorità amministrative e anche decreti d'accusa. Sono disponibili due tipi di ricerca: la <strong>ricerca IA<\/strong> per significato e la <strong>ricerca per parole chiave<\/strong>.","tc74a50":"All'indirizzo <a href=\"/test\">mcp.entscheidsuche.ch/test<\/a> è disponibile un'interfaccia di prova: tutti gli strumenti con modulo, valori di esempio, comando <code>curl<\/code> e risposta — senza un proprio client MCP.","tec9c8b":"Chi non vuole scegliere usa <code>search<\/code>: lo strumento esegue la ricerca IA e passa da solo alla ricerca per parole chiave quando la richiesta contiene un numero di incarto, un'espressione tra virgolette, operatori booleani o caratteri jolly.","t679b36":"Parametri di ingresso e di uscita di ogni metodo. Tutti i parametri con un valore predefinito sono facoltativi; vanno indicati solo quelli contrassegnati con <span class=\"req\">obbligatorio<\/span>. Gli esempi sono risposte reali, abbreviate, di questo server.","t9098a8":"La ricerca per tutti i casi. Descrivete la questione giuridica o i fatti in linguaggio naturale — lo strumento esegue la ricerca IA (come <code>semantic_search<\/code>). Passa automaticamente alla ricerca per parole chiave (come <code>keyword_search<\/code>) quando","t8a3ee8":"Il campo <code>search_mode<\/code> indica quale ricerca è stata eseguita; in caso di cambio, <code>note<\/code> ne indica il motivo.","tee8e97":"Come <code>semantic_search<\/code> o <code>keyword_search<\/code>. Inoltre <code>results<\/code> contiene un elenco compatto <code>{id, title, url}<\/code> delle stesse decisioni — è il formato che ChatGPT si aspetta da uno strumento chiamato <code>search<\/code>.","t5f9fc1":"Non cerca parole, ma il significato — lo stesso procedimento del pulsante «Ricercare IA» su entscheidsuche.ch. La richiesta viene convertita in un vettore di embedding e confrontata con i passaggi di tutte le decisioni. Funziona al meglio con una o più frasi complete; la lingua della richiesta è irrilevante.","tedf0a0":"Vengono valutati i 100 passaggi più pertinenti; più passaggi della stessa decisione danno un solo risultato. L'elenco è ordinato per vicinanza di significato (<code>score<\/code>); non ci sono né paginazione né altri ordinamenti. <code>hierarchy<\/code> e la data della decisione limitano già la scelta dei passaggi; i filtri per lingua e per data di acquisizione si applicano in seguito (in tal caso vengono valutati 300 passaggi).","tc9877d":"<strong>Estratto:<\/strong> <code>text<\/code> contiene il passaggio della decisione che corrisponde meglio. Se i sottopassaggi di una decisione non sono ancora indicizzati, il server avvia l'indicizzazione e attende al massimo 20 secondi; se a quel punto l'estratto non è disponibile, <code>text<\/code> resta vuoto.","t98e959":"Ricerca per parole chiave in tutte le decisioni (fino alla versione 0.1 questo strumento si chiamava <code>search<\/code>). <code>query<\/code> comprende la sintassi Lucene: <code>\"…\"<\/code> per le espressioni, <code>AND<\/code>/<code>OR<\/code>/<code>NOT<\/code>, caratteri jolly <code>*<\/code> e <code>?<\/code>. L'operatore predefinito tra i termini è <code>AND<\/code>; i filtri sono combinati con <code>AND<\/code>.","t27c585":"Se la richiesta non è una sintassi valida (p.&nbsp;es. <code>5A_396/2015<\/code> senza virgolette o una parentesi aperta), viene eseguita come sequenza di normali termini di ricerca; <code>note<\/code> lo segnala. <code>OR<\/code> subito dopo l'indicazione di un articolo (<code>Art. 271 OR<\/code>) è inteso come abbreviazione tedesca del Codice delle obbligazioni, non come operatore.","t7b27e9":"Mette automaticamente <code>case_number<\/code> tra virgolette e lo cerca come espressione esatta. Per il resto identico a <code>keyword_search<\/code> — stessi filtri, stessa struttura della risposta.","t4e9a42":"Identico a <code>keyword_search<\/code>: <code>total<\/code>, <code>hits<\/code>, <code>next_cursor<\/code>, <code>aggregations<\/code>.","t6b1447":"Fornisce una singola decisione in base al suo identificativo di documento — a differenza della ricerca, con il testo <strong>integrale<\/strong> in <code>text<\/code> (non solo un estratto). <code>fetch<\/code> è un alias con comportamento identico; ChatGPT si aspetta uno strumento con questo nome per Deep Research.","tecc610":"<strong>Decisioni molto lunghe:<\/strong> il testo indicizzato è limitato a 100'000 caratteri. Se è troncato, <code>text_truncated<\/code> vale <code>true<\/code>, <code>content_length<\/code> indica il numero di caratteri e alla fine di <code>text<\/code> viene aggiunta un'avvertenza nella lingua della decisione (in subordine in inglese) con il link al documento completo (<code>document_url<\/code>).","tb253d6":"Fornisce gli identificativi di gerarchia di cantoni, tribunali e camere con il numero di decisioni. Gli identificativi si usano nel filtro <code>hierarchy<\/code> degli strumenti di ricerca. Con <code>query<\/code> i numeri si riferiscono ai risultati di questa richiesta.","t665375":"Albero di tutti i cantoni, tribunali e camere con le loro denominazioni. A differenza di <code>list_hierarchy<\/code>, senza numero di decisioni, ma con i nomi in tedesco, francese e italiano. I valori <code>id<\/code> si possono usare nel filtro <code>hierarchy<\/code>. La risposta è voluminosa (circa 160'000 caratteri).","t62b2c8":"Nessun parametro.","tbdbe65":"Endpoint di diagnostica: versione del server e URL a monte configurati. Utile per verificare quale versione è effettivamente in esecuzione.","te59e73":"Questa struttura è fornita dagli strumenti di ricerca (<code>search<\/code>, <code>semantic_search<\/code>, <code>keyword_search<\/code>, <code>search_by_case_number<\/code>) in <code>hits[]<\/code> e da <code>fetch_document<\/code> / <code>fetch<\/code> come risposta.","t66d9a9":"Il server funziona senza autenticazione. Serve un client che parli il Model Context Protocol tramite Streamable HTTP. L'abbonamento necessario dipende dal client — le sezioni seguenti lo riassumono per ciascun client.","tcd3ea6":"<strong>Avvertenza:<\/strong> non tutte le istruzioni seguenti sono state provate in pratica; alcune si basano sulla documentazione ufficiale dei rispettivi fornitori. MCP è un protocollo giovane. Elenchi di strumenti, tariffe e percorsi di configurazione cambiano regolarmente, talvolta con breve preavviso, presso Anthropic, OpenAI e altri. In caso di divergenze fa stato la documentazione ufficiale del client — e ci fa piacere ricevere una breve segnalazione se qualcosa non corrisponde più.","t2d9c59":"Negli account gratuiti i connettori personalizzati non sono disponibili. Gli spazi di lavoro Team ed Enterprise possono richiedere che l'amministratore abiliti il connettore in modo centralizzato. Documentazione: <a href=\"https://support.claude.com/en/articles/11175166-getting-started-with-custom-connectors-using-remote-mcp\">support.claude.com<\/a>.","t3fa16b":"Claude Desktop parla stdio. Con il bridge <code>mcp-remote<\/code> il server HTTP funziona comunque:","tc706f4":"Percorso del file di configurazione:<br> macOS: <code>~/Library/Application Support/Claude/claude_desktop_config.json<\/code><br> Windows: <code>%APPDATA%\\Claude\\claude_desktop_config.json<\/code><br> Chiudere poi completamente Claude Desktop e riavviarlo.","t3a924e":"Verificare lo stato con <code>claude mcp list<\/code>, rimuovere con <code>claude mcp remove entscheidsuche<\/code>. Documentazione: <a href=\"https://docs.claude.com/en/docs/claude-code/mcp\">docs.claude.com<\/a>.","te84676":"Documentazione: <a href=\"https://docs.claude.com/en/docs/agents-and-tools/mcp-connector\">docs.claude.com<\/a>.","t340566":"Avvertenza: la modalità Deep Research di OpenAI richiede strumenti con i nomi <code>search<\/code> e <code>fetch<\/code>. Il server li mette a disposizione entrambi. Documentazione: <a href=\"https://platform.openai.com/docs/mcp\">platform.openai.com<\/a>.","t605fae":"I connettori MCP personalizzati sono previsti nei piani a pagamento, di regola Perplexity Pro, Enterprise o Business. Disponibilità e percorsi dell'interfaccia cambiano presso Perplexity più spesso che presso altri fornitori; questa voce non è stata provata da noi. Documentazione: <a href=\"https://www.perplexity.ai/help-center\">perplexity.ai/help-center<\/a>.","tbea324":"Localmente nello spazio di lavoro, in <code>.vscode/mcp.json<\/code>:","tbb97a2":"Nella chat scegliere la modalità <em>«Agent»<\/em>, fare clic sull'icona degli strumenti e attivare gli strumenti. Documentazione: <a href=\"https://code.visualstudio.com/docs/copilot/customization/mcp-servers\">code.visualstudio.com<\/a>.","t6ef052":"Interfaccia: <strong>Settings → MCP → Add new MCP server<\/strong>. Oppure in <code>~/.cursor/mcp.json<\/code>:","tf09b42":"Cline, Continue.dev, Zed, 5ire, goose, LibreChat, Open WebUI, LobeChat — ogni volta una voce <em>Custom MCP server<\/em> con l'URL <code>https://mcp.entscheidsuche.ch/mcp<\/code>. Con questi strumenti si paga soltanto il modello linguistico scelto.","tc8a9be":"Nell'interfaccia del browser: trasporto <em>HTTP / Streamable HTTP<\/em>, URL <code>https://mcp.entscheidsuche.ch/mcp<\/code>, autenticazione vuota. Ideale per provare senza alcun account.","t7273b7":"Istruzioni più dettagliate, con tutti i requisiti, si trovano in <a href=\"https://github.com/entscheidsuche/entscheidsuche-mcp/blob/main/docs/CLIENTS.md\">docs/CLIENTS.md<\/a> nel repository (in tedesco).","t01853f":"L'interfaccia MCP vera e propria si trova sotto <code>/mcp<\/code>. In questa pagina iniziale trovate soltanto la documentazione breve e il punto di accesso per i client MCP.","t35004b":"<code>search<\/code> — ricerca standard: questione giuridica o fatti in linguaggio naturale (ricerca IA); ricerca per parole chiave automatica per numeri di incarto, espressioni e richieste booleane","t063d3f":"<code>semantic_search<\/code> — ricerca IA per significato, indipendente dalla lingua, con il passaggio più pertinente di ogni decisione","teddca1":"<code>keyword_search<\/code> — ricerca per parole chiave nella giurisprudenza svizzera, con filtri, ordinamento e paginazione","t6883c9":"<code>search_by_case_number<\/code> per la ricerca esatta di numeri di incarto, riferimenti e citazioni DTF","t477f9e":"<code>fetch_document<\/code> (alias <code>fetch<\/code>) per ottenere una singola decisione con il testo integrale","t9638d1":"<code>list_hierarchy<\/code> per gli identificativi di gerarchia e il numero di decisioni","t8f1c6a":"<code>list_facets<\/code> per l'albero cantone / tribunale / camera con le denominazioni","t70f93e":"<code>server_info<\/code> per le informazioni sul server e sulla versione","tfa762a":"<code>sort<\/code> non è <code>relevance<\/code>, oppure <code>search_after<\/code> o <code>include_aggregations<\/code> è impostato,","t4de745":"la richiesta è vuota o vale <code>*<\/code>,","t615315":"la richiesta è, nel suo insieme, un numero di incarto o una citazione (<code>5A_396/2015<\/code>, <code>BGE 142 III 1<\/code>, <code>ZB.2021.48<\/code>) — viene allora cercata come espressione esatta,","t54e5ee":"la richiesta contiene un'espressione tra virgolette, operatori booleani (<code>AND<\/code>, <code>OR<\/code>, <code>NOT<\/code>) tra due termini o caratteri jolly. <code>OR<\/code> subito dopo l'indicazione di un articolo (<code>Art. 271 OR<\/code>) è inteso come Codice delle obbligazioni.","tafafe9":"Porre una questione giuridica con parole proprie e trovare le decisioni pertinenti insieme al passaggio determinante.","t1fb117":"Cercare decisioni con parole chiave.","tf3a11c":"Consultare direttamente numeri di incarto come <code>BGE 142 III 1<\/code> o <code>5A_396/2015<\/code>.","te6cdcf":"Incaricate la vostra IA di verificare i riferimenti in un documento.","t3dafdb":"Fate riassumere le decisioni dalla vostra IA.","t534379":"claude.ai → <strong>Settings → Connectors<\/strong> (in alcuni piani <em>Integrations<\/em>).","t2ffec8":"Scegliere <em>«Add custom connector»<\/em>.","teintra":"Inserire:","t5dd03f":"Transport: <em>Streamable HTTP<\/em> (non <em>SSE<\/em> &mdash; SSE è solo una soluzione di ripiego obsoleta).","tbf4230":"Attivare il connettore per ogni chat (icona degli strumenti sotto il campo di immissione).","t14dcb2":"chatgpt.com → <strong>Settings → Connectors<\/strong> → <em>«Create»<\/em>.","t84fa55":"MCP Server URL: <code>https://mcp.entscheidsuche.ch/mcp<\/code>, Auth = <em>No authentication<\/em>.","t585bd9":"Se compare un campo per il trasporto: scegliere <em>Streamable HTTP<\/em> (non <em>SSE<\/em>).","tab6113":"Attivare il connettore nella chat (menu degli strumenti) oppure selezionarlo per un'esecuzione Deep Research.","t1f33ad":"perplexity.ai → <strong>Settings → Connectors<\/strong> (oppure <em>«Integrations»<\/em>; nello spazio Enterprise sotto <em>«Workspace settings»<\/em>).","te994cc":"Scegliere <em>«Add custom connector» / «Add MCP server»<\/em>.","tdde434":"Attivare il connettore nella chat tramite l'icona degli strumenti o dei connettori.","t7332b6":"search <span class=\"badge\">ricerca standard<\/span>","t2a9ad1":"semantic_search <span class=\"badge\">ricerca IA per significato<\/span>","t443e17":"keyword_search <span class=\"badge\">ricerca per parole chiave<\/span>","t71bdb3":"search_by_case_number <span class=\"badge\">numero di incarto / citazione DTF<\/span>","t44ae6c":"fetch_document / fetch <span class=\"badge\">singola decisione con testo integrale<\/span>","tf5d59f":"list_hierarchy <span class=\"badge\">identificativi di gerarchia con numero di decisioni<\/span>","t72501a":"list_facets <span class=\"badge\">cantone / tribunale / camera con nomi<\/span>","tb35ee5":"server_info <span class=\"badge\">versione ed endpoint<\/span>","t44fbee":"Oggetto risultato <span class=\"badge\">campi comuni<\/span>","t472e01":"Claude.ai (web, mobile, desktop) <span class=\"badge\">Pro / Max / Team / Enterprise<\/span>","t194fd4":"Claude Desktop <span class=\"badge\">app gratuita · richiede Node.js<\/span>","t656777":"Claude Code (CLI) <span class=\"badge\">crediti API o Pro/Max<\/span>","t272580":"API Claude (codice proprio) <span class=\"badge\">account API Anthropic<\/span>","t4a7a22":"Perplexity <span class=\"badge\">Pro / Enterprise · disponibilità variabile<\/span>","t16995c":"VS Code con GitHub Copilot <span class=\"badge\">Copilot Pro o simile<\/span>","t5b8567":"Cursor <span class=\"badge\">possibile gratuitamente<\/span>","t3eb0d6":"Altri client open source <span class=\"badge\">gratuito<\/span>","t029964":"MCP Inspector (per provare) <span class=\"badge\">gratuito · Node 18+<\/span>","tf78146":"Ricerca IA <code>semantic_search<\/code>","t984afe":"Ricerca per parole chiave <code>keyword_search<\/code>","tf699f2":"Parametro","tedcaf9":"Tipo","t808d7d":"Predefinito","tb3c8de":"Descrizione","tdaa359":"Campo","ta96c98":"Cerca","t86a9dd":"il significato","tf84d1b":"le parole","t5f5c08":"Richiesta adatta","t46c2ba":"questione giuridica o fatti in frasi complete","tc68837":"termini, espressioni, articoli, nomi","t3d9f5c":"Lingua","t95b2c5":"indipendente dalla lingua: una domanda in tedesco trova anche decisioni in francese e in italiano","t23d5b5":"trova solo le parole inserite","ta1aa0a":"Ordine","t4ee17a":"vicinanza di significato","ta20f57":"pertinenza, data della decisione o data di acquisizione","t4e3edf":"Estensione","t4f0d07":"decisioni tra i 100 passaggi più pertinenti, senza paginazione","t9c6c3c":"tutti i risultati, paginazione","t09ce89":"Estratto","t15cd15":"passaggio più pertinente","t52dd9a":"occorrenze, evidenziate","t67621e":"Questione giuridica o fatti in linguaggio naturale (in qualsiasi lingua), oppure numero di incarto / citazione.","td5e13b":"Lingua preferita per titolo e riassunto. <strong>Non è un filtro<\/strong> — per questo usare <code>language_filter<\/code>.","te3a931":"Numero di decisioni (ricerca IA: al massimo 50).","t25e694":"Data della decisione dal / al (AAAA-MM-GG, estremi inclusi).","tf6b11a":"Data di acquisizione dal / al.","t70dd5d":"Identificativi di gerarchia (cantone/tribunale/camera). Più valori sono combinati con OR.","t36c74a":"Filtro secondo la lingua o le lingue del documento.","t49505b":"Solo ricerca IA: fornire anche il passaggio più ampio attorno all'estratto (campo <code>context<\/code>).","t6c87a0":"Solo ricerca per parole chiave; il loro uso fa passare alla ricerca per parole chiave.","tc9602e":"<span class=\"req\">obbligatorio<\/span>","te02ef2":"Questione giuridica o descrizione dei fatti, possibilmente in frasi complete.","t7f602f":"Lingua preferita per titolo e riassunto. <strong>Non è un filtro<\/strong>.","t2b04df":"Numero di decisioni.","t13cee4":"Fornire anche il passaggio più ampio attorno all'estratto (campo <code>context<\/code>, fino a circa 6000 caratteri per risultato).","t152efa":"Sempre <code>\"semantic\"<\/code>.","t2c2c9b":"Indicazione sul tipo di ricerca.","t63b8c0":"Numero di decisioni tra i passaggi valutati — non il numero di tutte le decisioni pertinenti.","t9971d4":"I risultati, per <code>score<\/code> decrescente — campi: vedi «Oggetto risultato» sotto.","tf12394":"Richiesta a testo integrale. <code>\"*\"<\/code> corrisponde a tutto.","ta78492":"Lingua preferita per titolo ed evidenziazione. <strong>Non è un filtro<\/strong> — per questo usare <code>language_filter<\/code>.","t33b060":"Ordinamento; <code>date<\/code> = data della decisione.","t55aaab":"Risultati per pagina.","t9d0411":"Cursore: <code>next_cursor<\/code> della risposta precedente.","t9278ec":"Data della decisione più remota (AAAA-MM-GG, inclusa).","tfa27e6":"Data della decisione più recente (AAAA-MM-GG, inclusa).","taefdfe":"Data di acquisizione più remota.","t8dc0ae":"Data di acquisizione più recente.","t4dc8fe":"Identificativi di gerarchia (cantone/tribunale/camera) da <code>list_hierarchy<\/code>. Più valori sono combinati con OR.","te8c98f":"Vero filtro secondo la lingua o le lingue del documento.","tbcd715":"Fornire anche le aggregazioni (distribuzioni).","t8a465c":"Sempre <code>\"keyword\"<\/code>.","t31d044":"Indicazione se la richiesta è stata adattata (vedi sopra).","tf8dd42":"Numero totale di risultati (non solo di questa pagina).","tbb7bde":"I risultati di questa pagina — campi: vedi «Oggetto risultato» sotto.","t4456d8":"Da trasmettere come <code>search_after<\/code> nella richiesta successiva. <code>null<\/code> = nessun altro risultato.","tf2ca84":"Solo con <code>include_aggregations: true<\/code>; per ogni campo un elenco di <code>{key, count}<\/code>.","tbc27a4":"Numero di incarto, riferimento, numero della sentenza o citazione DTF, p.&nbsp;es. <code>BGE 142 III 1<\/code> o <code>5A_396/2015<\/code>.","t684c7c":"Lingua preferita per titolo ed evidenziazione (non è un filtro).","t51ee6f":"Ordinamento.","t487f55":"Cursore di paginazione.","te4789b":"Periodo della data della decisione (AAAA-MM-GG).","t1d705f":"Periodo della data di acquisizione.","t437bfb":"Identificativi di gerarchia per cantone/tribunale/camera.","t2813e1":"Fornire anche le aggregazioni.","tdc09e2":"Identificativo di documento da un risultato di ricerca, p.&nbsp;es. <code>CH_BGE_005_BGE-142-III-1_2016<\/code>.","t50e202":"Lingua preferita per titolo e riassunto. In mancanza, il primo campo linguistico disponibile.","tcb7d81":"(oggetto)","t7c05c1":"L'oggetto risultato (campi: vedi sotto) con il <code>text<\/code> integrale. <code>sort<\/code> qui è sempre <code>null<\/code>. Se l'identificativo non esiste, lo strumento risponde con un errore (<code>isError<\/code>) e un'indicazione.","tddcbfd":"Richiesta a testo integrale facoltativa per restringere l'aggregazione.","t9d0638":"Numero massimo di voci.","t862e78":"Elenco di <code>{ id, count }<\/code>, per <code>count<\/code> decrescente.","ta40b92":"Identificativo di gerarchia, p.&nbsp;es. <code>CH_BGer<\/code>, <code>ZH<\/code>.","tda3d3a":"Numero di documenti sotto questo identificativo.","tad0e20":"I cantoni (e <code>CH<\/code> per la Confederazione).","t8e1dc1":"Identificativo di gerarchia del nodo (utilizzabile nel filtro <code>hierarchy<\/code>).","te26291":"Denominazioni per lingua: <code>de<\/code>, <code>fr<\/code>, <code>it<\/code>, <code>en<\/code> (alcune possono valere <code>null<\/code>).","t167e2b":"Nodi subordinati con la stessa struttura: tribunali di un cantone, camere di un tribunale.","tc70044":"Nome del server.","tf8811c":"Versione del server in esecuzione.","t816700":"API di ricerca collegata.","t87c1e3":"Indica se la ricerca IA è attiva.","t6eeb3e":"Modello di embedding della ricerca IA.","t70bb02":"Fonte dell'albero.","t39f40a":"Lingue supportate.","t69425e":"Valori ammessi per <code>sort<\/code>.","t857217":"Nomi degli strumenti.","t8e9b36":"Identificativo di documento — utilizzabile con <code>fetch_document<\/code>.","t28e6d0":"Titolo della decisione.","tb08aeb":"Regesto o riassunto, se presente.","t3321bc":"Ricerca per parole chiave: estratto con le occorrenze in <code>&lt;em&gt;<\/code>. Ricerca IA: il passaggio della decisione che corrisponde meglio (può essere vuoto). <code>fetch_document<\/code>: il testo integrale (per decisioni molto lunghe fino a 100'000 caratteri, in tal caso con un'avvertenza aggiunta).","t374f1f":"Denominazione in chiaro del tribunale.","td4e221":"Sigla del cantone, <code>CH<\/code> per le autorità federali.","tfdea69":"Identificativo del tribunale (derivato dall'identificativo di documento).","taba5ec":"Data della decisione, ISO <code>YYYY-MM-DD<\/code>.","t4b9bae":"Data di acquisizione, ISO <code>YYYY-MM-DD<\/code>.","t20eaee":"Indica se il documento originale è un PDF.","t692c67":"Pagina della decisione su entscheidsuche.ch — per citazioni e link.","t5ad80c":"Link diretto al documento originale.","t9f34f7":"URL della pagina web di origine.","t7ceca5":"Lunghezza del testo integrale indicizzato, in caratteri. Impostato solo da <code>fetch_document<\/code>.","t7c1f80":"<code>true<\/code> se il testo è stato troncato a 100'000 caratteri; il documento completo si trova allora sotto <code>document_url<\/code>.","t108e99":"Solo ricerca per parole chiave: valori di ordinamento del risultato (base per <code>search_after<\/code>).","td62ceb":"Solo ricerca IA: somiglianza tra la richiesta e il passaggio migliore (più alto è meglio).","t505db6":"Solo ricerca IA con <code>include_context: true<\/code>: passaggio più ampio attorno all'estratto.","t71824c":"Endpoint MCP","t6f5a8e":"Strumenti disponibili","t72f99a":"Provare direttamente","t40a994":"Ricerca IA o ricerca per parole chiave?","td040df":"I metodi in dettaglio","t4a17dd":"Casi d'uso tipici","t236fad":"Integrazione nei client","tad6c49":"Avvertenza","t8db47f":"Interfaccia MCP","t5d8bca":"Provare l'interfaccia nel browser","tdbac71":"Al repository su GitHub.","tc0f436":"Interfaccia di prova","tdeccaa":"<a href=\"https://entscheidsuche.ch\">entscheidsuche.ch<\/a> — ricerca nelle decisioni giudiziarie svizzere","td089ad":"<a href=\"https://github.com/entscheidsuche/entscheidsuche-mcp\">Codice sorgente su GitHub<\/a>","t93140a":"come <code>keyword_search<\/code>","t8157dc":"Risultato[]","t2404b9":"Risultato","t30e10b":"Nodo[]","t8c692f":"Nodo[]|null"},"en":{"td3a77f":"Input","tdbeb8b":"Output","t540294":"Example","te93267":"MCP server for <a href=\"https://entscheidsuche.ch\">entscheidsuche.ch<\/a>. This instance provides search in Swiss court decisions and case law through an MCP endpoint: federal and cantonal courts, administrative authorities and also penal orders. Two kinds of search are available: <strong>AI search<\/strong> by meaning and <strong>keyword search<\/strong> by words.","tc74a50":"A test interface is available at <a href=\"/test\">mcp.entscheidsuche.ch/test<\/a>: all tools with a form, example values, <code>curl<\/code> command and response — no MCP client of your own required.","tec9c8b":"If you do not want to choose, use <code>search<\/code>: the tool runs the AI search and switches to keyword search on its own when the query contains a case number, a phrase in quotation marks, Boolean operators or wildcards.","t679b36":"Input and output parameters of each method. All parameters with a default are optional; only those marked <span class=\"req\">required<\/span> must be given. The examples are real, shortened responses of this server.","t9098a8":"The search for every case. Describe the legal question or the facts in natural language — the tool runs the AI search (like <code>semantic_search<\/code>). It switches automatically to keyword search (like <code>keyword_search<\/code>) when","t8a3ee8":"<code>search_mode<\/code> tells you which search ran; if the tool switched, <code>note<\/code> gives the reason.","tee8e97":"Like <code>semantic_search<\/code> or <code>keyword_search<\/code>. In addition, <code>results<\/code> contains a compact list <code>{id, title, url}<\/code> of the same decisions — the format ChatGPT expects from a tool named <code>search<\/code>.","t5f9fc1":"Searches by meaning rather than by words — the same method as the “AI search” button on entscheidsuche.ch. The query is converted into an embedding vector and compared with the passages of all decisions. It works best with one or more full sentences; the language of the query does not matter.","tedf0a0":"The 100 best-matching passages are evaluated; several passages of the same decision count as one hit. The list is ordered by similarity of meaning (<code>score<\/code>); there is no pagination and no other sort order. <code>hierarchy<\/code> and the decision date already restrict which passages are considered; language and scrape-date filters are applied afterwards (300 passages are evaluated in that case).","tc9877d":"<strong>Excerpt:<\/strong> <code>text<\/code> contains the passage of the decision that matches best. If the fine-grained passages of a decision are not indexed yet, the server triggers the indexing and waits at most 20 seconds; if the excerpt is still missing then, <code>text<\/code> stays empty.","t98e959":"Keyword search across all decisions (up to version 0.1 this tool was called <code>search<\/code>). <code>query<\/code> understands Lucene syntax: <code>\"…\"<\/code> for phrases, <code>AND<\/code>/<code>OR<\/code>/<code>NOT<\/code>, wildcards <code>*<\/code> and <code>?<\/code>. The default operator between terms is <code>AND<\/code>; filters are combined with <code>AND<\/code>.","t27c585":"If the query is not valid syntax (e.g. <code>5A_396/2015<\/code> without quotation marks, or an open bracket), it is run as a sequence of plain search terms; <code>note<\/code> says so. <code>OR<\/code> directly after an article number (<code>Art. 271 OR<\/code>) is read as the German abbreviation of the Code of Obligations, not as an operator.","t7b27e9":"Puts <code>case_number<\/code> in quotation marks automatically and searches it as an exact phrase. Otherwise identical to <code>keyword_search<\/code> — same filters, same response structure.","t4e9a42":"Identical to <code>keyword_search<\/code>: <code>total<\/code>, <code>hits<\/code>, <code>next_cursor<\/code>, <code>aggregations<\/code>.","t6b1447":"Returns a single decision by its document ID — unlike the search, with the <strong>complete<\/strong> full text in <code>text<\/code> (not just an excerpt). <code>fetch<\/code> is an alias with identical behaviour; ChatGPT expects a tool of that name for Deep Research.","tecc610":"<strong>Very long decisions:<\/strong> the indexed text is limited to 100,000 characters. If it is cut off, <code>text_truncated<\/code> is set to <code>true<\/code>, <code>content_length<\/code> gives the number of characters, and a note in the language of the decision (English as fallback) with a link to the complete document (<code>document_url<\/code>) is appended to <code>text<\/code>.","tb253d6":"Returns the hierarchy IDs of cantons, courts and chambers with the number of decisions. The IDs are used in the <code>hierarchy<\/code> filter of the search tools. With <code>query<\/code>, the numbers refer to the hits of that query.","t665375":"Tree of all cantons, courts and chambers with their names. Unlike <code>list_hierarchy<\/code> it has no counts, but plain-text names in German, French and Italian. The <code>id<\/code> values can be used in the <code>hierarchy<\/code> filter. The response is large (about 160,000 characters).","t62b2c8":"No parameters.","tbdbe65":"Diagnostic endpoint: version of the server and the configured upstream URLs. Useful for checking which version is actually running.","te59e73":"This structure is returned by the search tools (<code>search<\/code>, <code>semantic_search<\/code>, <code>keyword_search<\/code>, <code>search_by_case_number<\/code>) in <code>hits[]<\/code> and by <code>fetch_document<\/code> / <code>fetch<\/code> as the response.","t66d9a9":"The server works without authentication. What you need is a client that speaks the Model Context Protocol over Streamable HTTP. Which subscription you need depends on the client — the following sections summarise this per client.","tcd3ea6":"<strong>Note:<\/strong> not every one of the following instructions has been tried out in practice; some are based on the official documentation of the respective provider. MCP is a young protocol. Tool lists, plans and configuration paths change regularly, and sometimes at short notice, at Anthropic, OpenAI and others. Where these instructions differ from the client's official documentation, that documentation applies — and we are grateful for a short note if something no longer fits.","t2d9c59":"Custom connectors are not available in free accounts. Team and Enterprise workspaces may require the workspace admin to enable the connector centrally. Docs: <a href=\"https://support.claude.com/en/articles/11175166-getting-started-with-custom-connectors-using-remote-mcp\">support.claude.com<\/a>.","t3fa16b":"Claude Desktop speaks stdio. With the <code>mcp-remote<\/code> bridge the HTTP server works nevertheless:","tc706f4":"Path of the configuration file:<br> macOS: <code>~/Library/Application Support/Claude/claude_desktop_config.json<\/code><br> Windows: <code>%APPDATA%\\Claude\\claude_desktop_config.json<\/code><br> Then quit Claude Desktop completely and start it again.","t3a924e":"Check the status with <code>claude mcp list<\/code>, remove with <code>claude mcp remove entscheidsuche<\/code>. Docs: <a href=\"https://docs.claude.com/en/docs/claude-code/mcp\">docs.claude.com<\/a>.","te84676":"Docs: <a href=\"https://docs.claude.com/en/docs/agents-and-tools/mcp-connector\">docs.claude.com<\/a>.","t340566":"Note: OpenAI's Deep Research mode requires tools named <code>search<\/code> and <code>fetch<\/code>. The server provides both. Docs: <a href=\"https://platform.openai.com/docs/mcp\">platform.openai.com<\/a>.","t605fae":"Custom MCP connectors are intended for the paid plans, typically Perplexity Pro, Enterprise or Business. Availability and UI paths change more often at Perplexity than at other providers; we have not tried this entry ourselves. Docs: <a href=\"https://www.perplexity.ai/help-center\">perplexity.ai/help-center<\/a>.","tbea324":"Per workspace in <code>.vscode/mcp.json<\/code>:","tbb97a2":"In the chat choose <em>“Agent”<\/em> mode, click the tools icon and enable the tools. Docs: <a href=\"https://code.visualstudio.com/docs/copilot/customization/mcp-servers\">code.visualstudio.com<\/a>.","t6ef052":"UI: <strong>Settings → MCP → Add new MCP server<\/strong>. Or in <code>~/.cursor/mcp.json<\/code>:","tf09b42":"Cline, Continue.dev, Zed, 5ire, goose, LibreChat, Open WebUI, LobeChat — in each case a <em>Custom MCP server<\/em> entry with the URL <code>https://mcp.entscheidsuche.ch/mcp<\/code>. With these tools only the language model you choose costs money.","tc8a9be":"In the browser UI: transport <em>HTTP / Streamable HTTP<\/em>, URL <code>https://mcp.entscheidsuche.ch/mcp<\/code>, auth empty. Ideal for trying things out without any account.","t7273b7":"More detailed instructions with all prerequisites are in <a href=\"https://github.com/entscheidsuche/entscheidsuche-mcp/blob/main/docs/CLIENTS.md\">docs/CLIENTS.md<\/a> in the repository (in German).","t01853f":"The MCP interface itself is at <code>/mcp<\/code>. This start page only contains the short documentation and the entry point for MCP clients.","t35004b":"<code>search<\/code> — default search: legal question or facts in natural language (AI search); automatic keyword search for case numbers, phrases and Boolean expressions","t063d3f":"<code>semantic_search<\/code> — AI search by meaning, across languages, with the best-matching passage of each decision","teddca1":"<code>keyword_search<\/code> — keyword search in Swiss case law with filters, sorting and pagination","t6883c9":"<code>search_by_case_number<\/code> for exact lookup of case numbers, docket references and BGE citations","t477f9e":"<code>fetch_document<\/code> (alias <code>fetch<\/code>) for retrieving a single decision with its complete full text","t9638d1":"<code>list_hierarchy<\/code> for hierarchy IDs and decision counts","t8f1c6a":"<code>list_facets<\/code> for the tree canton / court / chamber with names","t70f93e":"<code>server_info<\/code> for server and version information","tfa762a":"<code>sort<\/code> is not <code>relevance<\/code>, or <code>search_after<\/code> or <code>include_aggregations<\/code> is set,","t4de745":"the query is empty or <code>*<\/code>,","t615315":"the query as a whole is a case number or a citation (<code>5A_396/2015<\/code>, <code>BGE 142 III 1<\/code>, <code>ZB.2021.48<\/code>) — it is then searched as an exact phrase,","t54e5ee":"the query contains a phrase in quotation marks, Boolean operators (<code>AND<\/code>, <code>OR<\/code>, <code>NOT<\/code>) between two terms, or wildcards. <code>OR<\/code> directly after an article number (<code>Art. 271 OR<\/code>) is read as the Code of Obligations.","tafafe9":"Ask a legal question in your own words and find matching decisions together with the relevant passage.","t1fb117":"Search decisions by keywords.","tf3a11c":"Look up case numbers such as <code>BGE 142 III 1<\/code> or <code>5A_396/2015<\/code> directly.","te6cdcf":"Instruct your AI to verify the references in a document.","t3dafdb":"Have your AI summarise decisions.","t534379":"claude.ai → <strong>Settings → Connectors<\/strong> (<em>Integrations<\/em> in some plans).","t2ffec8":"Choose <em>“Add custom connector”<\/em>.","teintra":"Enter:","t5dd03f":"Transport: <em>Streamable HTTP<\/em> (not <em>SSE<\/em> &mdash; SSE is only a legacy fallback).","tbf4230":"Enable the connector per chat (tools icon below the input field).","t14dcb2":"chatgpt.com → <strong>Settings → Connectors<\/strong> → <em>“Create”<\/em>.","t84fa55":"MCP Server URL: <code>https://mcp.entscheidsuche.ch/mcp<\/code>, Auth = <em>No authentication<\/em>.","t585bd9":"If a transport field appears: choose <em>Streamable HTTP<\/em> (not <em>SSE<\/em>).","tab6113":"Enable the connector in the chat (tools menu) or tick it for a Deep Research run.","t1f33ad":"perplexity.ai → <strong>Settings → Connectors<\/strong> (or <em>“Integrations”<\/em>; in an Enterprise workspace under <em>“Workspace settings”<\/em>).","te994cc":"Choose <em>“Add custom connector” / “Add MCP server”<\/em>.","tdde434":"Enable the connector in the chat via the tools / connectors icon.","t7332b6":"search <span class=\"badge\">default search<\/span>","t2a9ad1":"semantic_search <span class=\"badge\">AI search by meaning<\/span>","t443e17":"keyword_search <span class=\"badge\">keyword search<\/span>","t71bdb3":"search_by_case_number <span class=\"badge\">case number / BGE citation<\/span>","t44ae6c":"fetch_document / fetch <span class=\"badge\">single decision incl. full text<\/span>","tf5d59f":"list_hierarchy <span class=\"badge\">hierarchy IDs with decision counts<\/span>","t72501a":"list_facets <span class=\"badge\">canton / court / chamber with names<\/span>","tb35ee5":"server_info <span class=\"badge\">version and endpoints<\/span>","t44fbee":"Hit object <span class=\"badge\">common fields<\/span>","t472e01":"Claude.ai (web, mobile, desktop) <span class=\"badge\">Pro / Max / Team / Enterprise<\/span>","t194fd4":"Claude Desktop <span class=\"badge\">app is free · requires Node.js<\/span>","t656777":"Claude Code (CLI) <span class=\"badge\">API credits or Pro/Max<\/span>","t272580":"Claude API (your own code) <span class=\"badge\">Anthropic API account<\/span>","t4a7a22":"Perplexity <span class=\"badge\">Pro / Enterprise · availability changes<\/span>","t16995c":"VS Code with GitHub Copilot <span class=\"badge\">Copilot Pro or similar<\/span>","t5b8567":"Cursor <span class=\"badge\">free tier possible<\/span>","t3eb0d6":"Other open-source clients <span class=\"badge\">free<\/span>","t029964":"MCP Inspector (for testing) <span class=\"badge\">free · Node 18+<\/span>","tf78146":"AI search <code>semantic_search<\/code>","t984afe":"Keyword search <code>keyword_search<\/code>","tf699f2":"Parameter","tedcaf9":"Type","t808d7d":"Default","tb3c8de":"Description","tdaa359":"Field","ta96c98":"Searches by","t86a9dd":"meaning","tf84d1b":"words","t5f5c08":"Suitable query","t46c2ba":"legal question or facts in full sentences","tc68837":"terms, phrases, articles, names","t3d9f5c":"Language","t95b2c5":"across languages: a question in German also finds French and Italian decisions","t23d5b5":"finds only the words entered","ta1aa0a":"Order","t4ee17a":"similarity of meaning","ta20f57":"relevance, decision date or scrape date","t4e3edf":"Scope","t4f0d07":"decisions among the 100 best-matching passages, no pagination","t9c6c3c":"all hits, pagination","t09ce89":"Excerpt","t15cd15":"best-matching passage","t52dd9a":"matches, highlighted","t67621e":"Legal question or facts in natural language (any language), or a case number / citation.","td5e13b":"Preferred language for title and abstract. <strong>Not a filter<\/strong> — use <code>language_filter<\/code> for that.","te3a931":"Number of decisions (AI search: at most 50).","t25e694":"Decision date from / to (YYYY-MM-DD, inclusive).","tf6b11a":"Scrape date from / to.","t70dd5d":"Hierarchy IDs (canton/court/chamber). Several IDs are combined with OR.","t36c74a":"Filter by document language(s).","t49505b":"AI search only: also return the larger section around the excerpt (field <code>context<\/code>).","t6c87a0":"Keyword search only; using them switches to keyword search.","tc9602e":"<span class=\"req\">required<\/span>","te02ef2":"Legal question or description of the facts, preferably in full sentences.","t7f602f":"Preferred language for title and abstract. <strong>Not a filter<\/strong>.","t2b04df":"Number of decisions.","t13cee4":"Also return the larger section around the excerpt (field <code>context<\/code>, up to about 6,000 characters per hit).","t152efa":"Always <code>\"semantic\"<\/code>.","t2c2c9b":"Note on the kind of search.","t63b8c0":"Number of decisions among the evaluated passages — not the number of all relevant decisions.","t9971d4":"The hits, by descending <code>score<\/code> — for the fields see “Hit object” below.","tf12394":"Full-text query. <code>\"*\"<\/code> matches everything.","ta78492":"Preferred language for title and highlighting. <strong>Not a filter<\/strong> — use <code>language_filter<\/code> for that.","t33b060":"Sort order; <code>date<\/code> = decision date.","t55aaab":"Hits per page.","t9d0411":"Cursor: <code>next_cursor<\/code> of the previous response.","t9278ec":"Earliest decision date (YYYY-MM-DD, inclusive).","tfa27e6":"Latest decision date (YYYY-MM-DD, inclusive).","taefdfe":"Earliest scrape date.","t8dc0ae":"Latest scrape date.","t4dc8fe":"Hierarchy IDs (canton/court/chamber) from <code>list_hierarchy<\/code>. Several IDs are combined with OR.","te8c98f":"A real filter by document language(s).","tbcd715":"Also return aggregations (distributions).","t8a465c":"Always <code>\"keyword\"<\/code>.","t31d044":"Note if the query was adjusted (see above).","tf8dd42":"Total number of hits (not just on this page).","tbb7bde":"The hits on this page — for the fields see “Hit object” below.","t4456d8":"Pass it as <code>search_after<\/code> in the next request. <code>null<\/code> = no further hits.","tf2ca84":"Only with <code>include_aggregations: true<\/code>; for each field a list of <code>{key, count}<\/code>.","tbc27a4":"Case number, docket reference, judgment number or BGE citation, e.g. <code>BGE 142 III 1<\/code> or <code>5A_396/2015<\/code>.","t684c7c":"Preferred language for title and highlighting (not a filter).","t51ee6f":"Sort order.","t487f55":"Pagination cursor.","te4789b":"Decision date range (YYYY-MM-DD).","t1d705f":"Scrape date range.","t437bfb":"Hierarchy IDs for canton/court/chamber.","t2813e1":"Also return aggregations.","tdc09e2":"Document ID from a search hit, e.g. <code>CH_BGE_005_BGE-142-III-1_2016<\/code>.","t50e202":"Preferred language for title and abstract. If omitted, the first available language field.","tcb7d81":"(object)","t7c05c1":"The hit object (fields see below) with the complete <code>text<\/code>. <code>sort<\/code> is always <code>null<\/code> here. If the ID does not exist, the tool answers with an error (<code>isError<\/code>) and a hint.","tddcbfd":"Optional full-text query to restrict the aggregation.","t9d0638":"Maximum number of entries.","t862e78":"List of <code>{ id, count }<\/code>, by descending <code>count<\/code>.","ta40b92":"Hierarchy ID, e.g. <code>CH_BGer<\/code>, <code>ZH<\/code>.","tda3d3a":"Number of documents under this ID.","tad0e20":"The cantons (and <code>CH<\/code> for the Confederation).","t8e1dc1":"Hierarchy ID of the node (usable in the <code>hierarchy<\/code> filter).","te26291":"Names per language: <code>de<\/code>, <code>fr<\/code>, <code>it<\/code>, <code>en<\/code> (some may be <code>null<\/code>).","t167e2b":"Child nodes of the same structure: courts of a canton, chambers of a court.","tc70044":"Server name.","tf8811c":"Version of the running server.","t816700":"Connected search API.","t87c1e3":"Whether the AI search is active.","t6eeb3e":"Embedding model of the AI search.","t70bb02":"Source of the court tree.","t39f40a":"Supported languages.","t69425e":"Permitted values for <code>sort<\/code>.","t857217":"Names of the tools.","t8e9b36":"Document ID — can be used with <code>fetch_document<\/code>.","t28e6d0":"Title of the decision.","tb08aeb":"Headnote or summary, if available.","t3321bc":"Keyword search: excerpt with the matches in <code>&lt;em&gt;<\/code>. AI search: the passage of the decision that matches best (may be empty). <code>fetch_document<\/code>: the complete full text (for very long decisions up to 100,000 characters, then with a note appended).","t374f1f":"Plain-text name of the court.","td4e221":"Canton abbreviation, <code>CH<\/code> for federal authorities.","tfdea69":"Court ID (derived from the document ID).","taba5ec":"Decision date, ISO <code>YYYY-MM-DD<\/code>.","t4b9bae":"Date of capture, ISO <code>YYYY-MM-DD<\/code>.","t20eaee":"Whether the original document is a PDF.","t692c67":"Page of the decision on entscheidsuche.ch — for citations and links.","t5ad80c":"Direct link to the original document.","t9f34f7":"URL of the original source web page.","t7ceca5":"Length of the indexed full text in characters. Only set by <code>fetch_document<\/code>.","t7c1f80":"<code>true<\/code> if the text was cut off at 100,000 characters; the complete document is then available at <code>document_url<\/code>.","t108e99":"Keyword search only: sort values of the hit (basis for <code>search_after<\/code>).","td62ceb":"AI search only: similarity between the query and the best passage (higher is better).","t505db6":"AI search with <code>include_context: true<\/code> only: larger section around the excerpt.","t71824c":"MCP endpoint","t6f5a8e":"Available tools","t72f99a":"Try it yourself","t40a994":"AI search or keyword search?","td040df":"The methods in detail","t4a17dd":"Typical use cases","t236fad":"Setting up clients","tad6c49":"Note","t8db47f":"MCP interface","t5d8bca":"Try the interface in your browser","tdbac71":"To the repository on GitHub.","tc0f436":"Test interface","tdeccaa":"<a href=\"https://entscheidsuche.ch\">entscheidsuche.ch<\/a> — search in Swiss court decisions","td089ad":"<a href=\"https://github.com/entscheidsuche/entscheidsuche-mcp\">Source code on GitHub<\/a>","t93140a":"like <code>keyword_search<\/code>","t8157dc":"Hit[]","t2404b9":"Hit","t30e10b":"Node[]","t8c692f":"Node[]|null"}};
+        var TITLES = {
+          de: "entscheidsuche-mcp — MCP-Schnittstelle für Schweizer Gerichtsentscheide",
+          fr: "entscheidsuche-mcp — interface MCP pour les décisions judiciaires suisses",
+          it: "entscheidsuche-mcp — interfaccia MCP per le decisioni giudiziarie svizzere",
+          en: "entscheidsuche-mcp — MCP interface for Swiss court decisions"
+        };
+        // Kommentare in den Beispiel-Codeblöcken
+        var CODE_COMMENTS = {
+          "// Aufruf": { fr: "// Appel", it: "// Chiamata", en: "// Call" },
+          "// Antwort (gekürzt)": { fr: "// Réponse (abrégée)", it: "// Risposta (abbreviata)", en: "// Response (shortened)" },
+          "// Antwort (Auszug)": { fr: "// Réponse (extrait)", it: "// Risposta (estratto)", en: "// Response (excerpt)" },
+          "// Antwort": { fr: "// Réponse", it: "// Risposta", en: "// Response" }
+        };
+        var nodes = Array.prototype.slice.call(document.querySelectorAll("[data-i18n]"));
+        var originals = nodes.map(function (node) { return node.innerHTML; });
+        var codeBlocks = Array.prototype.slice.call(document.querySelectorAll("pre code"));
+        var codeOriginals = codeBlocks.map(function (node) { return node.innerHTML; });
+
+        function pick() {
+          var fromUrl = (location.search.match(/[?&]lang=([a-z]{2})/) || [])[1];
+          var stored = null;
+          try { stored = localStorage.getItem("lang"); } catch (e) { /* Speicher nicht verfügbar */ }
+          var fromBrowser = (navigator.language || "de").slice(0, 2).toLowerCase();
+          var wanted = [fromUrl, stored, fromBrowser];
+          for (var i = 0; i < wanted.length; i++) {
+            if (wanted[i] && LANGS.indexOf(wanted[i]) >= 0) return wanted[i];
+          }
+          return "de";
+        }
+
+        function apply(lang) {
+          var table = I18N[lang] || {};
+          nodes.forEach(function (node, i) {
+            var text = table[node.getAttribute("data-i18n")];
+            node.innerHTML = lang === "de" || text === undefined ? originals[i] : text;
+          });
+          codeBlocks.forEach(function (node, i) {
+            var html = codeOriginals[i];
+            if (lang !== "de") {
+              Object.keys(CODE_COMMENTS).forEach(function (comment) {
+                html = html.split(comment + "\n").join(CODE_COMMENTS[comment][lang] + "\n");
+              });
+            }
+            node.innerHTML = html;
+          });
+          document.documentElement.lang = lang;
+          document.title = TITLES[lang];
+          Array.prototype.forEach.call(document.querySelectorAll(".lang-switch button"), function (button) {
+            button.setAttribute("aria-pressed", String(button.getAttribute("data-lang") === lang));
+          });
+          // Sprache an die Testoberfläche weitergeben
+          Array.prototype.forEach.call(document.querySelectorAll('a[href^="/test"]'), function (link) {
+            link.setAttribute("href", "/test?lang=" + lang);
+          });
+        }
+
+        Array.prototype.forEach.call(document.querySelectorAll(".lang-switch button"), function (button) {
+          button.addEventListener("click", function () {
+            var lang = button.getAttribute("data-lang");
+            try { localStorage.setItem("lang", lang); } catch (e) { /* Speicher nicht verfügbar */ }
+            apply(lang);
+          });
+        });
+        apply(pick());
+      })();
+    </script>
   </body>
 </html>
