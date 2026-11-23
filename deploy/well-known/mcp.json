@@ -1,8 +1,8 @@
 {
   "name": "entscheidsuche",
   "title": "entscheidsuche-mcp",
-  "description": "MCP server for Swiss court decisions and case law provided by entscheidsuche.ch. Full-text search over decisions of the Federal Supreme Court (BGer, BGE) and cantonal courts in German, French and Italian.",
-  "version": "0.1.0",
+  "description": "MCP server for Swiss court decisions and case law provided by entscheidsuche.ch. AI search by meaning (semantic search) and keyword search over decisions of the Federal Supreme Court (BGer, BGE) and cantonal courts in German, French and Italian.",
+  "version": "0.2.0",
   "website_url": "https://entscheidsuche.ch",
   "documentation_url": "https://mcp.entscheidsuche.ch",
   "repository": {
@@ -30,8 +30,18 @@
   "tools": [
     {
       "name": "search",
-      "title": "Search Swiss case law",
-      "description": "Full-text search across Swiss court decisions and case law."
+      "title": "Search Swiss case law (default)",
+      "description": "Default search: AI search by meaning for questions in natural language; switches to keyword search for case numbers, phrases and Boolean queries."
+    },
+    {
+      "name": "semantic_search",
+      "title": "AI search by meaning (semantic search)",
+      "description": "Embedding-based search for legal questions and descriptions of facts, across German, French and Italian decisions."
+    },
+    {
+      "name": "keyword_search",
+      "title": "Keyword search (exact terms)",
+      "description": "Full-text search for exact words, phrases and Boolean expressions with filters, sorting and pagination."
     },
     {
       "name": "search_by_case_number",
@@ -40,22 +50,27 @@
     },
     {
       "name": "fetch_document",
-      "title": "Fetch document",
+      "title": "Fetch decision (full text)",
       "description": "Retrieve a single decision together with its full text."
     },
     {
+      "name": "fetch",
+      "title": "Fetch decision (alias of fetch_document)",
+      "description": "Alias of fetch_document."
+    },
+    {
       "name": "list_hierarchy",
-      "title": "List court hierarchy",
-      "description": "List cantons, courts and chambers with counts."
+      "title": "List courts with decision counts",
+      "description": "Hierarchy IDs of cantons, courts and chambers with decision counts."
     },
     {
       "name": "list_facets",
-      "title": "List facets",
-      "description": "Localized facet tree for courts and jurisdictions."
+      "title": "Court tree with names",
+      "description": "Tree of cantons, courts and chambers with names in German, French and Italian."
     },
     {
       "name": "server_info",
-      "title": "Server information",
+      "title": "Server info",
       "description": "Version and endpoint information for this server."
     }
   ]

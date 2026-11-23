@@ -1,0 +1,518 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>entscheidsuche MCP – Testoberfläche</title>
+<link rel="icon" href="data:,">
+<style>
+  :root {
+    --ink: #3b4151; --muted: #6b7280; --line: #d8dde7; --bg: #fafafa;
+    --tool: #49cc90; --tool-bg: #ecfaf4; --rpc: #61affe; --rpc-bg: #eff7ff;
+    --exec: #4990e2; --err: #f93e3e; --err-bg: #feebeb; --code-bg: #333; --code-ink: #f5f5f5;
+    --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; color: var(--ink); background: var(--bg); font-size: 14px; line-height: 1.5; }
+  .topbar { background: #1b1b1b; color: #fff; padding: 10px 0; }
+  .wrap { max-width: 1180px; margin: 0 auto; padding: 0 20px; }
+  .topbar .wrap { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
+  .brand { font-weight: 700; font-size: 18px; white-space: nowrap; }
+  .brand small { font-weight: 400; color: #9ca3af; margin-left: 6px; font-size: 13px; }
+  .endpoint { flex: 1; display: flex; min-width: 300px; }
+  .endpoint input { flex: 1; border: 2px solid #62a03f; border-right: 0; border-radius: 4px 0 0 4px; padding: 7px 10px; font: 13px var(--mono); min-width: 0; }
+  .endpoint button { background: #62a03f; color: #fff; border: 0; border-radius: 0 4px 4px 0; padding: 0 18px; font-weight: 700; cursor: pointer; }
+  h1 { font-size: 30px; margin: 28px 0 4px; }
+  h1 .ver { font-size: 12px; background: #7d8492; color: #fff; border-radius: 57px; padding: 2px 9px; vertical-align: middle; margin-left: 8px; font-family: var(--mono); }
+  h1 .ver.proto { background: #89bf04; }
+  .lead { color: var(--muted); margin: 0 0 6px; max-width: 900px; }
+  .links a { color: var(--exec); margin-right: 16px; }
+  .status { margin: 14px 0 0; padding: 8px 12px; border-radius: 4px; background: #fff; border: 1px solid var(--line); font-size: 13px; }
+  .status.bad { background: var(--err-bg); border-color: var(--err); }
+  h2 { font-size: 22px; margin: 34px 0 10px; padding-bottom: 8px; border-bottom: 1px solid var(--line); display: flex; align-items: baseline; gap: 10px; }
+  h2 small { font-size: 13px; font-weight: 400; color: var(--muted); }
+  .op { border: 1px solid var(--tool); background: var(--tool-bg); border-radius: 4px; margin: 0 0 12px; box-shadow: 0 0 3px rgba(0,0,0,.12); }
+  .op.rpc { border-color: var(--rpc); background: var(--rpc-bg); }
+  .op > summary { list-style: none; display: flex; align-items: center; gap: 12px; padding: 6px 10px; cursor: pointer; }
+  .op > summary::-webkit-details-marker { display: none; }
+  .badge { background: var(--tool); color: #fff; font-weight: 700; font-size: 13px; border-radius: 3px; min-width: 76px; text-align: center; padding: 6px 0; text-shadow: 0 1px 0 rgba(0,0,0,.1); }
+  .rpc .badge { background: var(--rpc); }
+  .op-name { font: 700 15px var(--mono); }
+  .op-title { color: var(--ink); font-size: 13px; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .chev { color: var(--muted); transition: transform .15s; }
+  .op[open] > summary .chev { transform: rotate(180deg); }
+  .op-body { border-top: 1px solid var(--tool); background: #fff; }
+  .rpc .op-body { border-top-color: var(--rpc); }
+  .desc { padding: 14px 18px; white-space: pre-wrap; font-size: 13.5px; }
+  .bar { background: rgba(255,255,255,.85); box-shadow: 0 1px 2px rgba(0,0,0,.1); padding: 9px 18px; font-weight: 700; display: flex; align-items: center; justify-content: space-between; gap: 10px; border-top: 1px solid #eee; }
+  .bar .ex button { margin-left: 6px; }
+  table.params { width: 100%; border-collapse: collapse; }
+  table.params th { text-align: left; font-size: 12px; padding: 10px 18px 6px; border-bottom: 1px solid var(--line); color: var(--ink); }
+  table.params td { padding: 10px 18px; vertical-align: top; border-bottom: 1px solid #f0f2f5; }
+  td.pname { width: 230px; }
+  .pname b { font: 700 14px var(--mono); }
+  .req { color: var(--err); font-size: 10px; font-weight: 700; vertical-align: super; margin-left: 2px; }
+  .ptype { font: 12px var(--mono); color: var(--muted); display: block; }
+  .pdesc { font-size: 13px; margin-bottom: 6px; }
+  .pdef { font-size: 12px; color: var(--muted); }
+  input[type=text], input[type=number], input[type=date], select, textarea { border: 1px solid #c3c8d1; border-radius: 4px; padding: 7px 9px; font: 13px var(--mono); width: 100%; max-width: 520px; background: #fff; color: var(--ink); }
+  textarea { max-width: none; min-height: 150px; }
+  .checks label { margin-right: 14px; font: 13px var(--mono); }
+  button.btn { border: 2px solid #7d8492; background: transparent; color: var(--ink); border-radius: 4px; padding: 4px 14px; font-weight: 700; font-size: 13px; cursor: pointer; }
+  button.btn.small { padding: 2px 9px; font-size: 12px; font-weight: 600; }
+  .actions { padding: 16px 18px; display: flex; gap: 10px; }
+  button.exec { flex: 1; background: var(--exec); border: 2px solid var(--exec); color: #fff; border-radius: 4px; padding: 9px; font-weight: 700; font-size: 14px; cursor: pointer; }
+  button.exec:disabled { opacity: .6; cursor: progress; }
+  button.clear { flex: 1; background: transparent; border: 2px solid #7d8492; border-radius: 4px; padding: 9px; font-weight: 700; font-size: 14px; cursor: pointer; }
+  .resp { padding: 0 18px 18px; }
+  .resp h4 { font-size: 13px; margin: 16px 0 6px; }
+  pre.code { background: var(--code-bg); color: var(--code-ink); border-radius: 4px; padding: 12px; margin: 0; font: 12.5px/1.45 var(--mono); white-space: pre-wrap; word-break: break-word; max-height: 460px; overflow: auto; position: relative; }
+  .codewrap { position: relative; }
+  .copy { position: absolute; top: 8px; right: 8px; background: #fff; z-index: 1; }
+  .meta { display: flex; gap: 18px; flex-wrap: wrap; font-size: 13px; margin: 14px 0 0; align-items: center; }
+  .code-pill { font: 700 13px var(--mono); padding: 3px 10px; border-radius: 3px; background: #e7f6ef; color: #1d7a52; }
+  .code-pill.bad { background: var(--err-bg); color: #b91c1c; }
+  .tabs { display: flex; gap: 2px; margin: 16px 0 0; border-bottom: 1px solid var(--line); }
+  .tabs button { border: 0; background: transparent; padding: 7px 14px; font-weight: 700; font-size: 13px; cursor: pointer; color: var(--muted); border-bottom: 3px solid transparent; }
+  .tabs button.on { color: var(--ink); border-bottom-color: var(--exec); }
+  .pane { display: none; padding-top: 12px; }
+  .pane.on { display: block; }
+  .note { background: #fff8e1; border-left: 4px solid #f0b429; padding: 8px 12px; font-size: 13px; margin: 0 0 12px; }
+  .errbox { background: var(--err-bg); border-left: 4px solid var(--err); padding: 10px 12px; white-space: pre-wrap; font-size: 13px; }
+  .summary { font-size: 13px; margin: 0 0 10px; }
+  .hit { border: 1px solid var(--line); border-radius: 4px; padding: 10px 12px; margin: 0 0 8px; }
+  .hit a.t { font-weight: 700; color: var(--exec); text-decoration: none; }
+  .hit .m { font-size: 12px; color: var(--muted); margin: 2px 0 6px; font-family: var(--mono); }
+  .hit .x { font-size: 13px; white-space: pre-wrap; max-height: 220px; overflow: auto; }
+  .hit mark { background: #fff2a8; padding: 0 1px; }
+  .hit .none { color: var(--muted); font-style: italic; }
+  details.schema { margin: 0 18px 14px; }
+  details.schema summary { cursor: pointer; font-size: 13px; color: var(--muted); }
+  footer { color: var(--muted); font-size: 12px; margin: 40px 0 30px; }
+</style>
+</head>
+<body>
+<div class="topbar"><div class="wrap">
+  <div class="brand">entscheidsuche MCP<small>Testoberfläche</small></div>
+  <form class="endpoint" id="endpoint-form">
+    <input id="endpoint" type="text" spellcheck="false" aria-label="MCP-Endpunkt">
+    <button type="submit">Laden</button>
+  </form>
+</div></div>
+
+<div class="wrap">
+  <h1><span id="srv-name">entscheidsuche-mcp</span><span class="ver" id="srv-ver">__VERSION__</span><span class="ver proto" id="srv-proto" hidden></span></h1>
+  <p class="lead">Testoberfläche für die MCP-Schnittstelle von entscheidsuche.ch. Die Liste der Tools, ihre Parameter und Beschreibungen werden live über <code>tools/list</code> vom Server geladen – Sie sehen also genau das, was ein KI-Client sieht. Jeder Aufruf geht als JSON-RPC-Request per <code>POST</code> an den oben angegebenen Endpunkt.</p>
+  <p class="links"><a href="/">Dokumentation</a><a href="https://github.com/entscheidsuche/entscheidsuche-mcp">Repository</a><a href="https://entscheidsuche.ch">entscheidsuche.ch</a></p>
+  <div class="status" id="status">Verbinde …</div>
+
+  <h2>Tools <small id="tool-count"></small></h2>
+  <div id="tools"></div>
+
+  <h2>Protokoll <small>JSON-RPC-Methoden des MCP-Transports</small></h2>
+  <div id="rpc"></div>
+
+  <footer>Die Seite sendet Anfragen nur an den angegebenen MCP-Endpunkt und speichert nichts.</footer>
+</div>
+
+<script>
+(function () {
+  "use strict";
+  var PROTOCOL = "2025-06-18";
+  var endpointInput = document.getElementById("endpoint");
+  endpointInput.value = location.origin + "__MCP_PATH__";
+  var rpcId = 0;
+
+  // Beispielwerte je Tool (nur für bekannte Tools; sonst bleibt das Formular leer).
+  var EXAMPLES = {
+    search: [
+      { label: "Rechtsfrage", args: { query: "Darf der Vermieter wegen Eigenbedarf kündigen, wenn seine Tochter einziehen will?", size: 5 } },
+      { label: "Geschäftsnummer", args: { query: "5A_396/2015" } },
+      { label: "Neueste zuerst", args: { query: "Eigenbedarf", sort: "date", size: 5 } }
+    ],
+    semantic_search: [
+      { label: "Rechtsfrage", args: { query: "Haftet der Hundehalter für einen Biss, wenn der Hund angeleint war?", size: 5 } },
+      { label: "Französisch, nur BGer", args: { query: "résiliation du bail pour besoin propre du bailleur", hierarchy: ["CH_BGer"], language_filter: ["fr"], size: 5 } },
+      { label: "Mit Kontext", args: { query: "Missbräuchliche Kündigung während Krankheit", size: 3, include_context: true } }
+    ],
+    keyword_search: [
+      { label: "Phrase", args: { query: "\"dringender Eigenbedarf\"", size: 5 } },
+      { label: "Artikel", args: { query: "Art. 271 OR", size: 5 } },
+      { label: "Filter + Datum", args: { query: "Mietzins", hierarchy: ["ZH_OG"], decision_date_from: "2024-01-01", sort: "date", size: 5 } },
+      { label: "Verteilungen", args: { query: "Eigenbedarf", size: 1, include_aggregations: true } }
+    ],
+    search_by_case_number: [
+      { label: "BGE", args: { case_number: "BGE 142 III 1", size: 3 } },
+      { label: "BGer", args: { case_number: "5A_396/2015", size: 3 } }
+    ],
+    fetch_document: [ { label: "Beispiel", args: { id: "CH_BGer_005_5A-396-2015_2017-06-22" } } ],
+    fetch: [ { label: "Beispiel", args: { id: "CH_BGer_005_5A-396-2015_2017-06-22" } } ],
+    list_hierarchy: [ { label: "Alle", args: {} }, { label: "Zu einer Anfrage", args: { query: "Eigenbedarf", size: 10 } } ]
+  };
+
+  var RPC_METHODS = [
+    { method: "initialize", title: "Sitzung eröffnen, Server-Informationen und Fähigkeiten abfragen",
+      params: { protocolVersion: PROTOCOL, capabilities: {}, clientInfo: { name: "entscheidsuche-test-ui", version: "1" } } },
+    { method: "tools/list", title: "Alle Tools mit Beschreibung, Eingabe- und Ausgabeschema", params: {} },
+    { method: "ping", title: "Erreichbarkeit prüfen", params: null },
+    { method: "resources/list", title: "Ressourcen des Servers", params: {} },
+    { method: "resources/read", title: "Ressource lesen", params: { uri: "mcp://server-card.json" } },
+    { method: "prompts/list", title: "Prompts des Servers", params: {} }
+  ];
+
+  function el(tag, attrs, children) {
+    var node = document.createElement(tag);
+    Object.keys(attrs || {}).forEach(function (key) {
+      if (key === "class") node.className = attrs[key];
+      else if (key === "text") node.textContent = attrs[key];
+      else if (key.slice(0, 2) === "on") node.addEventListener(key.slice(2), attrs[key]);
+      else if (attrs[key] !== false && attrs[key] != null) node.setAttribute(key, attrs[key] === true ? "" : attrs[key]);
+    });
+    (children || []).forEach(function (child) {
+      if (child != null) node.appendChild(typeof child === "string" ? document.createTextNode(child) : child);
+    });
+    return node;
+  }
+
+  function post(body) {
+    var started = performance.now();
+    return fetch(endpointInput.value.trim(), {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "Accept": "application/json, text/event-stream", "MCP-Protocol-Version": PROTOCOL },
+      body: JSON.stringify(body)
+    }).then(function (response) {
+      return response.text().then(function (text) {
+        var ms = Math.round(performance.now() - started);
+        var data = null;
+        var payload = text;
+        // Antwort als Server-Sent Events: die JSON-Nachricht steht in den data:-Zeilen
+        if ((response.headers.get("content-type") || "").indexOf("text/event-stream") === 0) {
+          payload = text.split(/\r?\n/).filter(function (l) { return l.indexOf("data:") === 0; })
+            .map(function (l) { return l.slice(5).trim(); }).join("");
+        }
+        try { data = payload ? JSON.parse(payload) : null; } catch (e) { data = null; }
+        return { status: response.status, ms: ms, bytes: new Blob([text]).size, text: text, data: data,
+                 contentType: response.headers.get("content-type") || "" };
+      });
+    });
+  }
+
+  function request(method, params) {
+    var body = { jsonrpc: "2.0", id: ++rpcId, method: method };
+    if (params != null) body.params = params;
+    return body;
+  }
+
+  function curlFor(body) {
+    var json = JSON.stringify(body).replace(/'/g, "'\\''");
+    return "curl -s -X POST '" + endpointInput.value.trim() + "' \\\n" +
+      "  -H 'Content-Type: application/json' \\\n" +
+      "  -H 'Accept: application/json, text/event-stream' \\\n" +
+      "  -d '" + json + "'";
+  }
+
+  // ---- Schema → Formular -------------------------------------------------
+  function resolve(schema, root) {
+    if (schema && schema.$ref) {
+      var name = schema.$ref.split("/").pop();
+      return resolve(((root.$defs || root.definitions || {})[name]) || {}, root);
+    }
+    return schema || {};
+  }
+
+  // Liefert {type, enum, items, format, nullable} für ein Property-Schema.
+  function describe(schema, root) {
+    schema = resolve(schema, root);
+    var nullable = false;
+    if (schema.anyOf) {
+      var options = schema.anyOf.map(function (s) { return resolve(s, root); });
+      nullable = options.some(function (s) { return s.type === "null"; });
+      var real = options.filter(function (s) { return s.type !== "null"; })[0] || {};
+      var merged = {};
+      Object.keys(real).forEach(function (k) { merged[k] = real[k]; });
+      schema = merged;
+    }
+    var info = { type: schema.type || "any", "enum": schema["enum"], format: schema.format, nullable: nullable,
+                 minimum: schema.minimum, maximum: schema.maximum };
+    if (schema.type === "array") {
+      var items = resolve(schema.items || {}, root);
+      info.items = { type: items.type || "any", "enum": items["enum"] };
+    }
+    return info;
+  }
+
+  function typeLabel(info) {
+    var label = info.type;
+    if (info["enum"]) label = info["enum"].map(function (v) { return JSON.stringify(v); }).join(" | ");
+    if (info.type === "array") label = "array<" + (info.items["enum"] ? info.items["enum"].join(" | ") : info.items.type) + ">";
+    if (info.format) label += " ($" + info.format + ")";
+    if (info.type === "integer" && (info.minimum != null || info.maximum != null)) label += " [" + (info.minimum != null ? info.minimum : "") + "…" + (info.maximum != null ? info.maximum : "") + "]";
+    return label;
+  }
+
+  // Erzeugt das Eingabe-Element; gibt {node, get(), set(value)} zurück.
+  function control(name, info) {
+    var node, get, set;
+    if (info["enum"]) {
+      node = el("select", { name: name }, [el("option", { value: "", text: "–" })].concat(
+        info["enum"].map(function (v) { return el("option", { value: String(v), text: String(v) }); })));
+      get = function () { return node.value === "" ? undefined : node.value; };
+      set = function (v) { node.value = v == null ? "" : String(v); };
+    } else if (info.type === "boolean") {
+      node = el("select", { name: name }, [el("option", { value: "", text: "–" }), el("option", { value: "true", text: "true" }), el("option", { value: "false", text: "false" })]);
+      get = function () { return node.value === "" ? undefined : node.value === "true"; };
+      set = function (v) { node.value = v == null ? "" : String(v); };
+    } else if (info.type === "integer" || info.type === "number") {
+      node = el("input", { type: "number", name: name, min: info.minimum, max: info.maximum });
+      get = function () { return node.value === "" ? undefined : Number(node.value); };
+      set = function (v) { node.value = v == null ? "" : v; };
+    } else if (info.type === "array" && info.items["enum"]) {
+      var boxes = info.items["enum"].map(function (v) {
+        var box = el("input", { type: "checkbox", value: v });
+        return { box: box, label: el("label", {}, [box, " " + v]) };
+      });
+      node = el("div", { "class": "checks" }, boxes.map(function (b) { return b.label; }));
+      get = function () {
+        var values = boxes.filter(function (b) { return b.box.checked; }).map(function (b) { return b.box.value; });
+        return values.length ? values : undefined;
+      };
+      set = function (v) { boxes.forEach(function (b) { b.box.checked = !!v && v.indexOf(b.box.value) >= 0; }); };
+    } else if (info.type === "array" && info.items.type === "string") {
+      node = el("input", { type: "text", name: name, placeholder: "mehrere Werte mit Komma trennen, z. B. CH_BGer, ZH_OG" });
+      get = function () {
+        var values = node.value.split(",").map(function (s) { return s.trim(); }).filter(Boolean);
+        return values.length ? values : undefined;
+      };
+      set = function (v) { node.value = v == null ? "" : v.join(", "); };
+    } else if (info.type === "array" || info.type === "object" || info.type === "any") {
+      node = el("input", { type: "text", name: name, placeholder: "JSON, z. B. [12.5, \"ID\"]" });
+      get = function () {
+        if (node.value.trim() === "") return undefined;
+        try { return JSON.parse(node.value); } catch (e) { throw new Error("Parameter „" + name + "“: kein gültiges JSON"); }
+      };
+      set = function (v) { node.value = v == null ? "" : JSON.stringify(v); };
+    } else {
+      node = el("input", { type: info.format === "date" ? "date" : "text", name: name });
+      get = function () { return node.value === "" ? undefined : node.value; };
+      set = function (v) { node.value = v == null ? "" : v; };
+    }
+    return { node: node, get: get, set: set };
+  }
+
+  // ---- Ergebnis-Darstellung ---------------------------------------------
+  function highlight(text) {
+    // alles maskieren, nur die <em>-Hervorhebungen der Suche wieder zulassen
+    var span = el("span", {});
+    span.textContent = text == null ? "" : String(text);
+    span.innerHTML = span.innerHTML.replace(/&lt;em&gt;/g, "<mark>").replace(/&lt;\/em&gt;/g, "</mark>");
+    return span;
+  }
+
+  function hitCard(hit, index) {
+    var meta = [hit.id, hit.decision_date, hit.court, hit.is_pdf ? "PDF" : null,
+                hit.score != null ? "score " + hit.score : null].filter(Boolean).join(" · ");
+    var title = el("a", { "class": "t", href: hit.url || hit.document_url || "#", target: "_blank", rel: "noopener" }, [highlight((index + 1) + ". " + (hit.title || hit.id))]);
+    var text = (hit.text || "").replace(/[ \t ]*\n\s*/g, "\n").trim();
+    var body = text ? el("div", { "class": "x" }, [highlight(text.length > 1500 ? text.slice(0, 1500) + " …" : text)])
+                    : el("div", { "class": "x none", text: "kein Auszug" });
+    var card = el("div", { "class": "hit" }, [title, el("div", { "class": "m", text: meta }), body]);
+    if (hit.abstract) card.insertBefore(el("div", { "class": "pdesc" }, [highlight(hit.abstract)]), body);
+    if (hit.context) card.appendChild(el("details", {}, [el("summary", { text: "Kontext (" + hit.context.length + " Zeichen)" }), el("div", { "class": "x", text: hit.context })]));
+    return card;
+  }
+
+  function renderResult(result) {
+    var box = el("div", {});
+    if (!result) { box.appendChild(el("div", { "class": "summary", text: "Keine Daten." })); return box; }
+    if (result.isError) {
+      var message = (result.content || []).map(function (c) { return c.text || ""; }).join("\n");
+      box.appendChild(el("div", { "class": "errbox", text: message || "Fehler ohne Meldung" }));
+      return box;
+    }
+    var data = result.structuredContent;
+    if (data && data.result !== undefined && Object.keys(data).length === 1) data = data.result;
+    if (data && Array.isArray(data.hits)) {
+      if (data.note) box.appendChild(el("div", { "class": "note", text: data.note }));
+      box.appendChild(el("div", { "class": "summary", text:
+        "Suchart: " + data.search_mode + " · Treffer gesamt: " + data.total + " · geliefert: " + data.hits.length +
+        (data.next_cursor ? " · next_cursor: " + JSON.stringify(data.next_cursor) : "") }));
+      data.hits.forEach(function (hit, i) { box.appendChild(hitCard(hit, i)); });
+      if (data.aggregations) {
+        box.appendChild(el("details", {}, [el("summary", { text: "Verteilungen (aggregations)" }),
+          el("pre", { "class": "code", text: JSON.stringify(data.aggregations, null, 2) })]));
+      }
+    } else if (data && typeof data.text === "string" && data.id) {
+      box.appendChild(hitCard({ id: data.id, title: data.title, url: data.url, document_url: data.document_url,
+        decision_date: data.decision_date, court: data.court, is_pdf: data.is_pdf, abstract: data.abstract, text: "" }, 0));
+      box.appendChild(el("div", { "class": "summary", text: "Volltext: " + data.text.length + " Zeichen" + (data.text_truncated ? " (abgeschnitten, vollständig unter document_url)" : "") }));
+      box.appendChild(el("pre", { "class": "code", text: data.text.replace(/[ \t ]*\n\s*\n\s*/g, "\n\n").trim() }));
+    } else if (data !== undefined && data !== null) {
+      box.appendChild(el("pre", { "class": "code", text: JSON.stringify(data, null, 2) }));
+    } else {
+      box.appendChild(el("pre", { "class": "code", text: (result.content || []).map(function (c) { return c.text || ""; }).join("\n") }));
+    }
+    return box;
+  }
+
+  function codeBlock(text) {
+    var pre = el("pre", { "class": "code", text: text });
+    var copy = el("button", { "class": "btn small copy", type: "button", text: "Kopieren", onclick: function () {
+      navigator.clipboard.writeText(text).then(function () { copy.textContent = "Kopiert"; setTimeout(function () { copy.textContent = "Kopieren"; }, 1200); });
+    } });
+    return el("div", { "class": "codewrap" }, [copy, pre]);
+  }
+
+  function showResponse(container, body, answer, isTool) {
+    container.innerHTML = "";
+    container.appendChild(el("h4", { text: "curl" })); container.appendChild(codeBlock(curlFor(body)));
+    container.appendChild(el("h4", { text: "Request (JSON-RPC)" })); container.appendChild(codeBlock(JSON.stringify(body, null, 2)));
+    if (!answer) return;
+    var rpcError = answer.data && answer.data.error;
+    var toolError = answer.data && answer.data.result && answer.data.result.isError;
+    var bad = answer.status >= 400 || rpcError || toolError;
+    container.appendChild(el("div", { "class": "meta" }, [
+      el("span", { "class": "code-pill" + (bad ? " bad" : ""), text: "HTTP " + answer.status + (rpcError ? " · JSON-RPC-Fehler " + rpcError.code : toolError ? " · isError" : "") }),
+      el("span", { text: answer.ms + " ms" }),
+      el("span", { text: answer.bytes.toLocaleString("de-CH") + " Bytes" }),
+      el("span", { text: answer.contentType })
+    ]));
+    var panes = [];
+    if (isTool && answer.data && answer.data.result) {
+      panes.push(["Ergebnis", renderResult(answer.data.result)]);
+      if (answer.data.result.structuredContent !== undefined) panes.push(["structuredContent", codeBlock(JSON.stringify(answer.data.result.structuredContent, null, 2))]);
+    }
+    panes.push(["Rohantwort", codeBlock(answer.data ? JSON.stringify(answer.data, null, 2) : answer.text)]);
+    var tabs = el("div", { "class": "tabs" });
+    container.appendChild(tabs);
+    panes.forEach(function (pane, i) {
+      var paneNode = el("div", { "class": "pane" + (i === 0 ? " on" : "") }, [pane[1]]);
+      var button = el("button", { type: "button", "class": i === 0 ? "on" : "", text: pane[0], onclick: function () {
+        Array.prototype.forEach.call(tabs.children, function (b) { b.classList.remove("on"); });
+        Array.prototype.forEach.call(container.querySelectorAll(".pane"), function (p) { p.classList.remove("on"); });
+        button.classList.add("on"); paneNode.classList.add("on");
+      } });
+      tabs.appendChild(button); container.appendChild(paneNode);
+    });
+  }
+
+  function run(button, container, body, isTool) {
+    button.disabled = true; var label = button.textContent; button.textContent = "Läuft …";
+    showResponse(container, body, null, isTool);
+    post(body).then(function (answer) { showResponse(container, body, answer, isTool); })
+      .catch(function (error) { container.appendChild(el("div", { "class": "errbox", text: "Anfrage fehlgeschlagen: " + error.message })); })
+      .then(function () { button.disabled = false; button.textContent = label; });
+  }
+
+  // ---- Tools -------------------------------------------------------------
+  function toolBlock(tool) {
+    var schema = tool.inputSchema || {};
+    var required = schema.required || [];
+    var controls = {};
+    var rows = Object.keys(schema.properties || {}).map(function (name) {
+      var prop = schema.properties[name];
+      var info = describe(prop, schema);
+      var ctl = controls[name] = control(name, info);
+      var isRequired = required.indexOf(name) >= 0;
+      var def = prop["default"];
+      return el("tr", {}, [
+        el("td", { "class": "pname" }, [el("b", { text: name }), isRequired ? el("span", { "class": "req", text: "* required" }) : null, el("span", { "class": "ptype", text: typeLabel(info) })]),
+        el("td", {}, [
+          prop.description ? el("div", { "class": "pdesc", text: prop.description }) : null,
+          ctl.node,
+          def !== undefined && def !== null && def !== "" ? el("div", { "class": "pdef", text: "Default: " + JSON.stringify(def) }) : null
+        ])
+      ]);
+    });
+    var response = el("div", { "class": "resp" });
+    function fill(args) { Object.keys(controls).forEach(function (name) { controls[name].set(args[name]); }); }
+    var examples = (EXAMPLES[tool.name] || []).map(function (example) {
+      return el("button", { "class": "btn small", type: "button", text: example.label, onclick: function () { fill(example.args); } });
+    });
+    var exec = el("button", { "class": "exec", type: "submit", text: "Ausführen" });
+    var form = el("form", { onsubmit: function (event) {
+      event.preventDefault();
+      var args = {};
+      try {
+        Object.keys(controls).forEach(function (name) { var value = controls[name].get(); if (value !== undefined) args[name] = value; });
+      } catch (error) { response.innerHTML = ""; response.appendChild(el("div", { "class": "errbox", text: error.message })); return; }
+      run(exec, response, request("tools/call", { name: tool.name, arguments: args }), true);
+    } }, [
+      el("div", { "class": "bar" }, ["Parameter", el("span", { "class": "ex" }, examples.length ? [el("span", { "class": "pdef", text: "Beispiele:" })].concat(examples) : [])]),
+      rows.length ? el("table", { "class": "params" }, [el("thead", {}, [el("tr", {}, [el("th", { text: "Name" }), el("th", { text: "Beschreibung / Wert" })])]), el("tbody", {}, rows)])
+                  : el("div", { "class": "desc pdef", text: "Keine Parameter." }),
+      el("div", { "class": "actions" }, [exec, el("button", { "class": "clear", type: "button", text: "Leeren", onclick: function () { fill({}); response.innerHTML = ""; } })])
+    ]);
+    var annotations = tool.annotations ? Object.keys(tool.annotations).filter(function (k) { return tool.annotations[k] === true; }).join(", ") : "";
+    return el("details", { "class": "op", id: "tool-" + tool.name }, [
+      el("summary", {}, [el("span", { "class": "badge", text: "TOOL" }), el("span", { "class": "op-name", text: tool.name }), el("span", { "class": "op-title", text: tool.title || "" }), el("span", { "class": "chev", text: "▾" })]),
+      el("div", { "class": "op-body" }, [
+        el("div", { "class": "desc", text: tool.description || "" }),
+        annotations ? el("div", { "class": "desc pdef", style: "padding-top:0", text: "Annotationen: " + annotations }) : null,
+        form,
+        el("div", { "class": "bar", text: "Antwort" }),
+        response,
+        el("details", { "class": "schema" }, [el("summary", { text: "Eingabeschema (inputSchema)" }), el("pre", { "class": "code", text: JSON.stringify(tool.inputSchema, null, 2) })]),
+        tool.outputSchema ? el("details", { "class": "schema" }, [el("summary", { text: "Antwortschema (outputSchema)" }), el("pre", { "class": "code", text: JSON.stringify(tool.outputSchema, null, 2) })]) : null
+      ])
+    ]);
+  }
+
+  function rpcBlock(spec) {
+    var area = el("textarea", { spellcheck: "false" });
+    area.value = spec.params == null ? "" : JSON.stringify(spec.params, null, 2);
+    var response = el("div", { "class": "resp" });
+    var exec = el("button", { "class": "exec", type: "submit", text: "Ausführen" });
+    var form = el("form", { onsubmit: function (event) {
+      event.preventDefault();
+      var params = null;
+      if (area.value.trim() !== "") {
+        try { params = JSON.parse(area.value); } catch (e) { response.innerHTML = ""; response.appendChild(el("div", { "class": "errbox", text: "params: kein gültiges JSON" })); return; }
+      }
+      run(exec, response, request(spec.method, params), false);
+    } }, [
+      el("div", { "class": "bar", text: "params (JSON)" }),
+      el("div", { style: "padding:12px 18px 0" }, [area]),
+      el("div", { "class": "actions" }, [exec])
+    ]);
+    return el("details", { "class": "op rpc" }, [
+      el("summary", {}, [el("span", { "class": "badge", text: "RPC" }), el("span", { "class": "op-name", text: spec.method }), el("span", { "class": "op-title", text: spec.title }), el("span", { "class": "chev", text: "▾" })]),
+      el("div", { "class": "op-body" }, [form, el("div", { "class": "bar", text: "Antwort" }), response])
+    ]);
+  }
+
+  // ---- Laden -------------------------------------------------------------
+  function load() {
+    var status = document.getElementById("status");
+    var toolsBox = document.getElementById("tools");
+    status.className = "status"; status.textContent = "Verbinde mit " + endpointInput.value.trim() + " …";
+    toolsBox.innerHTML = "";
+    post(request("initialize", RPC_METHODS[0].params)).then(function (init) {
+      if (!init.data || !init.data.result) throw new Error("initialize: HTTP " + init.status + " " + init.text.slice(0, 200));
+      var result = init.data.result;
+      document.getElementById("srv-name").textContent = (result.serverInfo && result.serverInfo.name) || "MCP-Server";
+      document.getElementById("srv-ver").textContent = (result.serverInfo && result.serverInfo.version) || "";
+      var proto = document.getElementById("srv-proto"); proto.hidden = false; proto.textContent = "MCP " + result.protocolVersion;
+      return post(request("tools/list", {})).then(function (list) {
+        if (!list.data || !list.data.result) throw new Error("tools/list: HTTP " + list.status);
+        var tools = list.data.result.tools || [];
+        tools.forEach(function (tool) { toolsBox.appendChild(toolBlock(tool)); });
+        document.getElementById("tool-count").textContent = tools.length + " Tools · tools/list: " + list.bytes.toLocaleString("de-CH") + " Bytes";
+        status.textContent = "Verbunden mit " + endpointInput.value.trim() + " · initialize " + init.ms + " ms · tools/list " + list.ms + " ms";
+        var wanted = document.getElementById(location.hash.replace("#", ""));
+        if (wanted && wanted.tagName === "DETAILS") { wanted.open = true; wanted.scrollIntoView(); }
+      });
+    }).catch(function (error) {
+      status.className = "status bad";
+      status.textContent = "Verbindung fehlgeschlagen: " + error.message;
+    });
+  }
+
+  var rpcBox = document.getElementById("rpc");
+  RPC_METHODS.forEach(function (spec) { rpcBox.appendChild(rpcBlock(spec)); });
+  document.getElementById("endpoint-form").addEventListener("submit", function (event) { event.preventDefault(); load(); });
+  load();
+})();
+</script>
+</body>
+</html>

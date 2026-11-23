@@ -3,11 +3,15 @@
 Stellt die Entscheidsuche als MCP-Tools über Streamable HTTP bereit.
 
 Tools:
-    * search           — Volltext-Suche mit Filtern, Sortierung, Paginierung
-    * get_document     — Einzelnes Dokument anhand der ID
-    * list_hierarchy   — Hierarchie-Buckets mit Trefferzahlen
-    * list_facets      — Hierarchischer Facetten-Baum (Kanton/Gericht/Kammer)
-    * server_info      — Endpunkt-Konfiguration und Versionsinfo
+    * search                — Standardsuche: KI-Suche, wechselt bei Geschäftsnummern,
+                              Phrasen, Operatoren u.ä. automatisch zur Stichwortsuche
+    * semantic_search       — KI-Suche nach Bedeutung (Embeddings)
+    * keyword_search        — Stichwortsuche mit Filtern, Sortierung, Paginierung
+    * search_by_case_number — Geschäftsnummern und BGE-Zitate
+    * fetch_document        — Einzelner Entscheid mit Volltext (Alias: fetch)
+    * list_hierarchy        — Hierarchie-IDs mit Trefferzahlen
+    * list_facets           — Baum Kanton/Gericht/Kammer mit Bezeichnungen
+    * server_info           — Endpunkt-Konfiguration und Versionsinfo
 
 Aufruf via:
 
@@ -19,17 +23,20 @@ from __future__ import annotations
 
 import logging
 import os
+import re
 from contextlib import asynccontextmanager
 from datetime import date as date_type
+from pathlib import Path
 from typing import Annotated, Any, AsyncIterator, List, Literal, Optional
 
 from urllib.parse import urlparse
 
 from mcp.server.fastmcp import Context, FastMCP
 from mcp.server.transport_security import TransportSecuritySettings
+from mcp.types import ToolAnnotations
 from pydantic import Field
 from starlette.applications import Starlette
-from starlette.responses import JSONResponse
+from starlette.responses import HTMLResponse, JSONResponse
 from starlette.routing import Mount, Route
 
 from . import __version__
@@ -37,6 +44,7 @@ from .access_log import wrap_if_enabled
 from .statistik import statistik_endpoint
 from .models import (
     DateRange,
+    FacetsResponse,
     HierarchyResponse,
     Language,
     SearchHit,
@@ -44,14 +52,214 @@ from .models import (
     SearchResponse,
     SortOrder,
 )
-from .search import EntscheidsucheClient
+from .search import (
+    DEFAULT_MICRO_CHUNK_WAIT,
+    EntscheidsucheClient,
+    SearchError,
+    protect_statute_or,
+    result_refs,
+)
 
 logger = logging.getLogger(__name__)
 
+# Statische Testoberfläche (wird unter /test ausgeliefert).
+_TEST_PAGE = Path(__file__).parent / "static" / "test.html"
 
-DEFAULT_ES_URL = "https://entscheidsuche.pansoft.de:9200/entscheidsuche.v2-*/_search"
-DEFAULT_FACETS_URL = "https://www.recherche.histoirerurale.ch/Facetten.json"
+
+# Such-API von entscheidsuche.ch (derselbe Proxy, den die Web-Oberfläche
+# verwendet). Alle Endpunkte der Stichwort- und der KI-Suche liegen darunter;
+# jeder lässt sich einzeln per Umgebungsvariable überschreiben.
+DEFAULT_API_BASE = "https://entscheidsuche.ch/_search_KI.php"
+DEFAULT_EMBED_BIG_MODEL = "qwen3-embedding-8b"
+DEFAULT_EMBED_MICRO_MODEL = "qwen3-embedding-0.6b"
+DEFAULT_FACETS_URL = "https://entscheidsuche.ch/docs/Facetten.json"
 DEFAULT_PUBLIC_BASE_URL = "https://mcp.entscheidsuche.ch"
+
+# Höchstzahl Entscheide pro Aufruf der semantischen Suche.
+SEMANTIC_MAX_SIZE = 50
+
+
+def _api_base() -> str:
+    return _env("ENTSCHEIDSUCHE_API_BASE", DEFAULT_API_BASE).rstrip("/")
+
+
+def _endpoints() -> dict[str, str]:
+    """Upstream-Endpunkte aus der Umgebung (mit Defaults unter `_api_base()`)."""
+    base = _api_base()
+    big_model = _env("ENTSCHEIDSUCHE_EMBED_BIG_MODEL", DEFAULT_EMBED_BIG_MODEL)
+    micro_model = _env("ENTSCHEIDSUCHE_EMBED_MICRO_MODEL", DEFAULT_EMBED_MICRO_MODEL)
+    return {
+        "es_url": _env("ENTSCHEIDSUCHE_ES_URL", f"{base}/elasticsearch/_search"),
+        "chunk_search_url": _env(
+            "ENTSCHEIDSUCHE_CHUNK_SEARCH_URL",
+            f"{base}/elasticsearch/embeddings_{big_model}/_search",
+        ),
+        "micro_chunk_search_url": _env(
+            "ENTSCHEIDSUCHE_MICRO_CHUNK_SEARCH_URL",
+            f"{base}/elasticsearch/embeddings_{micro_model}_micro/_search",
+        ),
+        "embed_big_url": _env("ENTSCHEIDSUCHE_EMBED_BIG_URL", f"{base}/embed/big"),
+        "embed_big_model": big_model,
+        "embed_micro_url": _env("ENTSCHEIDSUCHE_EMBED_MICRO_URL", f"{base}/embed/micro"),
+        "embed_micro_model": micro_model,
+        "index_micro_chunk_url": _env(
+            "ENTSCHEIDSUCHE_INDEX_MICRO_CHUNK_URL", f"{base}/indexMicroChunk"
+        ),
+        "facets_url": _env("ENTSCHEIDSUCHE_FACETS_URL", DEFAULT_FACETS_URL),
+    }
+
+
+# (name, title, description) — eine Quelle für Server-Card und `server_info`.
+TOOL_SUMMARY: List[tuple[str, str, str]] = [
+    (
+        "search",
+        "Search Swiss case law (default)",
+        "Default search: AI search by meaning for questions in natural language; "
+        "switches to keyword search for case numbers, phrases and Boolean queries.",
+    ),
+    (
+        "semantic_search",
+        "AI search by meaning (semantic search)",
+        "Embedding-based search for legal questions and descriptions of facts, "
+        "across German, French and Italian decisions.",
+    ),
+    (
+        "keyword_search",
+        "Keyword search (exact terms)",
+        "Full-text search for exact words, phrases and Boolean expressions with "
+        "filters, sorting and pagination.",
+    ),
+    (
+        "search_by_case_number",
+        "Search by case number",
+        "Exact lookup of Swiss case numbers, docket references and BGE citations.",
+    ),
+    (
+        "fetch_document",
+        "Fetch decision (full text)",
+        "Retrieve a single decision together with its full text.",
+    ),
+    (
+        "fetch",
+        "Fetch decision (alias of fetch_document)",
+        "Alias of fetch_document.",
+    ),
+    (
+        "list_hierarchy",
+        "List courts with decision counts",
+        "Hierarchy IDs of cantons, courts and chambers with decision counts.",
+    ),
+    (
+        "list_facets",
+        "Court tree with names",
+        "Tree of cantons, courts and chambers with names in German, French and Italian.",
+    ),
+    (
+        "server_info",
+        "Server info",
+        "Version and endpoint information for this server.",
+    ),
+]
+
+# --- Parameter-Typen, die mehrere Tools gemeinsam haben ----------------------
+LanguageArg = Annotated[
+    Optional[Language],
+    Field(
+        description=(
+            "Preferred language (de, fr, it) for the displayed title and abstract. "
+            "Does NOT filter — use `language_filter` for that."
+        ),
+    ),
+]
+TitleLanguageArg = Annotated[
+    Optional[Language],
+    Field(description="Preferred language (de, fr, it) for title and abstract."),
+]
+SortArg = Annotated[
+    Literal["relevance", "date", "scrapedate"],
+    Field(
+        description=(
+            "Sort order: 'relevance' (default) | 'date' (decision date, newest "
+            "first) | 'scrapedate' (date added to the index, newest first)."
+        ),
+    ),
+]
+KeywordSizeArg = Annotated[
+    int, Field(ge=1, le=100, description="Results per page (1–100).")
+]
+SearchAfterArg = Annotated[
+    Optional[List[Any]],
+    Field(description="Cursor from `next_cursor` of the previous response."),
+]
+DecisionFromArg = Annotated[
+    Optional[date_type],
+    Field(description="Earliest decision date (YYYY-MM-DD, inclusive)."),
+]
+DecisionToArg = Annotated[
+    Optional[date_type],
+    Field(description="Latest decision date (YYYY-MM-DD, inclusive)."),
+]
+ScrapeFromArg = Annotated[
+    Optional[date_type],
+    Field(description="Earliest date the decision was added to the index (YYYY-MM-DD)."),
+]
+ScrapeToArg = Annotated[
+    Optional[date_type],
+    Field(description="Latest date the decision was added to the index (YYYY-MM-DD)."),
+]
+HierarchyArg = Annotated[
+    Optional[List[str]],
+    Field(
+        description=(
+            "Restrict to cantons, courts or chambers by hierarchy ID, e.g. "
+            "['CH_BGer'] or ['ZH_OG', 'BE']. Several IDs are combined with OR."
+        ),
+    ),
+]
+LanguageFilterArg = Annotated[
+    Optional[List[Language]],
+    Field(description="Only decisions written in these languages, e.g. ['fr']."),
+]
+AggregationsArg = Annotated[
+    bool,
+    Field(
+        description=(
+            "Also return distributions of the results by court, language and date."
+        )
+    ),
+]
+IncludeContextArg = Annotated[
+    bool,
+    Field(
+        description=(
+            "AI search only: also return, per hit, the larger section of the "
+            "decision around the matching passage (up to about 6,000 characters "
+            "each, field `context`)."
+        ),
+    ),
+]
+DocumentIdArg = Annotated[
+    str,
+    Field(description="Document ID of a search hit, e.g. 'CH_BGer_005_5A-396-2015_2017-06-22'."),
+]
+
+
+async def _guard(awaitable):
+    """Lässt verständliche `SearchError`-Meldungen durch, verbirgt alles andere.
+
+    Unerwartete Ausnahmen (Programmierfehler, unerwartete Upstream-Antworten)
+    würden sonst mit internen Details beim Client landen.
+    """
+    try:
+        return await awaitable
+    except SearchError:
+        raise
+    except Exception as exc:  # noqa: BLE001
+        logger.exception("Unerwarteter Fehler in einem Tool-Aufruf")
+        raise SearchError(
+            "The request failed because of an internal error of the "
+            "entscheidsuche MCP server. Try again later."
+        ) from exc
 
 
 def _env(name: str, default: str) -> str:
@@ -69,17 +277,35 @@ def _env_bool(name: str, default: bool) -> bool:
 @asynccontextmanager
 async def _lifespan(app: FastMCP) -> AsyncIterator[dict[str, Any]]:
     """Verwaltet den HTTP-Client über die Lebensdauer des Servers."""
-    es_url = _env("ENTSCHEIDSUCHE_ES_URL", DEFAULT_ES_URL)
-    facets_url = _env("ENTSCHEIDSUCHE_FACETS_URL", DEFAULT_FACETS_URL)
+    endpoints = _endpoints()
     timeout = float(_env("HTTP_TIMEOUT", "30"))
     verify_ssl = _env_bool("ENTSCHEIDSUCHE_VERIFY_SSL", True)
+    semantic = _env_bool("ENTSCHEIDSUCHE_SEMANTIC_SEARCH", True)
     client = EntscheidsucheClient(
-        es_url=es_url,
-        facets_url=facets_url,
+        es_url=endpoints["es_url"],
+        facets_url=endpoints["facets_url"],
         timeout=timeout,
         verify_ssl=verify_ssl,
+        chunk_search_url=endpoints["chunk_search_url"] if semantic else None,
+        micro_chunk_search_url=endpoints["micro_chunk_search_url"] if semantic else None,
+        embed_big_url=endpoints["embed_big_url"] if semantic else None,
+        embed_big_model=endpoints["embed_big_model"],
+        embed_micro_url=endpoints["embed_micro_url"] if semantic else None,
+        embed_micro_model=endpoints["embed_micro_model"],
+        index_micro_chunk_url=endpoints["index_micro_chunk_url"] if semantic else None,
+        micro_chunk_wait=float(
+            _env("ENTSCHEIDSUCHE_MICRO_CHUNK_WAIT", str(DEFAULT_MICRO_CHUNK_WAIT))
+        ),
+        # Der Präfix-Filter greift nur beim Such-Endpunkt über alle Indizes;
+        # leer setzen, falls ES_URL bereits auf einen Index-Pattern zeigt und
+        # die Indizes anders heissen.
+        index_prefix=os.environ.get("ENTSCHEIDSUCHE_INDEX_PREFIX", "entscheidsuche.v2-"),
+        view_url=_env("ENTSCHEIDSUCHE_VIEW_URL", "https://entscheidsuche.ch/view/"),
     )
-    logger.info("entscheidsuche-mcp %s — ES=%s", __version__, es_url)
+    logger.info(
+        "entscheidsuche-mcp %s — Suche=%s, KI-Suche=%s",
+        __version__, endpoints["es_url"], "an" if semantic else "aus",
+    )
     try:
         yield {"client": client}
     finally:
@@ -167,7 +393,10 @@ def _server_card_payload() -> dict[str, Any]:
     return {
         "name": "entscheidsuche",
         "title": "entscheidsuche-mcp",
-        "description": "MCP server for Swiss court decisions and case law provided by entscheidsuche.ch.",
+        "description": (
+            "MCP server for Swiss court decisions and case law provided by "
+            "entscheidsuche.ch: AI search by meaning and keyword search."
+        ),
         "version": __version__,
         "beta": True,
         "website_url": "https://entscheidsuche.ch",
@@ -184,36 +413,8 @@ def _server_card_payload() -> dict[str, Any]:
             "prompts": False,
         },
         "tools": [
-            {
-                "name": "search",
-                "title": "Search Swiss case law",
-                "description": "Full-text search across Swiss court decisions and case law.",
-            },
-            {
-                "name": "search_by_case_number",
-                "title": "Search by case number",
-                "description": "Exact lookup of Swiss case numbers, docket references and BGE citations.",
-            },
-            {
-                "name": "fetch_document",
-                "title": "Fetch document",
-                "description": "Retrieve a single decision together with its full text.",
-            },
-            {
-                "name": "list_hierarchy",
-                "title": "List court hierarchy",
-                "description": "List cantons, courts and chambers with counts.",
-            },
-            {
-                "name": "list_facets",
-                "title": "List facets",
-                "description": "Localized facet tree for courts and jurisdictions.",
-            },
-            {
-                "name": "server_info",
-                "title": "Server information",
-                "description": "Version and endpoint information for this server.",
-            },
+            {"name": name, "title": title, "description": description}
+            for name, title, description in TOOL_SUMMARY
         ],
         "resources": [
             {
@@ -307,22 +508,160 @@ def _compat_streamable_http_app(mcp_app, mcp_path: str, json_response_mode: bool
     return app
 
 
+# ---------------------------------------------------------------------------
+# Tool-Beschreibungen (englisch — sie werden von Sprachmodellen gelesen)
+# ---------------------------------------------------------------------------
+
+_READ_ONLY = ToolAnnotations(
+    readOnlyHint=True,
+    destructiveHint=False,
+    idempotentHint=True,
+    openWorldHint=True,
+)
+
+_FILTER_NOTE = (
+    "Filters are combined with AND. Hierarchy IDs (canton / court / chamber, e.g. "
+    "'CH_BGer', 'ZH_OG') are case-sensitive; take them from `list_hierarchy` or "
+    "`list_facets`."
+)
+
+_SEARCH_DESCRIPTION = (
+    "Default search for Swiss court decisions and case law on entscheidsuche.ch "
+    "(Federal Supreme Court BGer/BGE and cantonal courts; German, French, "
+    "Italian). Use this tool unless you need something specific.\n\n"
+    "Describe the legal question or the facts in natural language, in any "
+    "language — the search works by meaning (AI embedding search, same as "
+    "`semantic_search`) and also finds decisions that use different words or "
+    "are written in another language. Each hit comes with the passage of the "
+    "decision that best matches the query.\n\n"
+    "The tool switches to exact keyword search (same as `keyword_search`) "
+    "automatically when the query is a case number or citation (e.g. "
+    "'5A_396/2015', 'BGE 142 III 1'), contains a quoted phrase, Boolean "
+    "operators or wildcards, is empty or '*', or when `sort`, `search_after` "
+    "or `include_aggregations` is used. The response field `search_mode` says "
+    "which search ran.\n\n"
+    "Read the full text of a hit with `fetch` (or `fetch_document`), passing "
+    "the hit's `id`. " + _FILTER_NOTE
+)
+
+_SEMANTIC_DESCRIPTION = (
+    "AI search by meaning (semantic / embedding search) across Swiss court "
+    "decisions on entscheidsuche.ch. Best for legal questions, descriptions of "
+    "facts and concepts: write one or more full sentences instead of keywords, "
+    "e.g. 'Can a landlord terminate the lease because his daughter wants to "
+    "move in?'. Works across languages: a German query also finds French and "
+    "Italian decisions.\n\n"
+    "How it works: the query is compared with the passages of all decisions; "
+    "the 100 best-matching passages are determined and grouped by decision. "
+    "Results are ranked by similarity (`score`); `text` contains the best "
+    "matching passage of each decision. There is no pagination, no other sort "
+    "order and no Boolean syntax — use `keyword_search` for exact terms, "
+    "`search_by_case_number` for case numbers.\n\n" + _FILTER_NOTE
+)
+
+_KEYWORD_DESCRIPTION = (
+    "Exact keyword (full-text) search across Swiss court decisions on "
+    "entscheidsuche.ch. Finds decisions that contain the given words. Use it "
+    "for specific terms, statute articles, names, quoted phrases, complete "
+    "result lists, sorting by date and pagination. For legal questions in "
+    "natural language prefer `semantic_search`.\n\n"
+    "Search syntax (Lucene query string):\n"
+    "  - All terms must occur (default operator AND).\n"
+    "  - Phrase: \"dringender Eigenbedarf\" (double quotes).\n"
+    "  - Boolean operators in capitals between terms: AND, OR, NOT.\n"
+    "  - Wildcards: * and ?  —  '*' alone matches every decision.\n"
+    "  - Statute citations work as written: Art. 271 OR, Art. 8 ZGB.\n"
+    "  - Put case numbers in quotes (\"5A_396/2015\") or use "
+    "`search_by_case_number`.\n"
+    "If a query is not valid syntax it is searched as plain terms and the "
+    "response says so in `note`.\n\n"
+    "`text` contains a snippet with the matched terms in <em>…</em>. "
+    + _FILTER_NOTE
+    + "\n\nPagination: pass `next_cursor` of the response as `search_after` in "
+    "the next call (same query, same sort)."
+)
+
+_FETCH_DESCRIPTION = (
+    "Fetch one Swiss court decision by its document ID and return its full "
+    "text together with title, court, date and links. Use the `id` of a hit "
+    "returned by one of the search tools. For very long decisions the text is "
+    "capped at 100,000 characters; if `text_truncated` is true, the complete "
+    "document is available at `document_url`."
+)
+
+# Geschäftsnummern / Zitate, die als ganze Anfrage auf die Stichwortsuche gehen.
+_CASE_NUMBER_RES = (
+    # BGE 142 III 1, ATF 142 III 1, DTF 142 III 1
+    re.compile(r"^(?:BGE|ATF|DTF)\s+\d{1,3}\s+[IVX]{1,3}[a-z]?\s+\d{1,4}$", re.I),
+    # 5A_396/2015, 4A.123/2007, 1C_1/2024
+    re.compile(r"^\d{1,2}[A-Z]{1,2}[_.]\d{1,4}/\d{4}$", re.I),
+    # allgemein: ein einzelnes «Wort» mit Ziffern und typischen Trennzeichen,
+    # z.B. ZB.2021.48, NG240011, VB.2015.00490, B-6350/2015, LE260019
+    re.compile(r"^(?=\S*\d)(?=\S*[A-Za-z])[A-Za-z0-9]+(?:[._/\-][A-Za-z0-9]+)+$"),
+    # Geschäftsnummern ohne Trennzeichen: Buchstaben + mindestens vier Ziffern
+    re.compile(r"^[A-Za-z]{1,4}\d{4,}$"),
+)
+_BOOLEAN_BETWEEN_TERMS_RE = re.compile(r"\S\s+(?:AND|OR|NOT)\s+\S")
+# `*` direkt an einem Wort, `?` nur IM Wort — ein Fragezeichen am Satzende ist
+# Interpunktion, kein Platzhalter.
+_WILDCARD_RE = re.compile(r"\w\*|\*\w|\w\?\w")
+
+
+def keyword_reason(
+    query: str,
+    sort: str = "relevance",
+    search_after: Optional[List[Any]] = None,
+    include_aggregations: bool = False,
+) -> Optional[str]:
+    """Entscheidet für das `search`-Tool, ob die Stichwortsuche zu nehmen ist.
+
+    Rückgabe: Begründung (für `note`), wenn ja; sonst None (→ semantische Suche).
+    Reihenfolge und Regeln sind in docs/API.md dokumentiert.
+    """
+    q = (query or "").strip()
+    if sort != "relevance" or search_after is not None or include_aggregations:
+        return "`sort`, `search_after` or `include_aggregations` was used"
+    if not q or q == "*":
+        return "the query is empty or '*'"
+    if any(rx.match(q) for rx in _CASE_NUMBER_RES):
+        return "the query looks like a case number or citation"
+    if '"' in q:
+        return "the query contains a quoted phrase"
+    statute_safe, _ = protect_statute_or(q)
+    if _BOOLEAN_BETWEEN_TERMS_RE.search(statute_safe.replace('"OR"', "")):
+        return "the query contains Boolean operators"
+    if _WILDCARD_RE.search(q):
+        return "the query contains wildcards"
+    return None
+
+
 def build_server() -> FastMCP:
     """Erzeugt die FastMCP-Instanz mit allen registrierten Tools."""
     mcp = FastMCP(
         name="entscheidsuche",
         instructions=(
-            "MCP-Server für entscheidsuche.ch — eine Suchmaschine für Schweizer "
-            "Gerichtsentscheide, Gerichtsurteile, Rechtsprechung und Swiss case law. "
-            "Die Tools helfen bei Entscheiden des Bundesgerichts (BGer, BGE) sowie "
-            "kantonalen Gerichten, Obergerichten, Verwaltungsgerichten und weiteren "
-            "Schweizer Gerichten. Unterstützt Volltextsuche, Geschäftsnummern- bzw. "
-            "Urteilsnummern-Suche, Volltext-Abruf einzelner Entscheide, Hierarchien "
-            "für Kantone und Gerichte sowie Facetten für Filter und Recherche."
+            "MCP server for entscheidsuche.ch — the open search engine for Swiss "
+            "court decisions and case law (Schweizer Gerichtsentscheide, "
+            "Rechtsprechung, jurisprudence suisse): Federal Supreme Court "
+            "(BGer, BGE) and cantonal courts, in German, French and Italian.\n"
+            "Tools: `search` is the default — describe the legal question in "
+            "natural language (AI search by meaning). `semantic_search` is the "
+            "same AI search without automatic switching. `keyword_search` finds "
+            "exact words, phrases and Boolean expressions and supports sorting "
+            "and pagination. `search_by_case_number` looks up case numbers and "
+            "BGE citations. `fetch` / `fetch_document` return the full text of "
+            "a decision. `list_hierarchy` and `list_facets` list cantons, courts "
+            "and chambers for the `hierarchy` filter."
         ),
         lifespan=_lifespan,
         transport_security=_transport_security(),
     )
+    # FastMCP meldet in `initialize` sonst die Version des MCP-SDK als
+    # Server-Version.
+    try:
+        mcp._mcp_server.version = __version__
+    except AttributeError:  # pragma: no cover — SDK-Interna geändert
+        logger.warning("Server-Version konnte nicht gesetzt werden")
 
     def _client(ctx: Context) -> EntscheidsucheClient:
         return ctx.request_context.lifespan_context["client"]
@@ -338,102 +677,23 @@ def build_server() -> FastMCP:
         return _server_card_payload()
 
     # ------------------------------------------------------------------
-    # search
+    # gemeinsame Implementierungen
     # ------------------------------------------------------------------
-    @mcp.tool(
-        title="Search decisions",
-        description=(
-            "Full-text search across Swiss court judgments, court decisions and "
-            "case law from entscheidsuche.ch. Covers decisions of the Federal "
-            "Supreme Court (BGer, BGE) and cantonal courts such as Kantonsgericht, "
-            "Obergericht or Verwaltungsgericht.\n\n"
-            "Typical use cases:\n"
-            "  - Search Federal Supreme Court judgments, BGE or rulings by topic\n"
-            "  - Find Swiss case law on tenancy law, ZGB, OR, StGB or BV\n"
-            "  - Verify case numbers, judgment numbers or citations\n"
-            "  - Related tools: fetch_document, search_by_case_number, "
-            "list_hierarchy, list_facets\n\n"
-            "Search syntax (Lucene query string):\n"
-            "  - Phrase / case-number search: \"BGE 142 III 1\" (in quotes)\n"
-            "  - Boolean operators: AND, OR, NOT (or +, -)\n"
-            "  - Wildcards: * and ?\n"
-            "  - The default operator between terms is AND.\n\n"
-            "Filters are combined with AND. Use hierarchy IDs from `list_hierarchy` "
-            "or `list_facets`.\n\n"
-            "Pagination: after the first call, pass the `next_cursor` value from the "
-            "response as `search_after` in the next call."
-        ),
-        )
-    async def search(
+    async def _keyword(
         ctx: Context,
-        query: Annotated[
-            str,
-            Field(
-                description=(
-                    "Full-text query. \"...\" for phrases, AND/OR/NOT for Boolean "
-                    "operators, * and ? for wildcards. \"*\" matches everything."
-                ),
-            ),
-        ] = "*",
-        language: Annotated[
-            Optional[Language],
-            Field(
-                description=(
-                    "Optional preferred language for highlighting/display (de, fr, "
-                    "it). If omitted, the first available language field is returned "
-                    "— this does NOT filter; use `language_filter` for that."
-                ),
-            ),
-        ] = None,
-        sort: Annotated[
-            Literal["relevance", "date", "scrapedate"],
-            Field(
-                description=(
-                    "Optional sort order: 'relevance' | 'date' (decision date) "
-                    "| 'scrapedate'. Default is 'relevance'."
-                ),
-            ),
-        ] = "relevance",
-        size: Annotated[
-            int, Field(ge=1, le=100, description="Results per page (1–100).")
-        ] = 20,
-        search_after: Annotated[
-            Optional[List[Any]],
-            Field(description="Cursor from `next_cursor` of the previous response."),
-        ] = None,
-        decision_date_from: Annotated[
-            Optional[date_type],
-            Field(description="Lower bound for the decision date (YYYY-MM-DD, inclusive)."),
-        ] = None,
-        decision_date_to: Annotated[
-            Optional[date_type],
-            Field(description="Upper bound for the decision date (YYYY-MM-DD, inclusive)."),
-        ] = None,
-        scrape_date_from: Annotated[
-            Optional[date_type],
-            Field(description="Lower bound for the scrape date (YYYY-MM-DD, inclusive)."),
-        ] = None,
-        scrape_date_to: Annotated[
-            Optional[date_type],
-            Field(description="Upper bound for the scrape date (YYYY-MM-DD, inclusive)."),
-        ] = None,
-        hierarchy: Annotated[
-            Optional[List[str]],
-            Field(
-                description=(
-                    "List of hierarchy IDs (canton/court/chamber). Multiple IDs are "
-                    "combined with OR; with other filters, AND."
-                ),
-            ),
-        ] = None,
-        language_filter: Annotated[
-            Optional[List[Language]],
-            Field(description="Filter by document language(s)."),
-        ] = None,
-        include_aggregations: Annotated[
-            bool,
-            Field(description="Include aggregations (distributions over the results)."),
-        ] = False,
+        *,
+        query: str,
+        language: Optional[Language],
+        sort: str,
+        size: int,
+        search_after: Optional[List[Any]],
+        decision_date_from: Optional[date_type],
+        decision_date_to: Optional[date_type],
+        scrape_date_from: Optional[date_type],
+        scrape_date_to: Optional[date_type],
+        hierarchy: Optional[List[str]],
+        language_filter: Optional[List[Language]],
+        include_aggregations: bool,
     ) -> SearchResponse:
         params = SearchParams(
             query=query,
@@ -447,7 +707,240 @@ def build_server() -> FastMCP:
             language_filter=language_filter,
             include_aggregations=include_aggregations,
         )
-        return await _client(ctx).search(params)
+        return await _guard(_client(ctx).search(params))
+
+    async def _semantic(
+        ctx: Context,
+        *,
+        query: str,
+        language: Optional[Language],
+        size: int,
+        decision_date_from: Optional[date_type],
+        decision_date_to: Optional[date_type],
+        scrape_date_from: Optional[date_type],
+        scrape_date_to: Optional[date_type],
+        hierarchy: Optional[List[str]],
+        language_filter: Optional[List[Language]],
+        include_context: bool,
+    ) -> SearchResponse:
+        return await _guard(
+            _client(ctx).semantic_search(
+                query,
+                size=min(size, SEMANTIC_MAX_SIZE),
+                language=language,
+                decision_date=_coerce_date_range(decision_date_from, decision_date_to),
+                scrape_date=_coerce_date_range(scrape_date_from, scrape_date_to),
+                hierarchy=hierarchy,
+                language_filter=language_filter,
+                include_context=include_context,
+            )
+        )
+
+    async def _fetch(ctx: Context, id: str, language: Optional[Language]) -> SearchHit:
+        hit = await _guard(_client(ctx).get_document(id, language))
+        if hit is None:
+            raise ValueError(
+                f"No decision found with id '{id}'. Document IDs are case-sensitive; "
+                "use the `id` of a hit returned by one of the search tools."
+            )
+        return hit
+
+    # ------------------------------------------------------------------
+    # search — Standardsuche (KI-Suche, mit automatischem Wechsel)
+    # ------------------------------------------------------------------
+    @mcp.tool(
+        title="Search Swiss case law (default)",
+        description=_SEARCH_DESCRIPTION,
+        annotations=_READ_ONLY,
+    )
+    async def search(
+        ctx: Context,
+        query: Annotated[
+            str,
+            Field(
+                description=(
+                    "The legal question or facts in natural language (any "
+                    "language), or a case number / citation."
+                ),
+            ),
+        ] = "*",
+        language: LanguageArg = None,
+        size: Annotated[
+            int,
+            Field(
+                ge=1,
+                le=100,
+                description="Number of decisions to return (AI search: at most 50).",
+            ),
+        ] = 10,
+        decision_date_from: DecisionFromArg = None,
+        decision_date_to: DecisionToArg = None,
+        scrape_date_from: ScrapeFromArg = None,
+        scrape_date_to: ScrapeToArg = None,
+        hierarchy: HierarchyArg = None,
+        language_filter: LanguageFilterArg = None,
+        include_context: IncludeContextArg = False,
+        sort: Annotated[
+            Literal["relevance", "date", "scrapedate"],
+            Field(
+                description=(
+                    "Keyword search only: 'relevance' | 'date' (decision date) | "
+                    "'scrapedate'. Any value other than 'relevance' switches to "
+                    "keyword search."
+                ),
+            ),
+        ] = "relevance",
+        search_after: Annotated[
+            Optional[List[Any]],
+            Field(
+                description=(
+                    "Keyword search only: cursor from `next_cursor` of the "
+                    "previous response."
+                )
+            ),
+        ] = None,
+        include_aggregations: Annotated[
+            bool,
+            Field(
+                description=(
+                    "Keyword search only: include distributions over the results."
+                )
+            ),
+        ] = False,
+    ) -> SearchResponse:
+        reason = keyword_reason(query, sort, search_after, include_aggregations)
+        if reason is None and not _client(ctx).semantic_available:
+            reason = "semantic search is not configured on this server"
+        if reason is not None:
+            q = (query or "").strip() or "*"
+            if any(rx.match(q) for rx in _CASE_NUMBER_RES):
+                q = _quote_as_phrase(q)
+            response = await _keyword(
+                ctx,
+                query=q,
+                language=language,
+                sort=sort,
+                size=size,
+                search_after=search_after,
+                decision_date_from=decision_date_from,
+                decision_date_to=decision_date_to,
+                scrape_date_from=scrape_date_from,
+                scrape_date_to=scrape_date_to,
+                hierarchy=hierarchy,
+                language_filter=language_filter,
+                include_aggregations=include_aggregations,
+            )
+            switch_note = f"Keyword search was used because {reason}."
+            response.note = f"{switch_note} {response.note}" if response.note else switch_note
+        else:
+            response = await _semantic(
+                ctx,
+                query=query,
+                language=language,
+                size=size,
+                decision_date_from=decision_date_from,
+                decision_date_to=decision_date_to,
+                scrape_date_from=scrape_date_from,
+                scrape_date_to=scrape_date_to,
+                hierarchy=hierarchy,
+                language_filter=language_filter,
+                include_context=include_context,
+            )
+        response.results = result_refs(response.hits)
+        return response
+
+    # ------------------------------------------------------------------
+    # semantic_search — KI-Suche
+    # ------------------------------------------------------------------
+    @mcp.tool(
+        title="AI search by meaning (semantic search)",
+        description=_SEMANTIC_DESCRIPTION,
+        annotations=_READ_ONLY,
+    )
+    async def semantic_search(
+        ctx: Context,
+        query: Annotated[
+            str,
+            Field(
+                description=(
+                    "Legal question or description of the facts in natural "
+                    "language, ideally one or more full sentences. Any language."
+                ),
+            ),
+        ],
+        language: LanguageArg = None,
+        size: Annotated[
+            int,
+            Field(ge=1, le=SEMANTIC_MAX_SIZE, description="Number of decisions to return (1–50)."),
+        ] = 10,
+        decision_date_from: DecisionFromArg = None,
+        decision_date_to: DecisionToArg = None,
+        scrape_date_from: ScrapeFromArg = None,
+        scrape_date_to: ScrapeToArg = None,
+        hierarchy: HierarchyArg = None,
+        language_filter: LanguageFilterArg = None,
+        include_context: IncludeContextArg = False,
+    ) -> SearchResponse:
+        return await _semantic(
+            ctx,
+            query=query,
+            language=language,
+            size=size,
+            decision_date_from=decision_date_from,
+            decision_date_to=decision_date_to,
+            scrape_date_from=scrape_date_from,
+            scrape_date_to=scrape_date_to,
+            hierarchy=hierarchy,
+            language_filter=language_filter,
+            include_context=include_context,
+        )
+
+    # ------------------------------------------------------------------
+    # keyword_search — Stichwortsuche
+    # ------------------------------------------------------------------
+    @mcp.tool(
+        title="Keyword search (exact terms)",
+        description=_KEYWORD_DESCRIPTION,
+        annotations=_READ_ONLY,
+    )
+    async def keyword_search(
+        ctx: Context,
+        query: Annotated[
+            str,
+            Field(
+                description=(
+                    "Search terms. \"...\" for phrases, AND/OR/NOT for Boolean "
+                    "operators, * and ? for wildcards. \"*\" matches everything."
+                ),
+            ),
+        ] = "*",
+        language: LanguageArg = None,
+        sort: SortArg = "relevance",
+        size: KeywordSizeArg = 20,
+        search_after: SearchAfterArg = None,
+        decision_date_from: DecisionFromArg = None,
+        decision_date_to: DecisionToArg = None,
+        scrape_date_from: ScrapeFromArg = None,
+        scrape_date_to: ScrapeToArg = None,
+        hierarchy: HierarchyArg = None,
+        language_filter: LanguageFilterArg = None,
+        include_aggregations: AggregationsArg = False,
+    ) -> SearchResponse:
+        return await _keyword(
+            ctx,
+            query=query,
+            language=language,
+            sort=sort,
+            size=size,
+            search_after=search_after,
+            decision_date_from=decision_date_from,
+            decision_date_to=decision_date_to,
+            scrape_date_from=scrape_date_from,
+            scrape_date_to=scrape_date_to,
+            hierarchy=hierarchy,
+            language_filter=language_filter,
+            include_aggregations=include_aggregations,
+        )
 
     # ------------------------------------------------------------------
     # search_by_case_number
@@ -455,12 +948,12 @@ def build_server() -> FastMCP:
     @mcp.tool(
         title="Search by case number",
         description=(
-            "Specialized search for case numbers, judgment numbers and BGE "
-            "citations in Swiss court judgments. This tool automatically wraps the "
-            "given case number in quotes and runs an exact phrase search, for "
-            "example for 'BGE 142 III 1', '5A_396/2015' or similar references from "
-            "the Federal Supreme Court (BGer, BGE) and cantonal case law."
+            "Look up Swiss court decisions by case number, docket reference or "
+            "BGE citation, e.g. 'BGE 142 III 1', '5A_396/2015' or 'ZB.2021.48'. "
+            "The reference is searched as an exact phrase; the decision itself "
+            "normally comes first, followed by decisions that cite it."
         ),
+        annotations=_READ_ONLY,
     )
     async def search_by_case_number(
         ctx: Context,
@@ -473,143 +966,105 @@ def build_server() -> FastMCP:
                 ),
             ),
         ],
-        language: Annotated[
-            Optional[Language],
-            Field(
-                description=(
-                    "Optional preferred language for highlighting/display (de, fr, "
-                    "it). If omitted, the first available language field is returned "
-                    "— this does NOT filter; use `language_filter` for that."
-                ),
-            ),
-        ] = None,
-        sort: Annotated[
-            Literal["relevance", "date", "scrapedate"],
-            Field(
-                description=(
-                    "Optional sort order: 'relevance' | 'date' (decision date) "
-                    "| 'scrapedate'. Default is 'relevance'."
-                ),
-            ),
-        ] = "relevance",
-        size: Annotated[
-            int, Field(ge=1, le=100, description="Results per page (1–100).")
-        ] = 20,
-        search_after: Annotated[
-            Optional[List[Any]],
-            Field(description="Cursor from `next_cursor` of the previous response."),
-        ] = None,
-        decision_date_from: Annotated[
-            Optional[date_type],
-            Field(description="Optional lower bound for the decision date (YYYY-MM-DD)."),
-        ] = None,
-        decision_date_to: Annotated[
-            Optional[date_type],
-            Field(description="Optional upper bound for the decision date (YYYY-MM-DD)."),
-        ] = None,
-        scrape_date_from: Annotated[
-            Optional[date_type],
-            Field(description="Optional lower bound for the scrape date (YYYY-MM-DD)."),
-        ] = None,
-        scrape_date_to: Annotated[
-            Optional[date_type],
-            Field(description="Optional upper bound for the scrape date (YYYY-MM-DD)."),
-        ] = None,
-        hierarchy: Annotated[
-            Optional[List[str]],
-            Field(description="Optional hierarchy IDs for canton/court/chamber."),
-        ] = None,
-        language_filter: Annotated[
-            Optional[List[Language]],
-            Field(description="Optional filter by document language(s)."),
-        ] = None,
-        include_aggregations: Annotated[
-            bool,
-            Field(description="Optionally include aggregations."),
-        ] = False,
+        language: LanguageArg = None,
+        sort: SortArg = "relevance",
+        size: KeywordSizeArg = 20,
+        search_after: SearchAfterArg = None,
+        decision_date_from: DecisionFromArg = None,
+        decision_date_to: DecisionToArg = None,
+        scrape_date_from: ScrapeFromArg = None,
+        scrape_date_to: ScrapeToArg = None,
+        hierarchy: HierarchyArg = None,
+        language_filter: LanguageFilterArg = None,
+        include_aggregations: AggregationsArg = False,
     ) -> SearchResponse:
-        params = SearchParams(
-            query=_quote_as_phrase(case_number),
+        number = case_number.strip()
+        if len(number) >= 2 and number[0] == number[-1] == '"':
+            number = number[1:-1]
+        if not number.strip():
+            raise ValueError("`case_number` must not be empty.")
+        return await _keyword(
+            ctx,
+            query=_quote_as_phrase(number),
             language=language,
             sort=sort,
             size=size,
             search_after=search_after,
-            decision_date=_coerce_date_range(decision_date_from, decision_date_to),
-            scrape_date=_coerce_date_range(scrape_date_from, scrape_date_to),
+            decision_date_from=decision_date_from,
+            decision_date_to=decision_date_to,
+            scrape_date_from=scrape_date_from,
+            scrape_date_to=scrape_date_to,
             hierarchy=hierarchy,
             language_filter=language_filter,
             include_aggregations=include_aggregations,
         )
-        return await _client(ctx).search(params)
 
     # ------------------------------------------------------------------
-    # fetch_document
+    # fetch_document / fetch
     # ------------------------------------------------------------------
     @mcp.tool(
-        title="Fetch decision",
-        description=(
-            "Fetch a single Swiss court decision, judgment or Federal Supreme "
-            "Court decision by its document ID (`_id`). Returns the indexed full "
-            "text of the decision together with metadata, title, abstract and "
-            "links. Use this when the full decision should be read or processed "
-            "after a search. Note: for very long decisions the indexed text is "
-            "capped at 100,000 characters; if `text_truncated` is true, the "
-            "complete document is available at `document_url`."
-        ),
+        title="Fetch decision (full text)",
+        description=_FETCH_DESCRIPTION,
+        annotations=_READ_ONLY,
     )
     async def fetch_document(
         ctx: Context,
-        id: Annotated[
-            str,
-            Field(description="Document ID (e.g. 'CH_BGer_001_5A_123_2024_2024-06-15')."),
-        ],
-        language: Annotated[
-            Optional[Language],
-            Field(
-                description=(
-                    "Optional preferred language for title/abstract. If omitted, "
-                    "the first available language field is returned."
-                ),
-            ),
-        ] = None,
-    ) -> Optional[SearchHit]:
-        return await _client(ctx).get_document(id, language)
+        id: DocumentIdArg,
+        language: TitleLanguageArg = None,
+    ) -> SearchHit:
+        return await _fetch(ctx, id, language)
+
+    @mcp.tool(
+        title="Fetch decision (alias of fetch_document)",
+        description=_FETCH_DESCRIPTION + " Identical to `fetch_document`.",
+        annotations=_READ_ONLY,
+    )
+    async def fetch(
+        ctx: Context,
+        id: DocumentIdArg,
+        language: TitleLanguageArg = None,
+    ) -> SearchHit:
+        return await _fetch(ctx, id, language)
 
     # ------------------------------------------------------------------
     # list_hierarchy
     # ------------------------------------------------------------------
     @mcp.tool(
-        title="List hierarchy buckets",
+        title="List courts with decision counts",
         description=(
-            "Returns the available hierarchy IDs for Swiss cantons, courts and "
-            "chambers together with document counts. Useful for narrowing "
-            "subsequent searches to the Federal Supreme Court, cantonal courts, "
-            "Obergerichte or Verwaltungsgerichte."
+            "Returns the hierarchy IDs of Swiss cantons, courts and chambers "
+            "together with the number of decisions, optionally restricted to "
+            "the decisions matching a keyword query. Use the IDs in the "
+            "`hierarchy` filter of the search tools."
         ),
+        annotations=_READ_ONLY,
     )
     async def list_hierarchy(
         ctx: Context,
-        query: Annotated[str, Field(description="Optional full-text query.")] = "*",
+        query: Annotated[
+            str, Field(description="Optional keyword query (same syntax as `keyword_search`).")
+        ] = "*",
         size: Annotated[
             int, Field(ge=1, le=10000, description="Maximum number of entries.")
         ] = 1000,
     ) -> HierarchyResponse:
-        return await _client(ctx).list_hierarchy(query, size)
+        return await _guard(_client(ctx).list_hierarchy(query, size))
 
     # ------------------------------------------------------------------
     # list_facets
     # ------------------------------------------------------------------
     @mcp.tool(
-        title="Facet tree (localized)",
+        title="Court tree with names (canton / court / chamber)",
         description=(
-            "Hierarchical facet tree with localized labels for cantons, courts "
-            "and chambers. The `id` fields can be used in the `hierarchy` filter "
-            "of the search."
+            "Tree of all cantons, courts and chambers with their names in "
+            "German, French and Italian. The `id` fields can be used in the "
+            "`hierarchy` filter of the search tools."
         ),
+        annotations=_READ_ONLY,
     )
-    async def list_facets(ctx: Context) -> List[dict[str, Any]]:
-        nodes = await _client(ctx).list_facets()
-        return [n.model_dump() for n in nodes]
+    async def list_facets(ctx: Context) -> FacetsResponse:
+        nodes = await _guard(_client(ctx).list_facets())
+        return FacetsResponse(facets=nodes)
 
     # ------------------------------------------------------------------
     # server_info
@@ -617,18 +1072,23 @@ def build_server() -> FastMCP:
     @mcp.tool(
         title="Server info",
         description=(
-            "Version info and configured endpoint URLs of the MCP server for "
-            "Swiss case law and court decisions."
+            "Version and configured endpoints of this MCP server for Swiss "
+            "case law."
         ),
+        annotations=_READ_ONLY,
     )
     async def server_info(ctx: Context) -> dict[str, Any]:
+        client = _client(ctx)
         return {
             "name": "entscheidsuche-mcp",
             "version": __version__,
-            "elasticsearch_url": _env("ENTSCHEIDSUCHE_ES_URL", DEFAULT_ES_URL),
-            "facets_url": _env("ENTSCHEIDSUCHE_FACETS_URL", DEFAULT_FACETS_URL),
+            "search_url": client.es_url,
+            "semantic_search": client.semantic_available,
+            "embedding_model": client.embed_big_model if client.semantic_available else None,
+            "facets_url": client.facets_url,
             "languages": [l.value for l in Language],
             "sort_orders": [s.value for s in SortOrder],
+            "tools": [name for name, _title, _desc in TOOL_SUMMARY],
         }
 
     return mcp
@@ -689,6 +1149,15 @@ def create_app(mcp: Optional[FastMCP] = None):
     async def well_known_server_card(_request):
         return JSONResponse(_server_card_payload())
 
+    async def test_page(_request):
+        """Testoberfläche für die MCP-API (statische Seite, ruft POST /mcp auf)."""
+        try:
+            html = _TEST_PAGE.read_text(encoding="utf-8")
+        except OSError:
+            return JSONResponse({"error": "test page not installed"}, status_code=404)
+        html = html.replace("__MCP_PATH__", mcp_path).replace("__VERSION__", __version__)
+        return HTMLResponse(html, headers={"Cache-Control": "no-cache"})
+
     inner_app = mcp.streamable_http_app()
     json_response_mode = bool(getattr(mcp.settings, "json_response", False))
     mcp_app = _compat_streamable_http_app(
@@ -709,6 +1178,8 @@ def create_app(mcp: Optional[FastMCP] = None):
             Route("/.well-known/mcp/server-card.json", endpoint=well_known_server_card),
             Route("/statistik", endpoint=statistik_endpoint),
             Route("/statistik/", endpoint=statistik_endpoint),
+            Route("/test", endpoint=test_page),
+            Route("/test/", endpoint=test_page),
             Mount("/", app=mcp_app),
         ],
         lifespan=lifespan,

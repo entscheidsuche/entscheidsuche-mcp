@@ -1,52 +1,115 @@
 {
   "name": "entscheidsuche",
   "title": "entscheidsuche-mcp",
-  "description": "MCP server for Swiss court decisions and case law from entscheidsuche.ch. Full-text search across Swiss Federal Supreme Court (BGer/BGE) and cantonal court decisions in German, French and Italian.",
+  "description": "MCP server for Swiss court decisions and case law from entscheidsuche.ch. AI search by meaning (semantic search) and keyword search across Swiss Federal Supreme Court (BGer/BGE) and cantonal court decisions in German, French and Italian.",
   "url": "https://mcp.entscheidsuche.ch/mcp",
   "documentationUrl": "https://mcp.entscheidsuche.ch",
   "provider": {
     "organization": "entscheidsuche.ch",
     "url": "https://entscheidsuche.ch"
   },
-  "version": "0.1.0",
+  "version": "0.2.0",
   "protocolVersion": "0.3.0",
   "capabilities": {
     "streaming": false,
     "pushNotifications": false,
     "stateTransitionHistory": false
   },
-  "defaultInputModes": ["application/json"],
-  "defaultOutputModes": ["application/json"],
+  "defaultInputModes": [
+    "application/json"
+  ],
+  "defaultOutputModes": [
+    "application/json"
+  ],
   "skills": [
     {
       "id": "search",
-      "name": "Search Swiss case law",
-      "description": "Full-text search across Swiss court decisions and case law.",
-      "tags": ["search", "legal", "switzerland", "case-law", "court-decisions"]
+      "name": "Search Swiss case law (default)",
+      "description": "Default search: AI search by meaning for questions in natural language; switches to keyword search for case numbers, phrases and Boolean queries.",
+      "tags": [
+        "search",
+        "semantic",
+        "legal",
+        "switzerland",
+        "case-law",
+        "court-decisions"
+      ]
+    },
+    {
+      "id": "semantic_search",
+      "name": "AI search by meaning (semantic search)",
+      "description": "Embedding-based search for legal questions and descriptions of facts, across German, French and Italian decisions.",
+      "tags": [
+        "search",
+        "semantic",
+        "embeddings",
+        "legal",
+        "switzerland"
+      ]
+    },
+    {
+      "id": "keyword_search",
+      "name": "Keyword search (exact terms)",
+      "description": "Full-text search for exact words, phrases and Boolean expressions with filters, sorting and pagination.",
+      "tags": [
+        "search",
+        "fulltext",
+        "boolean",
+        "legal",
+        "switzerland"
+      ]
     },
     {
       "id": "search_by_case_number",
       "name": "Search by case number",
       "description": "Exact lookup of Swiss case numbers, docket references and BGE citations.",
-      "tags": ["search", "legal", "case-number", "BGE", "docket"]
+      "tags": [
+        "search",
+        "legal",
+        "case-number",
+        "BGE",
+        "docket"
+      ]
     },
     {
       "id": "fetch_document",
-      "name": "Fetch document",
+      "name": "Fetch decision (full text)",
       "description": "Retrieve a single decision together with its full text.",
-      "tags": ["fetch", "document", "fulltext"]
+      "tags": [
+        "fetch",
+        "document",
+        "fulltext"
+      ]
+    },
+    {
+      "id": "fetch",
+      "name": "Fetch decision (alias of fetch_document)",
+      "description": "Alias of fetch_document.",
+      "tags": [
+        "fetch",
+        "document",
+        "fulltext"
+      ]
     },
     {
       "id": "list_hierarchy",
-      "name": "List court hierarchy",
-      "description": "List cantons, courts and chambers with counts.",
-      "tags": ["hierarchy", "filter", "facets"]
+      "name": "List courts with decision counts",
+      "description": "Hierarchy IDs of cantons, courts and chambers with decision counts.",
+      "tags": [
+        "hierarchy",
+        "filter",
+        "facets"
+      ]
     },
     {
       "id": "list_facets",
-      "name": "List facets",
-      "description": "Localized facet tree for courts and jurisdictions.",
-      "tags": ["facets", "filter", "i18n"]
+      "name": "Court tree with names",
+      "description": "Tree of cantons, courts and chambers with names in German, French and Italian.",
+      "tags": [
+        "facets",
+        "filter",
+        "i18n"
+      ]
     }
   ]
 }

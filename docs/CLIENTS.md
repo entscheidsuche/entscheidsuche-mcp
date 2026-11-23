@@ -52,9 +52,10 @@ mobilen App und in der Desktop-App gleichzeitig verfügbar.
    - **Remote MCP server URL:** `https://mcp.entscheidsuche.ch/mcp`
    - **Authentication:** *None*
    - **Transport:** *Streamable HTTP* (nicht *SSE* — SSE ist nur Legacy-Fallback).
-4. Bestätigen — die Tools `search`, `search_by_case_number`,
-   `fetch_document`, `list_hierarchy`, `list_facets`, `server_info` müssen
-   anschliessend in der Tool-Liste erscheinen.
+4. Bestätigen — die Tools `search`, `semantic_search`, `keyword_search`,
+   `search_by_case_number`, `fetch_document`, `fetch`, `list_hierarchy`,
+   `list_facets`, `server_info` müssen anschliessend in der Tool-Liste
+   erscheinen.
 
 In einer neuen Konversation kann der Connector dann pro Chat aktiviert
 werden (Symbol unter dem Eingabefeld).
@@ -173,11 +174,12 @@ Research**. Einrichtung über die Web-Oberfläche:
 > Im Free- und Plus-Tier waren Custom-MCP-Connectors zuletzt nicht
 > verfügbar — der Status kann sich ändern.
 >
-> **Wichtig:** OpenAIs Deep-Research-Modus erwartet aus historischen
-> Gründen Tools mit den Namen `search` und `fetch`. Unser Server stellt
-> `search` und `fetch_document` zur Verfügung; bei Deep-Research-Aufrufen
-> kann es sein, dass `fetch_document` nicht automatisch erkannt wird.
-> Im normalen Chat-Modus mit Connector-Toolauswahl ist das kein Problem.
+> **Hinweis:** OpenAIs Deep-Research-Modus verlangt Tools mit den Namen
+> `search` und `fetch`. Der Server stellt beide bereit: `search` als
+> Standardsuche, `fetch` als Alias für `fetch_document`. Die Antwort von
+> `search` enthält dafür zusätzlich die kompakte Liste `results`
+> (`id`, `title`, `url`). Praktisch erprobt ist das Zusammenspiel mit
+> Deep Research noch nicht.
 >
 > Doku: <https://platform.openai.com/docs/mcp>
 

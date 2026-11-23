@@ -382,6 +382,8 @@
         Diese Instanz stellt die Suche in Schweizer Gerichtsentscheiden,
         Gerichtsurteilen und Rechtsprechung über einen MCP-Endpunkt bereit:
         Bundesgerichte und kantonale Gerichte, Verwaltungsbehörden und auch Strafbefehle.
+        Zur Verfügung stehen zwei Sucharten: die <strong>KI-Suche</strong> nach
+        Bedeutung und die <strong>Stichwortsuche</strong> nach Wörtern.
       </p>
 
       <div class="panel">
@@ -392,13 +394,47 @@
       <div class="panel">
         <strong>Verfügbare Tools</strong>
         <ul>
-          <li><code>search</code> für Volltextsuche in Schweizer Rechtsprechung, case law und Gerichtsurteilen</li>
+          <li><code>search</code> — Standardsuche: Rechtsfrage oder Sachverhalt in natürlicher Sprache (KI-Suche); bei Geschäftsnummern, Phrasen und Booleschen Ausdrücken automatisch Stichwortsuche</li>
+          <li><code>semantic_search</code> — KI-Suche nach Bedeutung, sprachübergreifend, mit dem am besten passenden Textabschnitt je Entscheid</li>
+          <li><code>keyword_search</code> — Stichwortsuche in Schweizer Rechtsprechung, case law und Gerichtsurteilen mit Filtern, Sortierung und Paginierung</li>
           <li><code>search_by_case_number</code> für exakte Suche nach Geschäftsnummern, Aktenzeichen, Urteilsnummern und BGE-Zitaten</li>
-          <li><code>fetch_document</code> für den Abruf eines einzelnen Entscheids mit vollständigem Volltext</li>
+          <li><code>fetch_document</code> (Alias <code>fetch</code>) für den Abruf eines einzelnen Entscheids mit vollständigem Volltext</li>
           <li><code>list_hierarchy</code> für Hierarchie-IDs und Trefferzahlen</li>
-          <li><code>list_facets</code> für den lokalisierten Facettenbaum</li>
+          <li><code>list_facets</code> für den Baum Kanton / Gericht / Kammer mit Bezeichnungen</li>
           <li><code>server_info</code> für Server- und Versionsinformationen</li>
         </ul>
+      </div>
+
+      <div class="panel">
+        <strong>Selbst ausprobieren</strong>
+        <p class="small">
+          Unter <a href="/test">mcp.entscheidsuche.ch/test</a> steht eine
+          Testoberfläche bereit: alle Tools mit Formular, Beispielwerten,
+          <code>curl</code>-Befehl und Antwort — ohne eigenen MCP-Client.
+        </p>
+      </div>
+
+      <div class="panel">
+        <strong>KI-Suche oder Stichwortsuche?</strong>
+        <table>
+          <thead>
+            <tr><th></th><th>KI-Suche <code>semantic_search</code></th><th>Stichwortsuche <code>keyword_search</code></th></tr>
+          </thead>
+          <tbody>
+            <tr><td>Sucht nach</td><td>Bedeutung</td><td>Wörtern</td></tr>
+            <tr><td>Geeignete Anfrage</td><td>Rechtsfrage oder Sachverhalt in ganzen Sätzen</td><td>Begriffe, Phrasen, Artikel, Namen</td></tr>
+            <tr><td>Sprache</td><td>sprachübergreifend: eine deutsche Frage findet auch französische und italienische Entscheide</td><td>findet nur die eingegebenen Wörter</td></tr>
+            <tr><td>Reihenfolge</td><td>inhaltliche Nähe</td><td>Relevanz, Entscheiddatum oder Scrape-Datum</td></tr>
+            <tr><td>Umfang</td><td>Entscheide unter den 100 am besten passenden Textabschnitten, keine Paginierung</td><td>alle Treffer, Paginierung</td></tr>
+            <tr><td>Auszug</td><td>am besten passender Abschnitt</td><td>Fundstellen, hervorgehoben</td></tr>
+          </tbody>
+        </table>
+        <p class="small">
+          Wer nicht wählen will, nimmt <code>search</code>: Das Tool führt die
+          KI-Suche aus und wechselt von selbst zur Stichwortsuche, wenn die
+          Anfrage eine Geschäftsnummer, eine Phrase in Anführungszeichen,
+          Boolesche Operatoren oder Wildcards enthält.
+        </p>
       </div>
 
       <div class="panel api">
@@ -411,12 +447,167 @@
         </p>
 
         <details>
-          <summary>search <span class="badge">Volltextsuche</span></summary>
+          <summary>search <span class="badge">Standardsuche</span></summary>
           <p class="small">
-            Volltextsuche über alle Entscheide. <code>query</code> versteht
+            Die Suche für alle Fälle. Beschreiben Sie die Rechtsfrage oder den
+            Sachverhalt in natürlicher Sprache — das Tool führt die KI-Suche aus
+            (wie <code>semantic_search</code>). Es wechselt automatisch zur
+            Stichwortsuche (wie <code>keyword_search</code>), wenn
+          </p>
+          <ul class="small">
+            <li><code>sort</code> nicht <code>relevance</code> ist oder <code>search_after</code> bzw. <code>include_aggregations</code> gesetzt ist,</li>
+            <li>die Anfrage leer oder <code>*</code> ist,</li>
+            <li>die Anfrage als Ganzes eine Geschäftsnummer oder ein Zitat ist (<code>5A_396/2015</code>, <code>BGE 142 III 1</code>, <code>ZB.2021.48</code>) — sie wird dann als exakte Phrase gesucht,</li>
+            <li>die Anfrage eine Phrase in Anführungszeichen, Boolesche Operatoren (<code>AND</code>, <code>OR</code>, <code>NOT</code>) zwischen zwei Begriffen oder Wildcards enthält. <code>OR</code> direkt nach einer Artikelangabe (<code>Art. 271 OR</code>) gilt als Obligationenrecht.</li>
+          </ul>
+          <p class="small">
+            Welche Suche gelaufen ist, steht in <code>search_mode</code>; bei
+            einem Wechsel nennt <code>note</code> den Grund.
+          </p>
+
+          <h4>Eingabe</h4>
+          <table>
+            <thead>
+              <tr><th>Parameter</th><th>Typ</th><th>Default</th><th>Beschreibung</th></tr>
+            </thead>
+            <tbody>
+              <tr><td><code>query</code></td><td class="type">string</td><td class="type">"*"</td><td>Rechtsfrage oder Sachverhalt in natürlicher Sprache (beliebige Sprache) oder Geschäftsnummer / Zitat.</td></tr>
+              <tr><td><code>language</code></td><td class="type">"de"|"fr"|"it"</td><td class="type">null</td><td>Bevorzugte Sprache für Titel und Abstract. <strong>Kein Filter</strong> — dafür <code>language_filter</code>.</td></tr>
+              <tr><td><code>size</code></td><td class="type">integer 1–100</td><td class="type">10</td><td>Anzahl Entscheide (KI-Suche: höchstens 50).</td></tr>
+              <tr><td><code>decision_date_from</code>, <code>decision_date_to</code></td><td class="type">date</td><td class="type">null</td><td>Entscheiddatum von / bis (YYYY-MM-DD, inklusive).</td></tr>
+              <tr><td><code>scrape_date_from</code>, <code>scrape_date_to</code></td><td class="type">date</td><td class="type">null</td><td>Scrape-Datum von / bis.</td></tr>
+              <tr><td><code>hierarchy</code></td><td class="type">string[]</td><td class="type">null</td><td>Hierarchie-IDs (Kanton/Gericht/Kammer). Mehrere werden mit OR verknüpft.</td></tr>
+              <tr><td><code>language_filter</code></td><td class="type">("de"|"fr"|"it")[]</td><td class="type">null</td><td>Filter nach Dokumentsprache(n).</td></tr>
+              <tr><td><code>include_context</code></td><td class="type">boolean</td><td class="type">false</td><td>Nur KI-Suche: grösseren Abschnitt um den Auszug mitliefern (Feld <code>context</code>).</td></tr>
+              <tr><td><code>sort</code>, <code>search_after</code>, <code>include_aggregations</code></td><td class="type">wie <code>keyword_search</code></td><td class="type">–</td><td>Nur Stichwortsuche; ihre Verwendung wechselt zur Stichwortsuche.</td></tr>
+            </tbody>
+          </table>
+
+          <h4>Ausgabe</h4>
+          <p class="small">
+            Wie <code>semantic_search</code> bzw. <code>keyword_search</code>.
+            Zusätzlich enthält <code>results</code> eine kompakte Liste
+            <code>{id, title, url}</code> derselben Entscheide — dieses Format
+            erwartet ChatGPT von einem Tool namens <code>search</code>.
+          </p>
+
+          <h4>Beispiel</h4>
+<pre><code>// Aufruf
+{ "query": "5A_396/2015" }
+
+// Antwort (gekürzt)
+{
+  "search_mode": "keyword",
+  "note": "Keyword search was used because the query looks like a case number or citation.",
+  "total": 8,
+  "hits": [ { "id": "CH_BGer_005_5A-396-2015_2017-06-22", … } ],
+  "results": [
+    {
+      "id": "CH_BGer_005_5A-396-2015_2017-06-22",
+      "title": "Bundesgericht II. Zivilrechtliche Abteilung 22.06.2017 5A_396/2015",
+      "url": "https://entscheidsuche.ch/view/CH_BGer_005_5A-396-2015_2017-06-22"
+    }
+  ]
+}</code></pre>
+        </details>
+
+        <details>
+          <summary>semantic_search <span class="badge">KI-Suche nach Bedeutung</span></summary>
+          <p class="small">
+            Sucht nicht nach Wörtern, sondern nach Bedeutung — dasselbe Verfahren
+            wie die Schaltfläche «KI-Suche» auf entscheidsuche.ch. Die Anfrage
+            wird in einen Embedding-Vektor umgerechnet und mit den
+            Textabschnitten aller Entscheide verglichen. Am besten funktioniert
+            sie mit einem oder mehreren ganzen Sätzen; die Sprache der Anfrage
+            spielt keine Rolle.
+          </p>
+          <p class="small">
+            Ausgewertet werden die 100 am besten passenden Textabschnitte;
+            mehrere Abschnitte desselben Entscheids ergeben einen Treffer. Die
+            Liste ist nach inhaltlicher Nähe geordnet (<code>score</code>); es
+            gibt keine Paginierung und keine andere Sortierung.
+            <code>hierarchy</code> und das Entscheiddatum schränken bereits die
+            Auswahl der Abschnitte ein; Sprach- und Scrape-Datum-Filter wirken
+            danach (dann werden 300 Abschnitte ausgewertet).
+          </p>
+          <p class="small">
+            <strong>Auszug:</strong> <code>text</code> enthält den am besten
+            passenden Abschnitt des Entscheids. Sind die Feinabschnitte eines
+            Entscheids noch nicht indexiert, stösst der Server die Indexierung
+            an und wartet höchstens 20 Sekunden; liegt der Auszug dann nicht
+            vor, bleibt <code>text</code> leer.
+          </p>
+
+          <h4>Eingabe</h4>
+          <table>
+            <thead>
+              <tr><th>Parameter</th><th>Typ</th><th>Default</th><th>Beschreibung</th></tr>
+            </thead>
+            <tbody>
+              <tr><td><code>query</code></td><td class="type">string</td><td><span class="req">Pflicht</span></td><td>Rechtsfrage oder Beschreibung des Sachverhalts, möglichst in ganzen Sätzen.</td></tr>
+              <tr><td><code>language</code></td><td class="type">"de"|"fr"|"it"</td><td class="type">null</td><td>Bevorzugte Sprache für Titel und Abstract. <strong>Kein Filter</strong>.</td></tr>
+              <tr><td><code>size</code></td><td class="type">integer 1–50</td><td class="type">10</td><td>Anzahl Entscheide.</td></tr>
+              <tr><td><code>decision_date_from</code>, <code>decision_date_to</code></td><td class="type">date</td><td class="type">null</td><td>Entscheiddatum von / bis (YYYY-MM-DD, inklusive).</td></tr>
+              <tr><td><code>scrape_date_from</code>, <code>scrape_date_to</code></td><td class="type">date</td><td class="type">null</td><td>Scrape-Datum von / bis.</td></tr>
+              <tr><td><code>hierarchy</code></td><td class="type">string[]</td><td class="type">null</td><td>Hierarchie-IDs (Kanton/Gericht/Kammer). Mehrere werden mit OR verknüpft.</td></tr>
+              <tr><td><code>language_filter</code></td><td class="type">("de"|"fr"|"it")[]</td><td class="type">null</td><td>Filter nach Dokumentsprache(n).</td></tr>
+              <tr><td><code>include_context</code></td><td class="type">boolean</td><td class="type">false</td><td>Grösseren Abschnitt um den Auszug mitliefern (Feld <code>context</code>, bis etwa 6000 Zeichen je Treffer).</td></tr>
+            </tbody>
+          </table>
+
+          <h4>Ausgabe</h4>
+          <table>
+            <thead>
+              <tr><th>Feld</th><th>Typ</th><th>Beschreibung</th></tr>
+            </thead>
+            <tbody>
+              <tr><td><code>search_mode</code></td><td class="type">string</td><td>Immer <code>"semantic"</code>.</td></tr>
+              <tr><td><code>note</code></td><td class="type">string</td><td>Hinweis zur Suchart.</td></tr>
+              <tr><td><code>total</code></td><td class="type">integer</td><td>Zahl der Entscheide unter den ausgewerteten Abschnitten — nicht die Zahl aller einschlägigen Entscheide.</td></tr>
+              <tr><td><code>hits</code></td><td class="type">Treffer[]</td><td>Die Treffer, absteigend nach <code>score</code> — Felder siehe „Treffer-Objekt“ unten.</td></tr>
+            </tbody>
+          </table>
+
+          <h4>Beispiel</h4>
+<pre><code>// Aufruf
+{ "query": "Darf der Vermieter wegen Eigenbedarf kündigen, wenn seine Tochter einziehen will?", "size": 3 }
+
+// Antwort (gekürzt)
+{
+  "search_mode": "semantic",
+  "note": "Semantic search: ranked by similarity of meaning, based on the 100 passages that best match the query. …",
+  "total": 38,
+  "hits": [
+    {
+      "id": "BS_APG_001_ZB-2014-14_2014-12-22",
+      "title": "Basel-Stadt Appellationsgericht 22.12.2014 ZB.2014.14",
+      "text": "Auf Vermieterseite fällt vor allem der Eigenbedarf für H_____ und I_____, die beiden Töchtern des Miterben D_____ …",
+      "canton": "BS",
+      "court": "BS_APG",
+      "decision_date": "2014-12-22",
+      "url": "https://entscheidsuche.ch/view/BS_APG_001_ZB-2014-14_2014-12-22",
+      "score": 0.8842
+    }
+  ],
+  "next_cursor": null
+}</code></pre>
+        </details>
+
+        <details>
+          <summary>keyword_search <span class="badge">Stichwortsuche</span></summary>
+          <p class="small">
+            Stichwortsuche über alle Entscheide (bis Version 0.1 hiess dieses Tool
+            <code>search</code>). <code>query</code> versteht
             Lucene-Syntax: <code>"…"</code> für Phrasen, <code>AND</code>/<code>OR</code>/<code>NOT</code>,
             Wildcards <code>*</code> und <code>?</code>. Default-Operator zwischen
             Begriffen ist <code>AND</code>; Filter werden mit <code>AND</code> verknüpft.
+          </p>
+          <p class="small">
+            Ist die Anfrage keine gültige Syntax (z.&nbsp;B. <code>5A_396/2015</code>
+            ohne Anführungszeichen oder eine offene Klammer), wird sie als Folge
+            gewöhnlicher Suchbegriffe ausgeführt; <code>note</code> weist darauf
+            hin. <code>OR</code> direkt nach einer Artikelangabe
+            (<code>Art. 271 OR</code>) gilt als Obligationenrecht, nicht als Operator.
           </p>
 
           <h4>Eingabe</h4>
@@ -446,6 +637,8 @@
               <tr><th>Feld</th><th>Typ</th><th>Beschreibung</th></tr>
             </thead>
             <tbody>
+              <tr><td><code>search_mode</code></td><td class="type">string</td><td>Immer <code>"keyword"</code>.</td></tr>
+              <tr><td><code>note</code></td><td class="type">string|null</td><td>Hinweis, falls die Anfrage angepasst wurde (siehe oben).</td></tr>
               <tr><td><code>total</code></td><td class="type">integer</td><td>Gesamtzahl der Treffer (nicht nur dieser Seite).</td></tr>
               <tr><td><code>hits</code></td><td class="type">Treffer[]</td><td>Die Treffer dieser Seite — Felder siehe „Treffer-Objekt“ unten.</td></tr>
               <tr><td><code>next_cursor</code></td><td class="type">array|null</td><td>Als <code>search_after</code> im nächsten Request mitgeben. <code>null</code> = keine weiteren Treffer.</td></tr>
@@ -459,6 +652,8 @@
 
 // Antwort (gekürzt)
 {
+  "search_mode": "keyword",
+  "note": null,
   "total": 886,
   "hits": [
     {
@@ -472,6 +667,7 @@
       "decision_date": "2026-04-22",
       "scrape_date": "2026-05-03",
       "is_pdf": true,
+      "url": "https://entscheidsuche.ch/view/ZH_BK_004_MJ240016-L_2026-04-22",
       "document_url": "https://entscheidsuche.ch/docs/ZH_Obergericht/ZH_BK_004_MJ240016-L_2026-04-22.pdf",
       "original_url": null,
       "sort": [1776816000000, "ZH_BK_004_MJ240016-L_2026-04-22"]
@@ -486,7 +682,7 @@
           <summary>search_by_case_number <span class="badge">Geschäftsnummer / BGE-Zitat</span></summary>
           <p class="small">
             Setzt <code>case_number</code> automatisch in Anführungszeichen und
-            sucht als exakte Phrase. Ansonsten identisch zu <code>search</code> —
+            sucht als exakte Phrase. Ansonsten identisch zu <code>keyword_search</code> —
             gleiche Filter, gleiche Antwortstruktur.
           </p>
 
@@ -511,7 +707,7 @@
 
           <h4>Ausgabe</h4>
           <p class="small">
-            Identisch zu <code>search</code>: <code>total</code>, <code>hits</code>,
+            Identisch zu <code>keyword_search</code>: <code>total</code>, <code>hits</code>,
             <code>next_cursor</code>, <code>aggregations</code>.
           </p>
 
@@ -540,11 +736,13 @@
         </details>
 
         <details>
-          <summary>fetch_document <span class="badge">Einzelentscheid inkl. Volltext</span></summary>
+          <summary>fetch_document / fetch <span class="badge">Einzelentscheid inkl. Volltext</span></summary>
           <p class="small">
             Liefert einen einzelnen Entscheid anhand seiner Dokument-ID — im
             Unterschied zur Suche mit dem <strong>vollständigen</strong> Volltext
-            in <code>text</code> (nicht nur einem Highlight-Auszug).
+            in <code>text</code> (nicht nur einem Auszug). <code>fetch</code> ist
+            ein Alias mit identischem Verhalten; ChatGPT erwartet für Deep
+            Research ein Tool mit diesem Namen.
           </p>
           <p class="small">
             <strong>Sehr lange Entscheide:</strong> Der indexierte Text ist auf
@@ -572,7 +770,7 @@
               <tr><th>Feld</th><th>Typ</th><th>Beschreibung</th></tr>
             </thead>
             <tbody>
-              <tr><td><code>result</code></td><td class="type">Treffer|null</td><td>Das Treffer-Objekt (Felder siehe unten) mit vollständigem <code>text</code>. <code>null</code>, wenn die ID nicht existiert. <code>sort</code> ist hier immer <code>null</code>.</td></tr>
+              <tr><td>(Objekt)</td><td class="type">Treffer</td><td>Das Treffer-Objekt (Felder siehe unten) mit vollständigem <code>text</code>. <code>sort</code> ist hier immer <code>null</code>. Existiert die ID nicht, antwortet das Tool mit einem Fehler (<code>isError</code>) und einem Hinweis.</td></tr>
             </tbody>
           </table>
 
@@ -582,23 +780,22 @@
 
 // Antwort (gekürzt)
 {
-  "result": {
-    "id": "CH_BGE_005_BGE-142-III-1_2016",
-    "title": "Bundesgericht (BGE) Teil III 2016 BGE 142 III 1",
-    "abstract": "Regeste a … Zuteilung der alleinigen elterlichen Sorge …",
-    "text": "Urteilskopf\n\n142 III 1\n\n1. Auszug aus dem Urteil der II. zivilrechtlichen Abteilung …",
-    "meta": "Eidgenossenschaft Bundesgericht (BGE) Teil III",
-    "canton": "CH",
-    "court": "CH_BGE",
-    "decision_date": "2016-01-01",
-    "scrape_date": "2023-01-01",
-    "is_pdf": false,
-    "document_url": "https://entscheidsuche.ch/docs/CH_BGE/CH_BGE_005_BGE-142-III-1_2016.html",
-    "original_url": null,
-    "content_length": 15887,
-    "text_truncated": false,
-    "sort": null
-  }
+  "id": "CH_BGE_005_BGE-142-III-1_2016",
+  "title": "Bundesgericht (BGE) Teil III 2016 BGE 142 III 1",
+  "abstract": "Regeste a … Zuteilung der alleinigen elterlichen Sorge …",
+  "text": "Urteilskopf\n\n142 III 1\n\n1. Auszug aus dem Urteil der II. zivilrechtlichen Abteilung …",
+  "meta": "Eidgenossenschaft Bundesgericht (BGE) Teil III",
+  "canton": "CH",
+  "court": "CH_BGE",
+  "decision_date": "2016-01-01",
+  "scrape_date": "2023-01-01",
+  "is_pdf": false,
+  "url": "https://entscheidsuche.ch/view/CH_BGE_005_BGE-142-III-1_2016",
+  "document_url": "https://entscheidsuche.ch/docs/CH_BGE/CH_BGE_005_BGE-142-III-1_2016.html",
+  "original_url": null,
+  "content_length": 15887,
+  "text_truncated": false,
+  "sort": null
 }</code></pre>
         </details>
 
@@ -606,8 +803,8 @@
           <summary>list_hierarchy <span class="badge">Hierarchie-IDs mit Trefferzahlen</span></summary>
           <p class="small">
             Liefert die Hierarchie-IDs für Kantone, Gerichte und Kammern mit
-            Trefferzahlen. Die IDs werden im <code>hierarchy</code>-Filter von
-            <code>search</code> verwendet. Mit <code>query</code> beziehen sich die
+            Trefferzahlen. Die IDs werden im <code>hierarchy</code>-Filter der
+            Such-Tools verwendet. Mit <code>query</code> beziehen sich die
             Zahlen auf die Treffer dieser Anfrage.
           </p>
 
@@ -650,12 +847,13 @@
         </details>
 
         <details>
-          <summary>list_facets <span class="badge">Facettenbaum, lokalisiert</span></summary>
+          <summary>list_facets <span class="badge">Kanton / Gericht / Kammer mit Namen</span></summary>
           <p class="small">
-            Hierarchischer Facettenbaum mit lokalisierten Bezeichnungen. Anders als
+            Baum aller Kantone, Gerichte und Kammern mit ihren Bezeichnungen. Anders als
             <code>list_hierarchy</code> ohne Trefferzahlen, dafür mit Klartext-Namen
-            in mehreren Sprachen. Die <code>id</code>-Werte sind im
-            <code>hierarchy</code>-Filter verwendbar.
+            in Deutsch, Französisch und Italienisch. Die <code>id</code>-Werte sind im
+            <code>hierarchy</code>-Filter verwendbar. Die Antwort ist gross
+            (rund 160'000 Zeichen).
           </p>
 
           <h4>Eingabe</h4>
@@ -667,9 +865,10 @@
               <tr><th>Feld</th><th>Typ</th><th>Beschreibung</th></tr>
             </thead>
             <tbody>
-              <tr><td><code>id</code></td><td class="type">string</td><td>Hierarchie-ID (im <code>hierarchy</code>-Filter verwendbar).</td></tr>
-              <tr><td><code>label</code></td><td class="type">object</td><td>Bezeichnungen je Sprache: <code>de</code>, <code>fr</code>, <code>it</code>, <code>en</code> (einzelne können <code>null</code> sein).</td></tr>
-              <tr><td><code>children</code></td><td class="type">array</td><td>Untergeordnete Knoten gleicher Struktur (rekursiv).</td></tr>
+              <tr><td><code>facets</code></td><td class="type">Knoten[]</td><td>Die Kantone (und <code>CH</code> für den Bund).</td></tr>
+              <tr><td><code>…id</code></td><td class="type">string</td><td>Hierarchie-ID des Knotens (im <code>hierarchy</code>-Filter verwendbar).</td></tr>
+              <tr><td><code>…label</code></td><td class="type">object</td><td>Bezeichnungen je Sprache: <code>de</code>, <code>fr</code>, <code>it</code>, <code>en</code> (einzelne können <code>null</code> sein).</td></tr>
+              <tr><td><code>…children</code></td><td class="type">Knoten[]|null</td><td>Untergeordnete Knoten gleicher Struktur: Gerichte eines Kantons, Kammern eines Gerichts.</td></tr>
             </tbody>
           </table>
 
@@ -677,21 +876,24 @@
 <pre><code>// Aufruf
 {}
 
-// Antwort (Auszug — ein Knoten je Listeneintrag)
+// Antwort (Auszug)
 {
-  "id": "CH",
-  "label": {
-    "de": "Eidgenossenschaft",
-    "fr": "Conféderation",
-    "it": "Confederazione",
-    "en": null
-  },
-  "children": []
-}
-{
-  "id": "AG",
-  "label": { "de": "Aargau", "fr": "Argovie", "it": "Argovia", "en": null },
-  "children": []
+  "facets": [
+    {
+      "id": "ZH",
+      "label": { "de": "Zürich", "fr": "Zurich", "it": "Zurigo", "en": null },
+      "children": [
+        {
+          "id": "ZH_OG",
+          "label": { "de": "Obergericht", "fr": "Obergericht", "it": "Obergericht", "en": null },
+          "children": [
+            { "id": "ZH_OG_001", "label": { "de": "Zivilkammern", … }, "children": null },
+            { "id": "ZH_OG_002", "label": { "de": "Strafkammern", … }, "children": null }
+          ]
+        }
+      ]
+    }
+  ]
 }</code></pre>
         </details>
 
@@ -713,10 +915,13 @@
             <tbody>
               <tr><td><code>name</code></td><td class="type">string</td><td>Servername.</td></tr>
               <tr><td><code>version</code></td><td class="type">string</td><td>Version des laufenden Servers.</td></tr>
-              <tr><td><code>elasticsearch_url</code></td><td class="type">string</td><td>Angebundener Suchindex.</td></tr>
+              <tr><td><code>search_url</code></td><td class="type">string</td><td>Angebundene Such-API.</td></tr>
+              <tr><td><code>semantic_search</code></td><td class="type">boolean</td><td>Ob die KI-Suche aktiv ist.</td></tr>
+              <tr><td><code>embedding_model</code></td><td class="type">string|null</td><td>Embedding-Modell der KI-Suche.</td></tr>
               <tr><td><code>facets_url</code></td><td class="type">string</td><td>Quelle des Facettenbaums.</td></tr>
               <tr><td><code>languages</code></td><td class="type">string[]</td><td>Unterstützte Sprachen.</td></tr>
               <tr><td><code>sort_orders</code></td><td class="type">string[]</td><td>Zulässige Werte für <code>sort</code>.</td></tr>
+              <tr><td><code>tools</code></td><td class="type">string[]</td><td>Namen der Tools.</td></tr>
             </tbody>
           </table>
 
@@ -727,20 +932,25 @@
 // Antwort
 {
   "name": "entscheidsuche-mcp",
-  "version": "0.1.1",
-  "elasticsearch_url": "https://entscheidsuche.pansoft.de:9200/entscheidsuche.v2-*/_search",
+  "version": "0.2.0",
+  "search_url": "https://entscheidsuche.ch/_search_KI.php/elasticsearch/_search",
+  "semantic_search": true,
+  "embedding_model": "qwen3-embedding-8b",
   "facets_url": "https://entscheidsuche.ch/docs/Facetten.json",
   "languages": ["de", "fr", "it"],
-  "sort_orders": ["relevance", "date", "scrapedate"]
+  "sort_orders": ["relevance", "date", "scrapedate"],
+  "tools": ["search", "semantic_search", "keyword_search", "search_by_case_number",
+            "fetch_document", "fetch", "list_hierarchy", "list_facets", "server_info"]
 }</code></pre>
         </details>
 
         <details>
           <summary>Treffer-Objekt <span class="badge">gemeinsame Felder</span></summary>
           <p class="small">
-            Diese Struktur liefern <code>search</code> und
-            <code>search_by_case_number</code> in <code>hits[]</code> sowie
-            <code>fetch_document</code> in <code>result</code>.
+            Diese Struktur liefern die Such-Tools (<code>search</code>,
+            <code>semantic_search</code>, <code>keyword_search</code>,
+            <code>search_by_case_number</code>) in <code>hits[]</code> sowie
+            <code>fetch_document</code> / <code>fetch</code> als Antwort.
           </p>
           <table>
             <thead>
@@ -750,18 +960,21 @@
               <tr><td><code>id</code></td><td class="type">string</td><td>Dokument-ID — für <code>fetch_document</code> verwendbar.</td></tr>
               <tr><td><code>title</code></td><td class="type">string</td><td>Titel des Entscheids.</td></tr>
               <tr><td><code>abstract</code></td><td class="type">string</td><td>Regeste bzw. Kurzfassung, sofern vorhanden.</td></tr>
-              <tr><td><code>text</code></td><td class="type">string</td><td>Bei der Suche ein Highlight-Auszug (Fundstellen in <code>&lt;em&gt;</code>), bei <code>fetch_document</code> der vollständige Volltext (bei sehr langen Entscheiden bis 100'000 Zeichen, dann mit angehängtem Hinweis).</td></tr>
+              <tr><td><code>text</code></td><td class="type">string</td><td>Stichwortsuche: Auszug mit den Fundstellen in <code>&lt;em&gt;</code>. KI-Suche: der am besten passende Abschnitt des Entscheids (kann leer sein). <code>fetch_document</code>: der vollständige Volltext (bei sehr langen Entscheiden bis 100'000 Zeichen, dann mit angehängtem Hinweis).</td></tr>
               <tr><td><code>meta</code></td><td class="type">string</td><td>Klartext-Bezeichnung des Gerichts.</td></tr>
               <tr><td><code>canton</code></td><td class="type">string</td><td>Kantonskürzel, <code>CH</code> für Bundesbehörden.</td></tr>
               <tr><td><code>court</code></td><td class="type">string</td><td>Gerichts-ID (aus der Dokument-ID abgeleitet).</td></tr>
               <tr><td><code>decision_date</code></td><td class="type">string|null</td><td>Entscheiddatum, ISO <code>YYYY-MM-DD</code>.</td></tr>
               <tr><td><code>scrape_date</code></td><td class="type">string|null</td><td>Datum der Erfassung, ISO <code>YYYY-MM-DD</code>.</td></tr>
               <tr><td><code>is_pdf</code></td><td class="type">boolean</td><td>Ob das Originaldokument ein PDF ist.</td></tr>
+              <tr><td><code>url</code></td><td class="type">string|null</td><td>Seite des Entscheids auf entscheidsuche.ch — für Zitate und Links.</td></tr>
               <tr><td><code>document_url</code></td><td class="type">string|null</td><td>Direktlink auf das Originaldokument.</td></tr>
               <tr><td><code>original_url</code></td><td class="type">string|null</td><td>URL der ursprünglichen Quell-Webseite.</td></tr>
               <tr><td><code>content_length</code></td><td class="type">integer|null</td><td>Länge des indexierten Volltexts in Zeichen. Nur bei <code>fetch_document</code> gesetzt.</td></tr>
               <tr><td><code>text_truncated</code></td><td class="type">boolean</td><td><code>true</code>, wenn der Text bei 100'000 Zeichen abgeschnitten wurde; das vollständige Dokument liegt dann unter <code>document_url</code>.</td></tr>
-              <tr><td><code>sort</code></td><td class="type">array|null</td><td>Sortierwerte des Treffers (Basis für <code>search_after</code>).</td></tr>
+              <tr><td><code>sort</code></td><td class="type">array|null</td><td>Nur Stichwortsuche: Sortierwerte des Treffers (Basis für <code>search_after</code>).</td></tr>
+              <tr><td><code>score</code></td><td class="type">number|null</td><td>Nur KI-Suche: Ähnlichkeit zwischen Anfrage und bestem Abschnitt (höher ist besser).</td></tr>
+              <tr><td><code>context</code></td><td class="type">string|null</td><td>Nur KI-Suche mit <code>include_context: true</code>: grösserer Abschnitt um den Auszug.</td></tr>
             </tbody>
           </table>
         </details>
@@ -770,6 +983,7 @@
       <div class="panel">
         <strong>Typische Anwendungsfälle</strong>
         <ul>
+          <li>Eine Rechtsfrage in eigenen Worten stellen und passende Entscheide samt einschlägiger Textstelle finden.</li>
           <li>Entscheide mit Schlüsselwörtern suchen.</li>
           <li>Geschäftsnummern wie <code>BGE 142 III 1</code> oder <code>5A_396/2015</code> direkt nachschlagen.</li>
           <li>Instruieren Sie Ihre KI, Referenzen in einem Dokument zu überprüfen.</li>
@@ -881,11 +1095,9 @@ resp = client.messages.create(
             <li>Connector im Chat aktivieren (Tools-Menü) bzw. in einem Deep-Research-Run anhaken.</li>
           </ol>
           <p class="small">
-            Hinweis: OpenAIs Deep-Research-Modus sucht nach Tools mit den Namen
-            <code>search</code> und <code>fetch</code>. Unser Server hat <code>search</code>;
-            <code>fetch_document</code> wird im normalen Connector-Modus
-            mitgenutzt, im strikten Deep-Research-Modus eventuell nicht
-            automatisch erkannt. Doku:
+            Hinweis: OpenAIs Deep-Research-Modus verlangt Tools mit den Namen
+            <code>search</code> und <code>fetch</code>. Beide stellt der Server
+            bereit. Doku:
             <a href="https://platform.openai.com/docs/mcp">platform.openai.com</a>.
           </p>
         </details>

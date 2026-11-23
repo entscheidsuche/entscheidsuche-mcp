@@ -1,12 +1,13 @@
 # entscheidsuche-mcp
 
 **MCP-Server für die offene Schweizer Rechtsprechung** (Beta) —
-Volltextsuche und Volltextzugriff auf publizierte Gerichtsentscheide
+KI-Suche nach Bedeutung, Stichwortsuche und Volltextzugriff auf publizierte Gerichtsentscheide
 aller Schweizer Instanzen (Bundesgerichte, kantonale Gerichte,
 Verwaltungsbehörden, Strafbefehle) in Deutsch, Französisch und
 Italienisch — über das [Model Context Protocol](https://modelcontextprotocol.io).
 
-> **MCP Server for Swiss case law (beta).** Search and retrieve published
+> **MCP Server for Swiss case law (beta).** AI search by meaning, keyword
+> search and full-text retrieval of published
 > court decisions from all Swiss instances (federal courts, all 26 cantons,
 > administrative authorities, penal orders) in German, French, and Italian.
 > Operated as open Swiss legal data infrastructure by the non-profit
@@ -32,7 +33,9 @@ sich primär an Entwickler, Drittanwendungen und Selbst-Betreiber.
 
 - [Über den MCP-Server](#über-den-mcp-server)
 - [Tools](#tools)
-- [Suchsyntax](#suchsyntax--cheatsheet)
+- [Zwei Sucharten](#zwei-sucharten)
+- [Suchsyntax der Stichwortsuche](#suchsyntax-der-stichwortsuche--cheatsheet)
+- [Testoberfläche](#testoberfläche-test)
 - [Schnelleinbindung in MCP-Clients](#schnelleinbindung-in-mcp-clients)
 - [Lokale Entwicklung](#lokale-entwicklung)
 - [Eigene Instanz deployen](#eigene-instanz-deployen-debian)
@@ -71,23 +74,49 @@ Clients.
 
 | Tool | Zweck |
 | --- | --- |
-| `search` | Volltextsuche mit Lucene-Syntax. Filter nach Entscheiddatum, Scrape-Datum, Hierarchie (Kanton / Gericht / Kammer) und Sprache. Sortierung nach Relevanz, Entscheiddatum oder Scrape-Datum. Paginierung über `next_cursor` / `search_after`. Aggregationen für Facetten-Auswertung. |
+| `search` | **Standardsuche.** Frage oder Sachverhalt in natürlicher Sprache → KI-Suche nach Bedeutung. Wechselt automatisch zur Stichwortsuche, wenn die Anfrage eine Geschäftsnummer, eine Phrase in Anführungszeichen, Boolesche Operatoren oder Wildcards enthält (Regeln in [docs/API.md](docs/API.md#tool-search)). |
+| `semantic_search` | KI-Suche nach Bedeutung (Embeddings), sprachübergreifend. Liefert pro Entscheid den am besten passenden Textabschnitt. Filter nach Hierarchie, Entscheiddatum, Scrape-Datum und Sprache. |
+| `keyword_search` | Stichwortsuche mit Lucene-Syntax. Dieselben Filter, dazu Sortierung nach Relevanz, Entscheiddatum oder Scrape-Datum, Paginierung über `next_cursor` / `search_after` und Verteilungen (Aggregationen). Auszüge mit hervorgehobenen Fundstellen. |
 | `search_by_case_number` | Exakte Phrasensuche nach Geschäftsnummern, Aktenzeichen und BGE-Zitaten (z.B. `BGE 142 III 1`, `6B_1234/2025`, `5A_396/2015`). Setzt die Nummer automatisch in Anführungszeichen. |
 | `fetch_document` | Vollständigen Entscheid samt Volltext anhand der ID abrufen. |
+| `fetch` | Alias für `fetch_document` (ChatGPT erwartet für Deep Research die Namen `search` und `fetch`). |
 | `list_hierarchy` | Hierarchie-IDs (Bund / Kanton / Gericht / Kammer) mit Trefferzahlen. |
-| `list_facets` | Hierarchischer Facetten-Baum mit lokalisierten Labels in DE/FR/IT. |
+| `list_facets` | Baum Kanton → Gericht → Kammer mit Bezeichnungen in DE/FR/IT. |
 | `server_info` | Versions- und Konfigurationsinformationen. |
+
+Alle Tools sind als nur lesend annotiert (`readOnlyHint`).
 
 Vollständige Schnittstellenbeschreibung mit allen Parametern, Filtern,
 Rückgabe-Schemata und Beispielen: [docs/API.md](docs/API.md).
 
-## Suchsyntax — Cheatsheet
+## Zwei Sucharten
+
+| | KI-Suche (`semantic_search`) | Stichwortsuche (`keyword_search`) |
+| --- | --- | --- |
+| Sucht nach | Bedeutung | Wörtern |
+| Geeignete Anfrage | Rechtsfrage oder Sachverhalt in ganzen Sätzen | Begriffe, Phrasen, Artikel, Namen |
+| Sprache | sprachübergreifend (deutsche Frage findet auch französische Entscheide) | findet nur die eingegebenen Wörter |
+| Reihenfolge | inhaltliche Nähe (`score`) | Relevanz, Entscheiddatum oder Scrape-Datum |
+| Umfang | Entscheide unter den 100 am besten passenden Textabschnitten, keine Paginierung | alle Treffer, Paginierung |
+| Auszug (`text`) | am besten passender Abschnitt | Fundstellen in `<em>…</em>` |
+
+Die KI-Suche verwendet dieselbe Infrastruktur wie die Schaltfläche
+«KI-Suche» auf [entscheidsuche.ch](https://entscheidsuche.ch): Die Anfrage
+wird in einen Embedding-Vektor umgerechnet, die inhaltlich nächsten
+Textabschnitte werden ermittelt und den Entscheiden zugeordnet. Fehlt für
+einen Treffer der Auszug, weil seine Feinabschnitte noch nicht indexiert
+sind, stösst der Server die Indexierung an und wartet darauf höchstens
+20 Sekunden (`ENTSCHEIDSUCHE_MICRO_CHUNK_WAIT`); danach kommt der Treffer
+ohne Auszug.
+
+## Suchsyntax der Stichwortsuche — Cheatsheet
 
 | Aufgabe | Beispiel |
 | --- | --- |
 | Volltext, alle Begriffe (AND) | `Mietzins Kündigung` |
 | Phrase, exakte Reihenfolge | `"fristlose Kündigung"` |
 | Geschäftsnummer | `"BGE 142 III 1"` |
+| Gesetzesartikel | `Art. 271 OR` |
 | OR | `Mietzins OR Pachtzins` |
 | Negation | `Mietzins NOT Erhöhung` |
 | Wildcard | `Mietz*` |
@@ -96,11 +125,26 @@ Rückgabe-Schemata und Beispielen: [docs/API.md](docs/API.md).
 Standardverknüpfung zwischen Wörtern ist `AND`. Gesucht wird in
 `title`, `abstract`, `meta`, `attachment.content` und `reference`.
 
+Ist eine Anfrage keine gültige Lucene-Syntax (z.B. `5A_396/2015` ohne
+Anführungszeichen oder eine offene Klammer), wird sie als Folge
+gewöhnlicher Suchbegriffe ausgeführt; die Antwort weist im Feld `note`
+darauf hin. `OR` direkt nach einer Artikelangabe gilt als
+Obligationenrecht, nicht als Operator.
+
 `language` und `sort` sind optional. Ohne `language` erfolgt **keine**
 Spracheinschränkung — der Server liefert das erste vorhandene
 Sprachfeld zurück (de → fr → it). Ohne `sort` wird nach Relevanz
 sortiert. Zur expliziten Sprachfilterung dient `language_filter`.
 Erlaubte Sprachen: `de`, `fr`, `it`.
+
+## Testoberfläche (`/test`)
+
+Unter [mcp.entscheidsuche.ch/test](https://mcp.entscheidsuche.ch/test)
+steht eine Testoberfläche im Stil von Swagger UI. Sie lädt die Tools per
+`tools/list` vom Server, baut aus dem Eingabeschema ein Formular und
+zeigt zu jedem Aufruf den JSON-RPC-Request, den passenden `curl`-Befehl,
+das aufbereitete Ergebnis und die Rohantwort. Lokal ist sie unter
+`http://127.0.0.1:8765/test` erreichbar.
 
 ## Schnelleinbindung in MCP-Clients
 
@@ -174,8 +218,11 @@ Vollständige Liste in [`.env.example`](.env.example). Die wichtigsten:
 
 | Variable | Default | Bedeutung |
 | --- | --- | --- |
-| `ENTSCHEIDSUCHE_ES_URL` | `https://entscheidsuche.pansoft.de:9200/entscheidsuche.v2-*/_search` | Elasticsearch-Endpoint |
-| `ENTSCHEIDSUCHE_FACETS_URL` | `https://www.recherche.histoirerurale.ch/Facetten.json` | Facetten-Hierarchie |
+| `ENTSCHEIDSUCHE_API_BASE` | `https://entscheidsuche.ch/_search_KI.php` | Such-API von entscheidsuche.ch; darunter liegen alle Endpunkte der Stichwort- und der KI-Suche |
+| `ENTSCHEIDSUCHE_ES_URL` | `<API_BASE>/elasticsearch/_search` | Such-Endpunkt der Entscheide (überschreibt den Default einzeln) |
+| `ENTSCHEIDSUCHE_SEMANTIC_SEARCH` | `true` | KI-Suche ein/aus; bei `false` führt `search` die Stichwortsuche aus |
+| `ENTSCHEIDSUCHE_MICRO_CHUNK_WAIT` | `20` | Sekunden, die die KI-Suche höchstens auf nachzuindexierende Auszüge wartet |
+| `ENTSCHEIDSUCHE_FACETS_URL` | `https://entscheidsuche.ch/docs/Facetten.json` | Facetten-Hierarchie |
 | `HOST` / `PORT` | `127.0.0.1` / `8765` | Listen-Adresse |
 | `MCP_PATH` | `/mcp` | HTTP-Pfad |
 | `MCP_STATELESS_HTTP` | `true` | Streamable HTTP ohne Session-Pflicht |
@@ -197,11 +244,19 @@ curl -H 'Content-Type: application/json' -H 'Accept: application/json, text/even
      http://localhost:8765/mcp \
      -d '{"jsonrpc":"2.0","id":2,"method":"tools/list"}'
 
-# search
+# KI-Suche
 curl -H 'Content-Type: application/json' -H 'Accept: application/json, text/event-stream' \
      http://localhost:8765/mcp \
-     -d '{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"search","arguments":{"query":"\"BGE 142 III 1\"","language":"de","size":3}}}'
+     -d '{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"semantic_search","arguments":{"query":"Darf der Vermieter wegen Eigenbedarf kündigen, wenn seine Tochter einziehen will?","size":3}}}'
+
+# Stichwortsuche
+curl -H 'Content-Type: application/json' -H 'Accept: application/json, text/event-stream' \
+     http://localhost:8765/mcp \
+     -d '{"jsonrpc":"2.0","id":4,"method":"tools/call","params":{"name":"keyword_search","arguments":{"query":"\"BGE 142 III 1\"","size":3}}}'
 ```
+
+Bequemer geht es über die [Testoberfläche](#testoberfläche-test) unter
+`http://localhost:8765/test`.
 
 Komfortabler ist ein echter MCP-Client (MCP Inspector, Claude Code) —
 der übernimmt die Streamable-HTTP-Session-Verwaltung automatisch.
@@ -210,7 +265,7 @@ der übernimmt die Streamable-HTTP-Session-Verwaltung automatisch.
 
 Das Repository enthält eine systemd-Unit, einen nginx-vHost und ein
 Installations-Script. Damit kann jeder einen eigenen MCP-Endpoint
-gegen den gleichen Elasticsearch-Index betreiben.
+gegen die Such-API von entscheidsuche.ch betreiben.
 
 ```bash
 ssh root@your-server.example
@@ -232,6 +287,24 @@ Status prüfen:
 systemctl status entscheidsuche-mcp
 journalctl -u entscheidsuche-mcp -f
 ```
+
+### Bestehende Instanz auf Version 0.2.0 aktualisieren
+
+```bash
+cd /opt/entscheidsuche-mcp && git pull --ff-only
+.venv/bin/pip install --no-deps .          # entfällt bei editable-Installation (pip install -e)
+
+# Alte Upstream-URLs aus der Konfiguration entfernen, sonst bleiben sie wirksam:
+grep -nE 'ENTSCHEIDSUCHE_(ES|FACETS)_URL' /etc/entscheidsuche-mcp.env
+
+sudo install -m 644 deploy/entscheidsuche-mcp.service /etc/systemd/system/
+sudo install -m 644 deploy/nginx.conf /etc/nginx/sites-available/mcp.entscheidsuche.ch
+sudo systemctl daemon-reload && sudo nginx -t && sudo systemctl reload nginx
+sudo systemctl restart entscheidsuche-mcp
+```
+
+Die systemd-Unit begrenzt den Dienst auf 4 GB Arbeitsspeicher
+(`MemoryMax=4G`, Drosselung ab `MemoryHigh=3G`).
 
 ## Nutzungsstatistik (`/statistik`)
 
@@ -288,7 +361,10 @@ mcp.entscheidsuche.ch
 127.0.0.1:8765/mcp  ← uvicorn + FastMCP
        │  HTTPS
        ▼
-Elasticsearch (entscheidsuche.v2-*)
+entscheidsuche.ch/_search_KI.php  ← Such-API (Proxy)
+       ├─ Elasticsearch: Entscheide (entscheidsuche.v2-*)
+       ├─ Elasticsearch: Textabschnitte mit Embeddings (grosse Chunks, Micro-Chunks)
+       └─ Embedding-Modelle (qwen3-embedding-8b / -0.6b)
 ```
 
 Implementierung: Python + [FastMCP](https://github.com/jlowin/fastmcp).

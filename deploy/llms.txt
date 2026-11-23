@@ -1,18 +1,22 @@
 # entscheidsuche-mcp
 
-> MCP-Server für entscheidsuche.ch — Volltext-Suche in Schweizer
-> Gerichtsentscheiden und Rechtsprechung (Bundesgericht BGer/BGE,
-> kantonale Gerichte, Obergerichte, Verwaltungsgerichte) in
-> Deutsch, Französisch und Italienisch.
+> MCP-Server für entscheidsuche.ch — KI-Suche nach Bedeutung und
+> Stichwortsuche in Schweizer Gerichtsentscheiden und Rechtsprechung
+> (Bundesgericht BGer/BGE, kantonale Gerichte, Obergerichte,
+> Verwaltungsgerichte) in Deutsch, Französisch und Italienisch.
 
-Der Server stellt sechs Werkzeuge über das Model Context Protocol
+Der Server stellt folgende Werkzeuge über das Model Context Protocol
 (Streamable HTTP) bereit:
 
-- search                 — Volltext-Suche mit Filtern, Sortierung, Paginierung
+- search                 — Standardsuche: Rechtsfrage in natürlicher Sprache (KI-Suche);
+                           wechselt bei Geschäftsnummern, Phrasen und Booleschen
+                           Ausdrücken automatisch zur Stichwortsuche
+- semantic_search        — KI-Suche nach Bedeutung (Embeddings), sprachübergreifend
+- keyword_search         — Stichwortsuche mit Filtern, Sortierung, Paginierung
 - search_by_case_number  — Exakte Suche nach Geschäftsnummern, BGE-Zitaten
-- fetch_document         — Volltext eines einzelnen Entscheids
-- list_hierarchy         — Hierarchie-IDs für Kantone, Gerichte, Kammern
-- list_facets            — Lokalisierter Facetten-Baum
+- fetch_document         — Volltext eines einzelnen Entscheids (Alias: fetch)
+- list_hierarchy         — Hierarchie-IDs für Kantone, Gerichte, Kammern mit Trefferzahlen
+- list_facets            — Baum Kanton/Gericht/Kammer mit Bezeichnungen (de/fr/it)
 - server_info            — Versions- und Endpunkt-Information
 
 ## MCP-Endpoint
@@ -25,7 +29,15 @@ Der Server stellt sechs Werkzeuge über das Model Context Protocol
 
 - /.well-known/mcp.json
 - /.well-known/agent-card.json
-- /.well-known/oauth-protected-resource
+- /.well-known/mcp/server-card.json
+
+## Testoberfläche
+
+- https://mcp.entscheidsuche.ch/test — alle Werkzeuge im Browser ausprobieren
+
+## Schnittstellenbeschreibung
+
+- https://github.com/entscheidsuche/entscheidsuche-mcp/blob/main/docs/API.md
 
 ## Quellen
 

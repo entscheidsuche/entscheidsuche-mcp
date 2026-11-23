@@ -47,7 +47,7 @@ class DateRange(BaseModel):
 
 
 class SearchParams(BaseModel):
-    """Parameter für das `search`-Tool."""
+    """Parameter für die Stichwortsuche (`keyword_search`)."""
 
     model_config = ConfigDict(extra="forbid", populate_by_name=True)
 
@@ -118,7 +118,7 @@ class SearchParams(BaseModel):
 
 
 class GetDocumentParams(BaseModel):
-    """Parameter für das `get_document`-Tool."""
+    """Parameter für das `fetch_document`-Tool."""
 
     model_config = ConfigDict(extra="forbid")
 
@@ -162,13 +162,25 @@ class SearchHit(BaseModel):
     id: str
     title: str = ""
     abstract: str = ""
-    text: str = Field(default="", description="Highlight excerpt from the full text.")
+    text: str = Field(
+        default="",
+        description=(
+            "Excerpt from the decision. Keyword search: highlight snippet with "
+            "the matched terms wrapped in <em>…</em>. Semantic search: the "
+            "passage of the decision that best matches the query. "
+            "`fetch_document`: the full text."
+        ),
+    )
     meta: str = ""
     canton: str = ""
     court: str = Field(default="", description="Court (derived from the ID).")
     decision_date: Optional[str] = Field(default=None, description="ISO date YYYY-MM-DD.")
     scrape_date: Optional[str] = Field(default=None, description="ISO date YYYY-MM-DD.")
     is_pdf: bool = False
+    url: Optional[str] = Field(
+        default=None,
+        description="Web page of the decision on entscheidsuche.ch (use this link for citations).",
+    )
     document_url: Optional[str] = Field(
         default=None, description="Direct download link to the original document."
     )
@@ -193,6 +205,21 @@ class SearchHit(BaseModel):
     sort: Optional[List[Any]] = Field(
         default=None, description="Sort values of the hit (for search_after)."
     )
+    score: Optional[float] = Field(
+        default=None,
+        description=(
+            "Semantic search only: similarity between the query and the best "
+            "matching passage of this decision (higher is better)."
+        ),
+    )
+    context: Optional[str] = Field(
+        default=None,
+        description=(
+            "Semantic search with `include_context=true` only: the larger "
+            "section of the decision (up to about 6,000 characters) that "
+            "contains the passage in `text`."
+        ),
+    )
 
 
 class AggregationBucket(BaseModel):
@@ -200,10 +227,34 @@ class AggregationBucket(BaseModel):
     count: int
 
 
-class SearchResponse(BaseModel):
-    """Antwort des `search`-Tools."""
+class ResultRef(BaseModel):
+    """Kompakter Treffer-Verweis (id, title, url) für Clients, die genau dieses Format erwarten."""
 
-    total: int
+    id: str
+    title: str = ""
+    url: Optional[str] = None
+
+
+class SearchResponse(BaseModel):
+    """Antwort der Such-Tools."""
+
+    search_mode: str = Field(
+        default="keyword",
+        description="Which search was executed: 'keyword' or 'semantic'.",
+    )
+    note: Optional[str] = Field(
+        default=None,
+        description=(
+            "Remarks on how the query was executed, e.g. that it was not valid "
+            "search syntax and was searched as plain terms."
+        ),
+    )
+    total: int = Field(
+        description=(
+            "Keyword search: number of all matching decisions. Semantic search: "
+            "number of decisions among the best-matching passages."
+        )
+    )
     hits: List[SearchHit]
     next_cursor: Optional[List[Any]] = Field(
         default=None,
@@ -213,6 +264,13 @@ class SearchResponse(BaseModel):
         ),
     )
     aggregations: Optional[dict[str, List[AggregationBucket]]] = None
+    results: Optional[List[ResultRef]] = Field(
+        default=None,
+        description=(
+            "Only set by the `search` tool: compact list (id, title, url) of the "
+            "same decisions as in `hits`, in the same order."
+        ),
+    )
 
 
 class HierarchyEntry(BaseModel):
