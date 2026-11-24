@@ -3,7 +3,7 @@
 Schreibt eine Zeile pro JSON-RPC-Call in den Logger
 ``entscheidsuche_mcp.access`` — genug Information, um Nutzungsmuster
 auszuwerten, ohne den Body komplett zu speichern. Wird vor die ASGI-App
-von FastMCP gehaengt; greift den Request-Body ab, parst ihn als JSON-RPC
+des MCP-Servers gehaengt; greift den Request-Body ab, parst ihn als JSON-RPC
 (Single oder Batch) und schreibt die identifizierte Methode + Tool-Name +
 (gekuerzte) Argumente sowie Status/Bytes/Latenz.
 
@@ -85,8 +85,34 @@ def _describe_rpc(payload: Any) -> list[dict[str, Any]]:
                     "version": ci.get("version"),
                     "protocol": params.get("protocolVersion"),
                 }
-        out.append({"method": method, "tool": tool, "id": rpc_id, "args": args})
+        app, appver = _client_info(method, params)
+        out.append({"method": method, "tool": tool, "id": rpc_id, "args": args,
+                    "app": app, "appver": appver})
     return out
+
+
+_META_CLIENT_INFO = "io.modelcontextprotocol/clientInfo"
+
+
+def _client_info(method: Any, params: Any) -> tuple[str, str]:
+    """Name und Version des anfragenden Programms.
+
+    Bis Protokollversion 2025-11-25 nennt sich der Client einmal in
+    ``initialize``. Ab 2026-07-28 gibt es keinen Handshake mehr; der Client
+    steht in jedem Request unter ``params._meta``.
+    """
+    if not isinstance(params, dict):
+        return "-", "-"
+    info: Any = None
+    if method == "initialize":
+        info = params.get("clientInfo")
+    else:
+        meta = params.get("_meta")
+        if isinstance(meta, dict):
+            info = meta.get(_META_CLIENT_INFO)
+    if not isinstance(info, dict):
+        return "-", "-"
+    return _safe_field(info.get("name")), _safe_field(info.get("version"))
 
 
 class JsonRpcAccessLogMiddleware:
@@ -161,11 +187,8 @@ class JsonRpcAccessLogMiddleware:
                 )
                 return
             for r in rpcs:
-                app = "-"
-                appver = "-"
-                if r["method"] == "initialize" and isinstance(r["args"], dict):
-                    app = _safe_field(r["args"].get("client"))
-                    appver = _safe_field(r["args"].get("version"))
+                app = r.get("app", "-")
+                appver = r.get("appver", "-")
                 log.info(
                     "method=%s tool=%s id=%s status=%s size=%d ms=%d "
                     "client=%s app=%s appver=%s args=%s",
@@ -214,6 +237,11 @@ def configure_file_handler(level: int = logging.INFO) -> None:
         os.makedirs(os.path.dirname(path), exist_ok=True)
     except OSError:
         pass
+    # Beim Import von `server` hat `_ensure_logger_has_handler` bereits einen
+    # Handler angelegt; ein zweiter schriebe jede Zeile doppelt.
+    for old in list(log.handlers):
+        log.removeHandler(old)
+        old.close()
     handler = logging.FileHandler(path, encoding="utf-8")
     handler.setLevel(level)
     handler.setFormatter(logging.Formatter(

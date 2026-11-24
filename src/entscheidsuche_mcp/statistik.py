@@ -49,7 +49,7 @@ LOG_LINE = re.compile(
     r"(?:\s+appver=(?P<appver>\S+))?"
 )
 
-SETUP_METHODS = {"initialize", "notifications/initialized",
+SETUP_METHODS = {"initialize", "notifications/initialized", "server/discover",
                  "tools/list", "resources/list", "prompts/list"}
 
 def _default_log_path() -> Path:
@@ -162,7 +162,10 @@ def parse_log(path: Path, since: Optional[str] = None) -> list[dict]:
     for r in out:
         pool = _normalize_client_pool(r["client"])
         r["pool"] = pool
-        if r["method"] == "initialize" and r["app"] != "-":
+        if r["app"] != "-":
+            # `initialize` (bis 2025-11-25) oder ein Request des zustandslosen
+            # Protokolls 2026-07-28, der den Client selbst nennt.
+            r["modern"] = r["method"] != "initialize"
             active[pool] = (r["app"], r["ts"])
             r["resolved_app"] = r["app"]
         else:
@@ -222,6 +225,22 @@ def aggregate_per_day(rows: list[dict]) -> dict[str, dict]:
 
         if resolved != "-":
             d["apps_all_calls"][resolved] += 1
+
+        if r.get("modern"):
+            # Protokoll 2026-07-28: kein `initialize`. Als Session zählt eine
+            # Folge von Requests desselben Clients aus demselben Pool ohne
+            # Pause von mehr als SESSION_TIMEOUT.
+            key = pool + "|" + r["app"]
+            sess = open_sessions.get(key)
+            if sess is None or (r["ts"] - sess["last"]) > SESSION_TIMEOUT:
+                _close_session(key)
+                d["sessions"] += 1
+                d["apps"][r["app"]] += 1
+                open_sessions[key] = {"date": r["date"], "active": False}
+            open_sessions[key]["last"] = r["ts"]
+            d["apps_last_ts"][r["app"]] = r["ts"].isoformat()
+            if r["method"] == "tools/call":
+                open_sessions[key]["active"] = True
 
         if r["method"] == "initialize":
             _close_session(pool)  # vorherige Session abschliessen, falls offen
@@ -473,7 +492,10 @@ def _resolve_apps(rows: list[dict]) -> None:
     for r in rows:
         pool = _normalize_client_pool(r["client"])
         r["pool"] = pool
-        if r["method"] == "initialize" and r["app"] != "-":
+        if r["app"] != "-":
+            # `initialize` (bis 2025-11-25) oder ein Request des zustandslosen
+            # Protokolls 2026-07-28, der den Client selbst nennt.
+            r["modern"] = r["method"] != "initialize"
             active[pool] = (r["app"], r["ts"])
             r["resolved_app"] = r["app"]
         else:
@@ -1220,7 +1242,7 @@ async def statistik_endpoint(request: Request) -> Response:
     log_path = _env_path("ESC_ACCESS_LOG_FILE", DEFAULT_LOG)
     cache_path = _env_path("ESC_STATS_CACHE", DEFAULT_CACHE)
     # Log-Parsing + Rendering sind synchrones I/O bzw. CPU-Arbeit.
-    # In einen Thread auslagern, damit der FastMCP-Event-Loop während
+    # In einen Thread auslagern, damit der Event-Loop des Servers während
     # der Statistik-Aufbereitung weiterhin /mcp-Requests bedienen kann.
     days = await asyncio.to_thread(refresh_cache, cache_path, log_path)
     body = await asyncio.to_thread(render_html, days, log_path, cache_path)

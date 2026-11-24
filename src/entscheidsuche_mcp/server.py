@@ -1,4 +1,4 @@
-"""FastMCP-Server für entscheidsuche.ch.
+"""MCPServer-Server für entscheidsuche.ch.
 
 Stellt die Entscheidsuche als MCP-Tools über Streamable HTTP bereit.
 
@@ -31,7 +31,9 @@ from typing import Annotated, Any, AsyncIterator, List, Literal, Optional
 
 from urllib.parse import urlparse
 
-from mcp.server.fastmcp import Context, FastMCP
+from mcp.server.caching import CacheHint
+from mcp.server.mcpserver import Context, MCPServer
+from mcp.server.mcpserver.exceptions import ToolError
 from mcp.server.transport_security import TransportSecuritySettings
 from mcp.types import ToolAnnotations
 from pydantic import Field
@@ -247,16 +249,22 @@ DocumentIdArg = Annotated[
 async def _guard(awaitable):
     """Lässt verständliche `SearchError`-Meldungen durch, verbirgt alles andere.
 
-    Unerwartete Ausnahmen (Programmierfehler, unerwartete Upstream-Antworten)
-    würden sonst mit internen Details beim Client landen.
+    Fehler gehen als `ToolError` an den Client: Nur dessen Text reicht das
+    MCP-SDK (ab 2.x) als Tool-Ergebnis mit `isError` weiter; bei jeder anderen
+    Ausnahme sähe das Modell bloss „Error executing tool …". Unerwartete
+    Ausnahmen (Programmierfehler, unerwartete Upstream-Antworten) werden
+    protokolliert und durch eine allgemeine Meldung ersetzt, damit keine
+    internen Details beim Client landen.
     """
     try:
         return await awaitable
-    except SearchError:
+    except ToolError:
         raise
+    except SearchError as exc:
+        raise ToolError(str(exc)) from exc
     except Exception as exc:  # noqa: BLE001
         logger.exception("Unerwarteter Fehler in einem Tool-Aufruf")
-        raise SearchError(
+        raise ToolError(
             "The request failed because of an internal error of the "
             "entscheidsuche MCP server. Try again later."
         ) from exc
@@ -275,7 +283,7 @@ def _env_bool(name: str, default: bool) -> bool:
 
 
 @asynccontextmanager
-async def _lifespan(app: FastMCP) -> AsyncIterator[dict[str, Any]]:
+async def _lifespan(app: MCPServer) -> AsyncIterator[dict[str, Any]]:
     """Verwaltet den HTTP-Client über die Lebensdauer des Servers."""
     endpoints = _endpoints()
     timeout = float(_env("HTTP_TIMEOUT", "30"))
@@ -367,7 +375,7 @@ def _allowed_origins() -> List[str]:
 
 
 def _transport_security() -> TransportSecuritySettings:
-    """Konfiguriert den DNS-Rebinding-Schutz von FastMCP.
+    """Konfiguriert den DNS-Rebinding-Schutz von MCPServer.
 
     Default: AUS. Dieser Server ist öffentlich, ohne Authentifizierung und
     nur lesend; er wird von Browser-Clients (Claude, ChatGPT u.a.) über eine
@@ -456,7 +464,7 @@ def _is_probe_request(scope: dict[str, Any], json_response_mode: bool = False) -
     Im `json_response_mode` (= MCP_JSON_RESPONSE=true) sendet der Server keine
     Server-initiierten Notifications; GET /mcp mit `application/json` ist dann
     fast immer ein Discovery-Probe und wird mit JSON beantwortet — sonst würde
-    FastMCP 406 zurückliefern ("Not Acceptable: Client must accept text/event-stream"),
+    MCPServer 406 zurückliefern ("Not Acceptable: Client must accept text/event-stream"),
     was MCP-Verzeichnisse und SDK-CLI-Heartbeats unnötig brechen lässt.
     """
     if scope.get("method") == "HEAD":
@@ -471,7 +479,7 @@ def _is_probe_request(scope: dict[str, Any], json_response_mode: bool = False) -
     accept = headers.get("accept", "")
 
     # SSE-Streams immer durchreichen — der Client will explizit den
-    # Server-initiierten Event-Stream und FastMCP weiss damit umzugehen.
+    # Server-initiierten Event-Stream und MCPServer weiss damit umzugehen.
     if "text/event-stream" in accept:
         return False
 
@@ -480,7 +488,7 @@ def _is_probe_request(scope: dict[str, Any], json_response_mode: bool = False) -
     if json_response_mode:
         return True
 
-    # Klassischer Streamable-HTTP-Modus: JSON-Accept durchreichen, FastMCP
+    # Klassischer Streamable-HTTP-Modus: JSON-Accept durchreichen, MCPServer
     # entscheidet selbst (typischerweise 406, da kein SSE).
     if "application/json" in accept:
         return False
@@ -490,7 +498,7 @@ def _is_probe_request(scope: dict[str, Any], json_response_mode: bool = False) -
 
 
 def _compat_streamable_http_app(mcp_app, mcp_path: str, json_response_mode: bool = False):
-    """Hülle um die FastMCP-ASGI-App, die HEAD/GET-Discovery-Probes mit JSON beantwortet."""
+    """Hülle um die MCPServer-ASGI-App, die HEAD/GET-Discovery-Probes mit JSON beantwortet."""
 
     async def app(scope, receive, send):
         if (
@@ -511,11 +519,14 @@ def _compat_streamable_http_app(mcp_app, mcp_path: str, json_response_mode: bool
 # Tool-Beschreibungen (englisch — sie werden von Sprachmodellen gelesen)
 # ---------------------------------------------------------------------------
 
+# Methoden, deren Ergebnis nur von der Server-Version abhängt.
+_CACHEABLE_LISTS = ("server/discover", "tools/list", "resources/list", "prompts/list")
+
 _READ_ONLY = ToolAnnotations(
-    readOnlyHint=True,
-    destructiveHint=False,
-    idempotentHint=True,
-    openWorldHint=True,
+    read_only_hint=True,
+    destructive_hint=False,
+    idempotent_hint=True,
+    open_world_hint=True,
 )
 
 _FILTER_NOTE = (
@@ -634,9 +645,9 @@ def keyword_reason(
     return None
 
 
-def build_server() -> FastMCP:
-    """Erzeugt die FastMCP-Instanz mit allen registrierten Tools."""
-    mcp = FastMCP(
+def build_server() -> MCPServer:
+    """Erzeugt die MCPServer-Instanz mit allen registrierten Tools."""
+    mcp = MCPServer(
         name="entscheidsuche",
         instructions=(
             "MCP server for entscheidsuche.ch — the open search engine for Swiss "
@@ -652,16 +663,19 @@ def build_server() -> FastMCP:
             "a decision. `list_hierarchy` and `list_facets` list cantons, courts "
             "and chambers for the `hierarchy` filter."
         ),
+        version=__version__,
         lifespan=_lifespan,
-        transport_security=_transport_security(),
+        # Der Server ist zustandslos und kündigt keine Änderungen an: keine
+        # Abonnements (`subscriptions/listen`).
+        subscriptions=False,
+        # MCP 2026-07-28: Tool-Liste und Server-Beschreibung ändern sich nur
+        # mit einem Deployment und sind für alle Aufrufer gleich; Clients
+        # dürfen sie eine Stunde zwischenspeichern.
+        cache_hints={
+            method: CacheHint(ttl_ms=3_600_000, scope="public")
+            for method in _CACHEABLE_LISTS
+        },
     )
-    # FastMCP meldet in `initialize` sonst die Version des MCP-SDK als
-    # Server-Version.
-    try:
-        mcp._mcp_server.version = __version__
-    except AttributeError:  # pragma: no cover — SDK-Interna geändert
-        logger.warning("Server-Version konnte nicht gesetzt werden")
-
     def _client(ctx: Context) -> EntscheidsucheClient:
         return ctx.request_context.lifespan_context["client"]
 
@@ -738,7 +752,7 @@ def build_server() -> FastMCP:
     async def _fetch(ctx: Context, id: str, language: Optional[Language]) -> SearchHit:
         hit = await _guard(_client(ctx).get_document(id, language))
         if hit is None:
-            raise ValueError(
+            raise ToolError(
                 f"No decision found with id '{id}'. Document IDs are case-sensitive; "
                 "use the `id` of a hit returned by one of the search tools."
             )
@@ -981,7 +995,7 @@ def build_server() -> FastMCP:
         if len(number) >= 2 and number[0] == number[-1] == '"':
             number = number[1:-1]
         if not number.strip():
-            raise ValueError("`case_number` must not be empty.")
+            raise ToolError("`case_number` must not be empty.")
         return await _keyword(
             ctx,
             query=_quote_as_phrase(number),
@@ -1097,18 +1111,25 @@ def build_server() -> FastMCP:
 # ASGI-Einstieg für `uvicorn entscheidsuche_mcp.server:app`
 # ---------------------------------------------------------------------------
 
-_mcp_singleton: Optional[FastMCP] = None
+_mcp_singleton: Optional[MCPServer] = None
 
 
-def get_mcp() -> FastMCP:
-    """Lazy-erzeugte FastMCP-Instanz (für ASGI-Mount via Module-Level-`app`)."""
+def get_mcp() -> MCPServer:
+    """Lazy-erzeugte MCPServer-Instanz (für ASGI-Mount via Module-Level-`app`)."""
     global _mcp_singleton
     if _mcp_singleton is None:
         _mcp_singleton = build_server()
     return _mcp_singleton
 
 
-def create_app(mcp: Optional[FastMCP] = None):
+def create_app(
+    mcp: Optional[MCPServer] = None,
+    *,
+    mcp_path: str = "/mcp",
+    stateless_http: bool = True,
+    json_response: bool = True,
+    host: str = "127.0.0.1",
+):
     """Factory für ASGI-Server.
 
     Wenn `mcp` übergeben wird, nutzt die App genau diese Instanz — wichtig, damit
@@ -1116,7 +1137,7 @@ def create_app(mcp: Optional[FastMCP] = None):
     konfiguriert hat, auch tatsächlich wirksam werden. Ohne Argument wird die
     Lazy-Singleton-Instanz aus `get_mcp()` verwendet (für `uvicorn …:app`-Aufrufe).
 
-    Wichtig: FastMCP startet ihren `StreamableHTTPSessionManager` im Lifespan der
+    Wichtig: MCPServer startet ihren `StreamableHTTPSessionManager` im Lifespan der
     Sub-App, die `streamable_http_app()` zurückliefert. Starlette propagiert
     Lifespans von gemounteten Sub-Apps NICHT, also müssen wir den Lifespan
     der inneren App explizit in die äußere App heben — sonst wirft jeder
@@ -1126,9 +1147,7 @@ def create_app(mcp: Optional[FastMCP] = None):
         mcp = get_mcp()
 
     base_url = _public_base_url()
-    mcp_path = _normalise_mcp_path(
-        getattr(mcp.settings, "streamable_http_path", None) or "/mcp"
-    )
+    mcp_path = _normalise_mcp_path(mcp_path or "/mcp")
 
     async def well_known_manifest(_request):
         return JSONResponse(
@@ -1157,8 +1176,14 @@ def create_app(mcp: Optional[FastMCP] = None):
         html = html.replace("__MCP_PATH__", mcp_path).replace("__VERSION__", __version__)
         return HTMLResponse(html, headers={"Cache-Control": "no-cache"})
 
-    inner_app = mcp.streamable_http_app()
-    json_response_mode = bool(getattr(mcp.settings, "json_response", False))
+    inner_app = mcp.streamable_http_app(
+        streamable_http_path=mcp_path,
+        json_response=json_response,
+        stateless_http=stateless_http,
+        transport_security=_transport_security(),
+        host=host,
+    )
+    json_response_mode = json_response
     mcp_app = _compat_streamable_http_app(
         inner_app, mcp_path, json_response_mode=json_response_mode
     )

@@ -95,32 +95,27 @@ def main(argv: list[str] | None = None) -> int:
     cors_origins = _parse_cors_origins()
 
     if args.transport == "stdio":
-        # FastMCP.run() ist synchron und startet den passenden Loop intern.
+        # MCPServer.run() ist synchron und startet den passenden Loop intern.
         server.run(transport="stdio")
         return 0
 
     # HTTP-Modi: Settings am Server konfigurieren und mit optionalem CORS starten.
     # Achtung: `create_app(server)` muss die *gleiche* Instanz erhalten, damit die
     # hier gesetzten Settings auch in der gemounteten ASGI-App wirken.
-    server.settings.host = args.host
-    server.settings.port = args.port
     if args.transport == "streamable-http":
-        server.settings.streamable_http_path = args.path
-        server.settings.stateless_http = _parse_bool_env("MCP_STATELESS_HTTP", True)
-        # JSON-Response-Modus: POST /mcp wird mit einer einzelnen JSON-Antwort
-        # statt mit einem SSE-Stream beantwortet. Damit akzeptiert FastMCP auch
-        # Clients, die nur "application/json" im Accept-Header senden — die
-        # Streamable-HTTP-Spec verlangt sonst zwingend zusätzlich
-        # "text/event-stream", was viele MCP-Verzeichnisse und kleinere
-        # MCP-Clients (python-requests/2.33.1, relay-registry, mcp-spider,
-        # Chiark, agent-tools.cloud-crawler, AgentDiscoveryIndex …) nicht
-        # senden — Folge waren 406er-Antworten und Nicht-Erkennung.
-        server.settings.json_response = _parse_bool_env("MCP_JSON_RESPONSE", True)
-        app = create_app(server)
+        app = create_app(
+            server,
+            mcp_path=args.path,
+            stateless_http=_parse_bool_env("MCP_STATELESS_HTTP", True),
+            json_response=_parse_bool_env("MCP_JSON_RESPONSE", True),
+            host=args.host,
+        )
     else:  # sse
-        server.settings.sse_path = args.path
-        server.settings.message_path = args.path.rstrip("/") + "/messages/"
-        app = server.sse_app()
+        app = server.sse_app(
+            sse_path=args.path,
+            message_path=args.path.rstrip("/") + "/messages/",
+            host=args.host,
+        )
 
     if cors_origins:
         app = CORSMiddleware(

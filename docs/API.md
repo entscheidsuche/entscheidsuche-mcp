@@ -33,6 +33,7 @@ Request, `curl`-Befehl und Antwort.
 - [Datentypen](#datentypen)
 - [Beispiel-Workflows](#beispiel-workflows)
 - [Fehlerbehandlung](#fehlerbehandlung)
+- [Änderungen in Version 0.3.0](#änderungen-in-version-030)
 - [Änderungen in Version 0.2.0](#änderungen-in-version-020)
 
 ---
@@ -47,6 +48,11 @@ Streamable-HTTP-Transport gemäß
   Event-Stream.
 - **GET `/mcp`** — ohne `Accept: text/event-stream` liefert der Server eine kurze
   JSON-Auskunft über den Endpunkt (für Browser und Verzeichnis-Crawler).
+- **Protokollversionen:** 2024-11-05 bis 2025-11-25 mit `initialize`, ausserdem
+  2026-07-28. In dieser Version entfällt der Handshake: Der Client sendet
+  `MCP-Protocol-Version: 2026-07-28` und `Mcp-Method` als Header und nennt
+  Protokollversion, Fähigkeiten und `clientInfo` in `params._meta`; mit
+  `server/discover` fragt er Versionen und Fähigkeiten des Servers ab.
 - Die Instanz läuft im **stateless HTTP**-Modus. Ein `Mcp-Session-Id`-Header
   ist nicht erforderlich; `initialize` kann trotzdem wie gewohnt gesendet werden.
 - Empfohlener Header: `Accept: application/json, text/event-stream`. Requests
@@ -438,7 +444,7 @@ Versionsinfo und konfigurierte Endpunkte.
 ```jsonc
 {
   "name": "entscheidsuche-mcp",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "search_url": "https://entscheidsuche.ch/_search_KI.php/elasticsearch/_search",
   "semantic_search": true,
   "embedding_model": "qwen3-embedding-8b",
@@ -581,6 +587,21 @@ Die Meldungen enthalten keine internen URLs. Protokollfehler (ungültiges JSON,
 unbekannte Methode) werden als JSON-RPC-Fehler gemäß Spec beantwortet.
 
 ---
+
+## Änderungen in Version 0.3.0
+
+- **Protokollversion 2026-07-28:** Der Server beantwortet `server/discover`
+  und zustandslose Aufrufe ohne vorheriges `initialize`. Die bisherigen
+  Protokollversionen (2024-11-05 bis 2025-11-25) mit `initialize` bleiben
+  unverändert nutzbar.
+- **MCP-SDK 2.x** (`mcp>=2.3,<3`) statt 1.x.
+- **Zwischenspeichern:** `server/discover`, `tools/list`, `resources/list`
+  und `prompts/list` tragen im neuen Protokoll `ttlMs: 3600000` und
+  `cacheScope: "public"`.
+- **Statistik:** Clients des neuen Protokolls werden über `clientInfo` in
+  `params._meta` erkannt. Mit gesetztem `ESC_ACCESS_LOG_FILE` wird nicht mehr
+  jede Zeile doppelt protokolliert.
+- Tools, Parameter und Antworten sind unverändert.
 
 ## Änderungen in Version 0.2.0
 

@@ -1,0 +1,125 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "entscheidsuche",
+  "version": "1.0.0",
+  "description": "Search and read Swiss court decisions and case law on entscheidsuche.ch.",
+  "author": {
+    "name": "Verein entscheidsuche.ch",
+    "email": "info@entscheidsuche.ch",
+    "url": "https://entscheidsuche.ch"
+  },
+  "homepage": "https://entscheidsuche.ch",
+  "repository": "https://github.com/entscheidsuche/entscheidsuche-mcp",
+  "license": "MIT",
+  "keywords": [
+    "law",
+    "legal",
+    "switzerland",
+    "case law",
+    "court decisions",
+    "jurisprudence",
+    "Rechtsprechung"
+  ],
+  "extensions": {
+    "com.openai": {
+      "onboardingSkill": "./skills/get-started/SKILL.md",
+      "interface": {
+        "displayName": "entscheidsuche.ch",
+        "shortDescription": "Swiss court decisions",
+        "longDescription": "entscheidsuche.ch is the open, non-profit search engine for Swiss court decisions, run by the association entscheidsuche.ch. It covers published decisions of the Swiss Federal Supreme Court (BGer, BGE), the other federal courts, the cantonal courts and administrative authorities, in German, French and Italian.\n\nAsk a legal question in your own words and get the matching decisions together with the relevant passage. The search works by meaning and across languages: a question in English or German also finds French and Italian decisions. You can also search for exact words and phrases, look up a case number or a BGE citation, restrict results to a canton, court or period, and read the full text of a decision.\n\nEvery result links to the decision on entscheidsuche.ch, so citations can be checked against the source. The service is free of charge and needs no account. It provides court decisions, not legislation and not legal advice.",
+        "developerName": "Verein entscheidsuche.ch",
+        "category": "Productivity",
+        "capabilities": [
+          "Search Swiss court decisions by meaning",
+          "Search by keywords and phrases",
+          "Look up case numbers and BGE citations",
+          "Read the full text of a decision"
+        ],
+        "websiteURL": "https://entscheidsuche.ch",
+        "supportURL": "https://entscheidsuche.ch/about",
+        "privacyPolicyURL": "https://entscheidsuche.ch/datenschutz",
+        "termsOfServiceURL": "https://entscheidsuche.ch/dataUsage",
+        "defaultPrompt": [
+          "Find Swiss court decisions on termination of a lease for the landlord's own use",
+          "Look up BGE 142 III 1 and summarise it",
+          "Which cantons have the most decisions on Eigenbedarf?"
+        ],
+        "brandColor": "#6183EC",
+        "brandColorDark": "#6183EC",
+        "composerIcon": "./assets/icon.png",
+        "composerIconDark": "./assets/icon-dark.png",
+        "logo": "./assets/logo.png",
+        "logoDark": "./assets/logo-dark.png"
+      },
+      "review": {
+        "demo_recording_url": "",
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Legal question in natural language (AI search by meaning).",
+              "prompt": "Use entscheidsuche.ch: Under Swiss law, can a landlord terminate a lease because his daughter wants to move into the flat? Name three relevant court decisions with links.",
+              "tools_triggered": "search",
+              "expected_behavior": "Calls search with the question as query. The response has search_mode \"semantic\" and returns Swiss decisions on termination of a lease for the landlord's own need, each with a passage in text and a url on entscheidsuche.ch. The answer names at least three decisions with court, date, case number and link (for example decisions of the Federal Supreme Court's First Civil Law Division or of the Geneva Cour de Justice, Chambre des baux et loyers) and summarises what they say. The exact decisions may vary because the index grows daily."
+            },
+            {
+              "description": "Lookup of a published leading decision by its BGE citation.",
+              "prompt": "Use entscheidsuche.ch to find the Swiss Federal Supreme Court decision BGE 142 III 1 and give me the link.",
+              "tools_triggered": "search_by_case_number",
+              "expected_behavior": "Calls search_by_case_number with case_number \"BGE 142 III 1\" (calling search with the citation is equally acceptable). The first hit has the id CH_BGE_005_BGE-142-III-1_2016. The answer identifies the decision as BGE 142 III 1 of the Federal Supreme Court (2016) and gives the link https://entscheidsuche.ch/view/CH_BGE_005_BGE-142-III-1_2016."
+            },
+            {
+              "description": "Lookup by case number, then retrieval of the full text and a summary.",
+              "prompt": "Use entscheidsuche.ch to find the Swiss Federal Supreme Court judgment 5A_396/2015, read its full text and summarise the outcome in five sentences.",
+              "tools_triggered": "search_by_case_number, fetch",
+              "expected_behavior": "First looks up the case number (search_by_case_number or search), then calls fetch (or fetch_document) with the id CH_BGer_005_5A-396-2015_2017-06-22. The fetched document is the judgment of the Second Civil Law Division of 22 June 2017, written in German, with a full text of roughly 88,000 characters. The answer summarises the judgment in about five sentences and links to https://entscheidsuche.ch/view/CH_BGer_005_5A-396-2015_2017-06-22."
+            },
+            {
+              "description": "Exact phrase search with a court filter and sorting by date.",
+              "prompt": "Use entscheidsuche.ch to list the most recent Swiss Federal Supreme Court (BGer) decisions that contain the exact German phrase \"dringender Eigenbedarf\", newest first.",
+              "tools_triggered": "keyword_search",
+              "expected_behavior": "Calls keyword_search (or search, which switches to keyword search) with the quoted phrase, hierarchy [\"CH_BGer\"] and sort \"date\". The response has search_mode \"keyword\", about ten hits in total, sorted by decision date descending, and the phrase is highlighted in the text snippets. The answer lists the decisions with date, case number and link, starting with the newest (at the time of writing 4A_103/2015 of 3 July 2015, followed by 4A_482/2014 of 20 January 2015)."
+            },
+            {
+              "description": "Distribution of matching decisions across cantons and courts.",
+              "prompt": "Use entscheidsuche.ch to tell me which Swiss cantons and courts have the most decisions that mention the word \"Eigenbedarf\".",
+              "tools_triggered": "list_hierarchy",
+              "expected_behavior": "Calls list_hierarchy with query \"Eigenbedarf\" (keyword_search with include_aggregations is also acceptable). The response lists hierarchy IDs with counts in descending order; at the time of writing CH (federal level) has about 270 decisions, ZH about 145, CH_BGer about 140 and ZH_OG about 80. The answer reports the leading cantons and courts with their counts; the numbers may be slightly higher because the index grows."
+            }
+          ],
+          "negative": [
+            {
+              "description": "Unrelated everyday question.",
+              "prompt": "What will the weather be like in Zurich tomorrow?"
+            },
+            {
+              "description": "Case law of another country; the plugin only covers Swiss court decisions.",
+              "prompt": "Find recent decisions of the US Supreme Court on qualified immunity."
+            },
+            {
+              "description": "Generic writing task without any need for court decisions.",
+              "prompt": "Write a short birthday poem for my colleague Anna."
+            }
+          ]
+        }
+      },
+      "publication": {
+        "countries": [],
+        "release_notes": "First public release: AI search by meaning, keyword search, case-number lookup and full-text retrieval for Swiss court decisions.",
+        "translations": {
+          "de-DE": {
+            "subtitle": "Schweizer Gerichtsentscheide",
+            "description": "entscheidsuche.ch ist die offene, nicht gewinnorientierte Suchmaschine für Schweizer Gerichtsentscheide, betrieben vom Verein entscheidsuche.ch. Sie umfasst publizierte Entscheide des Bundesgerichts (BGer, BGE), der weiteren Gerichte des Bundes, der kantonalen Gerichte und von Verwaltungsbehörden in Deutsch, Französisch und Italienisch.\n\nStellen Sie eine Rechtsfrage in eigenen Worten und erhalten Sie die passenden Entscheide samt der einschlägigen Textstelle. Die Suche arbeitet nach Bedeutung und über Sprachgrenzen hinweg: Eine deutsche Frage findet auch französische und italienische Entscheide. Ausserdem können Sie nach exakten Wörtern und Phrasen suchen, eine Geschäftsnummer oder ein BGE-Zitat nachschlagen, die Treffer auf Kanton, Gericht oder Zeitraum einschränken und den Volltext eines Entscheids lesen.\n\nJeder Treffer verweist auf den Entscheid auf entscheidsuche.ch, sodass Zitate an der Quelle überprüft werden können. Der Dienst ist kostenlos und benötigt kein Konto. Er liefert Gerichtsentscheide, keine Gesetzestexte und keine Rechtsberatung."
+          },
+          "fr-FR": {
+            "subtitle": "Décisions judiciaires suisses",
+            "description": "entscheidsuche.ch est le moteur de recherche ouvert et sans but lucratif pour les décisions judiciaires suisses, exploité par l'association entscheidsuche.ch. Il couvre les décisions publiées du Tribunal fédéral (ATF et arrêts non publiés au recueil), des autres tribunaux de la Confédération, des tribunaux cantonaux et d'autorités administratives, en allemand, en français et en italien.\n\nPosez une question juridique avec vos propres mots et obtenez les décisions pertinentes avec le passage déterminant. La recherche fonctionne par le sens et au-delà des langues : une question en français trouve aussi des décisions en allemand et en italien. Vous pouvez également chercher des mots et expressions exacts, retrouver un numéro de dossier ou une citation ATF, limiter les résultats à un canton, un tribunal ou une période et lire le texte intégral d'une décision.\n\nChaque résultat renvoie à la décision sur entscheidsuche.ch, de sorte que les citations peuvent être vérifiées à la source. Le service est gratuit et ne nécessite pas de compte. Il fournit des décisions judiciaires, pas de textes de loi ni de conseil juridique."
+          },
+          "it-IT": {
+            "subtitle": "Decisioni giudiziarie svizzere",
+            "description": "entscheidsuche.ch è il motore di ricerca aperto e senza scopo di lucro per le decisioni giudiziarie svizzere, gestito dall'associazione entscheidsuche.ch. Comprende le decisioni pubblicate del Tribunale federale (DTF e sentenze non pubblicate nella raccolta), degli altri tribunali della Confederazione, dei tribunali cantonali e di autorità amministrative, in tedesco, francese e italiano.\n\nPonete una questione giuridica con parole vostre e ottenete le decisioni pertinenti con il passaggio determinante. La ricerca funziona per significato e oltre i confini linguistici: una domanda in italiano trova anche decisioni in tedesco e in francese. Potete inoltre cercare parole ed espressioni esatte, trovare un numero di incarto o una citazione DTF, limitare i risultati a un cantone, un tribunale o un periodo e leggere il testo integrale di una decisione.\n\nOgni risultato rinvia alla decisione su entscheidsuche.ch, così le citazioni possono essere verificate alla fonte. Il servizio è gratuito e non richiede un account. Fornisce decisioni giudiziarie, non testi di legge né consulenza giuridica."
+          }
+        }
+      }
+    }
+  }
+}

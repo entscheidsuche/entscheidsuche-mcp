@@ -287,7 +287,39 @@ systemctl status entscheidsuche-mcp
 journalctl -u entscheidsuche-mcp -f
 ```
 
-### Bestehende Instanz auf Version 0.2.0 aktualisieren
+### Bestehende Instanz auf Version 0.3.0 aktualisieren
+
+Version 0.3.0 wechselt auf das MCP-SDK 2.x und spricht damit zusätzlich die
+Protokollversion 2026-07-28 (`server/discover`, zustandslose Aufrufe). Das
+SDK muss mit aktualisiert werden; `pip install --no-deps .` genügt dafür
+nicht.
+
+```bash
+cd /opt/entscheidsuche-mcp && git pull --ff-only
+.venv/bin/pip install .                    # holt mcp 2.x und dessen Abhängigkeiten
+.venv/bin/pip show mcp | grep Version      # muss 2.3 oder höher zeigen
+sudo install -m 644 deploy/nginx.conf /etc/nginx/sites-available/mcp.entscheidsuche.ch
+sudo nginx -t && sudo systemctl reload nginx
+sudo systemctl restart entscheidsuche-mcp
+```
+
+Kontrolle (muss HTTP 200 und `"supportedVersions":["2026-07-28"]` liefern):
+
+```bash
+curl -s -X POST https://mcp.entscheidsuche.ch/mcp \
+  -H 'Content-Type: application/json' -H 'Accept: application/json, text/event-stream' \
+  -H 'MCP-Protocol-Version: 2026-07-28' -H 'Mcp-Method: server/discover' \
+  -d '{"jsonrpc":"2.0","id":1,"method":"server/discover","params":{"_meta":{"io.modelcontextprotocol/protocolVersion":"2026-07-28","io.modelcontextprotocol/clientCapabilities":{}}}}'
+```
+
+Zurück auf 0.2.0, falls nötig:
+
+```bash
+git checkout <Commit von 0.2.0> && .venv/bin/pip install "mcp<2" && .venv/bin/pip install --no-deps . \
+  && sudo systemctl restart entscheidsuche-mcp
+```
+
+### Von einer Version vor 0.2.0 aktualisieren
 
 ```bash
 cd /opt/entscheidsuche-mcp && git pull --ff-only
@@ -357,7 +389,7 @@ MCP-Client (Claude, ChatGPT, Cursor, ...)
 mcp.entscheidsuche.ch
        │  TLS, nginx Reverse Proxy
        ▼
-127.0.0.1:8765/mcp  ← uvicorn + FastMCP
+127.0.0.1:8765/mcp  ← uvicorn + MCP-SDK (MCPServer)
        │  HTTPS
        ▼
 entscheidsuche.ch/_search_KI.php  ← Such-API (Proxy)
@@ -366,7 +398,7 @@ entscheidsuche.ch/_search_KI.php  ← Such-API (Proxy)
        └─ Embedding-Modelle (qwen3-embedding-8b / -0.6b)
 ```
 
-Implementierung: Python + [FastMCP](https://github.com/jlowin/fastmcp).
+Implementierung: Python + [MCP Python SDK](https://github.com/modelcontextprotocol/python-sdk) 2.x (`MCPServer`).
 
 ## Trägerverein
 

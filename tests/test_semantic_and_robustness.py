@@ -678,19 +678,20 @@ async def test_registered_tools_and_annotations():
     ]
     for tool in tools.values():
         assert tool.annotations is not None, tool.name
-        assert tool.annotations.readOnlyHint is True, tool.name
-        assert tool.annotations.destructiveHint is False, tool.name
+        assert tool.annotations.read_only_hint is True, tool.name
+        assert tool.annotations.destructive_hint is False, tool.name
+        assert tool.annotations.open_world_hint is True, tool.name
 
     # `fetch` ist ein Alias: gleiche Parameter wie `fetch_document`
-    assert tools["fetch"].inputSchema["properties"].keys() == tools["fetch_document"].inputSchema["properties"].keys()
-    assert tools["fetch"].inputSchema["required"] == ["id"]
+    assert tools["fetch"].input_schema["properties"].keys() == tools["fetch_document"].input_schema["properties"].keys()
+    assert tools["fetch"].input_schema["required"] == ["id"]
     # die KI-Suche verlangt eine Anfrage, die Standardsuche nicht (Alt-Clients)
-    assert tools["semantic_search"].inputSchema["required"] == ["query"]
-    assert "required" not in tools["search"].inputSchema
-    assert tools["semantic_search"].inputSchema["properties"]["size"]["maximum"] == 50
+    assert tools["semantic_search"].input_schema["required"] == ["query"]
+    assert "required" not in tools["search"].input_schema
+    assert tools["semantic_search"].input_schema["properties"]["size"]["maximum"] == 50
 
 
 def test_server_reports_its_own_version():
     """`initialize` meldete früher die Version des MCP-SDK."""
     mcp = build_server()
-    assert mcp._mcp_server.version == __version__
+    assert mcp.version == __version__
