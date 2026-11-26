@@ -444,7 +444,7 @@ Versionsinfo und konfigurierte Endpunkte.
 ```jsonc
 {
   "name": "entscheidsuche-mcp",
-  "version": "0.3.2",
+  "version": "0.3.3",
   "search_url": "https://entscheidsuche.ch/_search_KI.php/elasticsearch/_search",
   "semantic_search": true,
   "embedding_model": "qwen3-embedding-8b",
@@ -587,6 +587,15 @@ Die Meldungen enthalten keine internen URLs. Protokollfehler (ungültiges JSON,
 unbekannte Methode) werden als JSON-RPC-Fehler gemäß Spec beantwortet.
 
 ---
+
+## Änderungen in Version 0.3.3
+
+- **Access-Log:** Neuer Schalter `ESC_ACCESS_LOG_ARGS`. Mit `false` werden die
+  Tool-Argumente, also die Suchanfragen der Nutzer, nicht protokolliert; das
+  Feld `args=` bleibt leer. `ESC_ACCESS_LOG_ARGS_MAX=0` hat jetzt dieselbe
+  Wirkung, wie es dokumentiert war; bisher wurden die Argumente mit diesem
+  Wert ungekürzt protokolliert. Ohne beide Angaben bleibt es bei 200 Zeichen.
+- Tools, Parameter und Antworten sind unverändert.
 
 ## Änderungen in Version 0.3.2
 

@@ -2,7 +2,7 @@
   "name": "entscheidsuche",
   "title": "entscheidsuche-mcp",
   "description": "MCP server for Swiss court decisions and case law provided by entscheidsuche.ch. AI search by meaning (semantic search) and keyword search over decisions of the Federal Supreme Court (BGer, BGE) and cantonal courts in German, French and Italian.",
-  "version": "0.3.2",
+  "version": "0.3.3",
   "website_url": "https://entscheidsuche.ch",
   "documentation_url": "https://mcp.entscheidsuche.ch",
   "repository": {

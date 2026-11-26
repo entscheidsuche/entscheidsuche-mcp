@@ -80,7 +80,9 @@ ein häufiger Ablehnungsgrund. Vorschlag für einen zusätzlichen Abschnitt:
 > Schnittstelle an, über die KI-Assistenten wie ChatGPT oder Claude in
 > unseren Entscheiden suchen können. Nutzen Sie die Schnittstelle über einen
 > solchen Assistenten, übermittelt dessen Anbieter die Suchanfrage, die
-> gewählten Filter und die Kennung der abgerufenen Entscheide an uns. Ihr
+> gewählten Filter und die Kennung der abgerufenen Entscheide an uns. Den
+> Wortlaut der Suchanfrage bestimmt der KI-Assistent; er kann Angaben
+> enthalten, die Sie dem Assistenten in der Unterhaltung mitgeteilt haben. Ihr
 > Name, Ihr Konto beim Anbieter und der Verlauf Ihrer Unterhaltung werden
 > uns nicht übermittelt; wir sehen in der Regel die IP-Adresse des Anbieters,
 > nicht Ihre eigene. Wir protokollieren je Aufruf Zeitpunkt, aufgerufene
@@ -99,7 +101,7 @@ ein häufiger Ablehnungsgrund. Vorschlag für einen zusätzlichen Abschnitt:
 
 Die eckigen Klammern sind am Server zu prüfen:
 `grep ESC_ACCESS_LOG /etc/entscheidsuche-mcp.env` (ohne
-`ESC_ACCESS_LOG_ARGS_MAX=0` protokolliert der Server die Argumente bis 200
+`ESC_ACCESS_LOG_ARGS=false` protokolliert der Server die Argumente bis 200
 Zeichen), `cat /etc/logrotate.d/entscheidsuche-mcp` und die Aufbewahrung des
 nginx-Protokolls `/var/log/nginx/mcp.entscheidsuche.ch.access.log`.
 

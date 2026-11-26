@@ -14,7 +14,11 @@ ohne Leerzeichen). Es gibt nur die Fehlermeldung des Servers wieder.
 Konfiguration via Env-Variablen:
 
 * ``ESC_ACCESS_LOG`` — ``true`` (default) aktiviert die Middleware
-* ``ESC_ACCESS_LOG_ARGS_MAX`` — max. Zeichen pro args-Repr (Default 200)
+* ``ESC_ACCESS_LOG_ARGS`` — ``false`` laesst die Tool-Argumente (also die
+  Suchanfragen der Nutzer) ganz weg; das Feld ``args=`` bleibt leer.
+  Default ``true``.
+* ``ESC_ACCESS_LOG_ARGS_MAX`` — max. Zeichen pro args-Repr (Default 200);
+  ``0`` laesst die Argumente ebenfalls ganz weg.
 * ``ESC_ACCESS_LOG_SESSION`` — ``true`` protokolliert zusaetzlich ein Feld
   ``conv=`` mit einer gekuerzten, gehashten Kennung der Unterhaltung, sofern
   der Client eine mitschickt (ChatGPT: ``_meta["openai/session"]``). Damit
@@ -54,15 +58,24 @@ def _args_max() -> int:
         return 200
 
 
+def _args_enabled() -> bool:
+    """Tool-Argumente protokollieren? Aus mit ESC_ACCESS_LOG_ARGS=false oder
+    ESC_ACCESS_LOG_ARGS_MAX=0."""
+    flag = os.environ.get("ESC_ACCESS_LOG_ARGS", "true").strip().lower()
+    if flag in ("0", "false", "no", "off"):
+        return False
+    return _args_max() > 0
+
+
 def _summarize_args(args: Any) -> str:
-    if args is None:
+    if args is None or not _args_enabled():
         return ""
     try:
         s = json.dumps(args, ensure_ascii=False, separators=(",", ":"))
     except Exception:
         return ""
     limit = _args_max()
-    if limit and len(s) > limit:
+    if len(s) > limit:
         return s[: limit - 1] + "…"
     return s
 

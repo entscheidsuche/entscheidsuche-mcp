@@ -70,6 +70,23 @@ def test_summarize_args_truncation(monkeypatch):
     assert len(s) == 20
 
 
+def test_summarize_args_switched_off(monkeypatch):
+    monkeypatch.setenv("ESC_ACCESS_LOG_ARGS", "false")
+    assert _summarize_args({"query": "geheim"}) == ""
+
+
+def test_summarize_args_max_zero_omits_args(monkeypatch):
+    monkeypatch.delenv("ESC_ACCESS_LOG_ARGS", raising=False)
+    monkeypatch.setenv("ESC_ACCESS_LOG_ARGS_MAX", "0")
+    assert _summarize_args({"query": "geheim"}) == ""
+
+
+def test_summarize_args_default_logs_args(monkeypatch):
+    monkeypatch.delenv("ESC_ACCESS_LOG_ARGS", raising=False)
+    monkeypatch.delenv("ESC_ACCESS_LOG_ARGS_MAX", raising=False)
+    assert _summarize_args({"query": "abc"}) == '{"query":"abc"}'
+
+
 def test_summarize_args_none_returns_empty():
     assert _summarize_args(None) == ""
 

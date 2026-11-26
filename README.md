@@ -357,9 +357,10 @@ Der Authorization-Header wird vom nginx-vHost unverändert an den
 Python-Server durchgereicht; die Prüfung passiert dort per
 `hmac.compare_digest` gegen die Env-Variablen.
 
-Inhalte sind reine Aggregate. Mit `ESC_ACCESS_LOG_ARGS_MAX=0` (Default
+Inhalte sind reine Aggregate. Mit `ESC_ACCESS_LOG_ARGS=false` (Default
 im `.env.example`) werden Tool-Argumente — also die Suchqueries der
-Nutzer — gar nicht erst geloggt.
+Nutzer — gar nicht erst geloggt. Ohne diese Angabe protokolliert der
+Server die Argumente bis 200 Zeichen (`ESC_ACCESS_LOG_ARGS_MAX`).
 
 Datenquelle: `/var/log/entscheidsuche-mcp/access.log` (geschrieben von
 der `entscheidsuche_mcp.access`-Middleware). Logrotation z. B. via
