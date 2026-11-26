@@ -7,6 +7,10 @@ des MCP-Servers gehaengt; greift den Request-Body ab, parst ihn als JSON-RPC
 (Single oder Batch) und schreibt die identifizierte Methode + Tool-Name +
 (gekuerzte) Argumente sowie Status/Bytes/Latenz.
 
+Lehnt der Server einen Request mit einem HTTP-Fehlerstatus ab, enthaelt die
+Zeile zusaetzlich ein Feld ``err=<JSON-RPC-Code>:<Fehlertext>`` (gekuerzt,
+ohne Leerzeichen). Es gibt nur die Fehlermeldung des Servers wieder.
+
 Konfiguration via Env-Variablen:
 
 * ``ESC_ACCESS_LOG`` — ``true`` (default) aktiviert die Middleware
@@ -96,6 +100,24 @@ def _describe_rpc(payload: Any) -> list[dict[str, Any]]:
                     "app": app, "appver": appver,
                     "conv": _conversation_id(params)})
     return out
+
+
+_ERR_BODY_MAX = 2048
+_ERR_TEXT_RE = re.compile(r"[^A-Za-z0-9._:/'-]+")
+
+
+def _error_reason(body: bytes, max_len: int = 90) -> str:
+    """``<Code>:<Fehlertext>`` aus einer JSON-RPC-Fehlerantwort, ohne
+    Leerzeichen; ``-`` wenn die Antwort keine solche ist."""
+    try:
+        data = json.loads(body.decode("utf-8", "replace"))
+    except ValueError:
+        return "-"
+    error = data.get("error") if isinstance(data, dict) else None
+    if not isinstance(error, dict):
+        return "-"
+    text = _ERR_TEXT_RE.sub("-", str(error.get("message") or "")).strip("-")
+    return f"{error.get('code', '-')}:{text}"[:max_len] or "-"
 
 
 _META_SESSION_KEYS = ("openai/session",)
@@ -207,14 +229,20 @@ class JsonRpcAccessLogMiddleware:
 
         status_code: Optional[int] = None
         resp_size = 0
+        err_body = b""
 
         async def send_wrapper(msg):
-            nonlocal status_code, resp_size
+            nonlocal status_code, resp_size, err_body
             t = msg.get("type")
             if t == "http.response.start":
                 status_code = msg.get("status")
             elif t == "http.response.body":
-                resp_size += len(msg.get("body", b"") or b"")
+                chunk = msg.get("body", b"") or b""
+                resp_size += len(chunk)
+                # Nur Fehlerantworten mitlesen (sie sind kurz), um den Grund
+                # der Ablehnung zu protokollieren.
+                if (status_code or 0) >= 400 and len(err_body) < _ERR_BODY_MAX:
+                    err_body += chunk[: _ERR_BODY_MAX - len(err_body)]
             await send(msg)
 
         t0 = time.monotonic()
@@ -223,11 +251,14 @@ class JsonRpcAccessLogMiddleware:
         finally:
             dur_ms = int((time.monotonic() - t0) * 1000)
             client = (scope.get("client") or (None, None))[0] or "-"
+            err = ""
+            if (status_code or 0) >= 400:
+                err = " err=" + _error_reason(err_body)
             if not rpcs:
                 log.info(
                     "method=- tool=- id=- status=%s size=%d ms=%d client=%s "
-                    "app=- appver=- args=",
-                    status_code, resp_size, dur_ms, client,
+                    "app=- appver=-%s args=",
+                    status_code, resp_size, dur_ms, client, err,
                 )
                 return
             for r in rpcs:
@@ -243,7 +274,7 @@ class JsonRpcAccessLogMiddleware:
                     conv = " conv=" + cid
                 log.info(
                     "method=%s tool=%s id=%s status=%s size=%d ms=%d "
-                    "client=%s app=%s appver=%s%s args=%s",
+                    "client=%s app=%s appver=%s%s%s args=%s",
                     r["method"] or "-",
                     r["tool"] or "-",
                     "-" if r["id"] is None else r["id"],
@@ -254,6 +285,7 @@ class JsonRpcAccessLogMiddleware:
                     app,
                     appver,
                     conv,
+                    err,
                     _summarize_args(r["args"]),
                 )
 

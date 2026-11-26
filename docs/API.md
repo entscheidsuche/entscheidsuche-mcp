@@ -444,7 +444,7 @@ Versionsinfo und konfigurierte Endpunkte.
 ```jsonc
 {
   "name": "entscheidsuche-mcp",
-  "version": "0.3.1",
+  "version": "0.3.2",
   "search_url": "https://entscheidsuche.ch/_search_KI.php/elasticsearch/_search",
   "semantic_search": true,
   "embedding_model": "qwen3-embedding-8b",
@@ -587,6 +587,16 @@ Die Meldungen enthalten keine internen URLs. Protokollfehler (ungültiges JSON,
 unbekannte Methode) werden als JSON-RPC-Fehler gemäß Spec beantwortet.
 
 ---
+
+## Änderungen in Version 0.3.2
+
+- **Access-Log:** Lehnt der Server einen Request mit einem HTTP-Fehlerstatus
+  ab, steht der Grund im Feld `err=<Code>:<Fehlertext>`.
+- **Statistik:** Die Fehlerspalte nennt den Grund im Tooltip. Fehler von
+  Prüfprogrammen (Client-Name oder Anfrage-ID mit «probe», «healthcheck»,
+  «conformance», «scanner») werden getrennt als «Prüfanfragen» geführt und
+  nicht mehr in die Fehlerzahl eingerechnet.
+- Tools, Parameter und Antworten sind unverändert.
 
 ## Änderungen in Version 0.3.1
 

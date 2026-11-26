@@ -3,7 +3,7 @@
   "name": "ch.entscheidsuche/mcp",
   "title": "Entscheidsuche — Schweizer Gerichtsentscheide",
   "description": "KI-Suche und Stichwortsuche in Schweizer Gerichtsentscheiden aller Instanzen (Bund, Kantone), DE/FR/IT.",
-  "version": "0.3.1",
+  "version": "0.3.2",
   "repository": {
     "url": "https://github.com/entscheidsuche/entscheidsuche-mcp",
     "source": "github"

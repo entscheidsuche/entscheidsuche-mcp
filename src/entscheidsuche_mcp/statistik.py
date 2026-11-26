@@ -47,7 +47,19 @@ LOG_LINE = re.compile(
     r"client=(?P<client>\S+)"
     r"(?:\s+app=(?P<app>\S+))?"
     r"(?:\s+appver=(?P<appver>\S+))?"
+    r"(?:\s+conv=(?P<conv>\S+))?"
+    r"(?:\s+err=(?P<err>\S+))?"
 )
+
+# Programme, die Server absichtlich mit fehlerhaften Requests prüfen. Ihre
+# Fehler sagen nichts über den Zustand des Servers und werden getrennt gezählt.
+_PROBE_RE = re.compile(r"probe|healthcheck|conformance|scanner", re.IGNORECASE)
+PROBE_LABEL = "Prüfanfragen"
+
+
+def _is_probe(row: dict) -> bool:
+    return bool(_PROBE_RE.search(row.get("app") or "")
+                or _PROBE_RE.search(row.get("rid") or ""))
 
 SETUP_METHODS = {"initialize", "notifications/initialized", "server/discover",
                  "tools/list", "resources/list", "prompts/list"}
@@ -154,6 +166,8 @@ def parse_log(path: Path, since: Optional[str] = None) -> list[dict]:
             "client": d["client"],
             "app": d.get("app") or "-",
             "appver": d.get("appver") or "-",
+            "rid": d.get("id") or "-",
+            "err": d.get("err") or "-",
         })
     out.sort(key=lambda r: r["ts"])
 
@@ -198,6 +212,7 @@ def _empty_day() -> dict[str, Any]:
         "hours_setup": [0] * 24,
         "hours_all": [0] * 24,
         "ms_total": 0, "ms_n": 0, "errors": 0,
+        "probe_errors": 0,               # Fehler von Prüfprogrammen
         "error_breakdown": Counter(),    # (method, status) -> count
     }
 
@@ -276,8 +291,15 @@ def aggregate_per_day(rows: list[dict]) -> dict[str, dict]:
         try:
             status_int = int(r["status"])
             if status_int >= 400:
-                d["errors"] += 1
-                d["error_breakdown"][f"{r['method']} → {r['status']}"] += 1
+                reason = r.get("err", "-")
+                detail = "" if reason in ("-", "") else f" ({reason})"
+                if _is_probe(r):
+                    d["probe_errors"] += 1
+                    d["error_breakdown"][f"{PROBE_LABEL}: {r['app']}"] += 1
+                else:
+                    d["errors"] += 1
+                    d["error_breakdown"][
+                        f"{r['method']} → {r['status']}{detail}"] += 1
         except ValueError:
             pass
 
@@ -298,7 +320,8 @@ def _aggregate_to_json(agg: dict) -> dict:
     return {
         **{k: agg[k] for k in ("total", "setup", "tool_calls", "other",
                                 "sessions", "sessions_with_tools",
-                                "ms_total", "ms_n", "errors")},
+                                "ms_total", "ms_n", "errors",
+                                "probe_errors")},
         "tools": dict(agg["tools"]),
         "methods": dict(agg["methods"]),
         "apps": dict(agg["apps"]),
@@ -326,7 +349,8 @@ def _aggregate_from_json(d: dict) -> dict:
     default-initialisiert. Stundenarrays werden auf 24 normalisiert."""
     agg = _empty_day()
     for k in ("total", "setup", "tool_calls", "other", "sessions",
-              "sessions_with_tools", "ms_total", "ms_n", "errors"):
+              "sessions_with_tools", "ms_total", "ms_n", "errors",
+              "probe_errors"):
         agg[k] = int(d.get(k, 0))
     agg["tools"] = Counter(d.get("tools") or {})
     agg["methods"] = Counter(d.get("methods") or {})
@@ -468,6 +492,8 @@ def _parse_line(line: str) -> Optional[dict]:
         "client": d["client"],
         "app": d.get("app") or "-",
         "appver": d.get("appver") or "-",
+        "rid": d.get("id") or "-",
+        "err": d.get("err") or "-",
     }
 
 
@@ -1061,7 +1087,9 @@ def _render_day_table(days: dict[str, dict]) -> str:
             total_clients_html = '<span class="muted">—</span>'
 
         # Fehler mit Tooltip
-        if d["errors"] > 0:
+        # Die Zahl zählt echte Fehler; Prüfanfragen stehen nur im Tooltip.
+        probes = d.get("probe_errors", 0)
+        if d["errors"] > 0 or probes > 0:
             err_tt = _tooltip_text(list(d["error_breakdown"].most_common()))
             errors_html = (
                 f'<span class="has-tooltip" title="{html.escape(err_tt)}">'

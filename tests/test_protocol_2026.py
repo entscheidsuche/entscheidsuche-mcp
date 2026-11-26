@@ -303,3 +303,76 @@ async def test_conversation_id_is_logged_only_when_switched_on(tmp_path, monkeyp
     assert len(ids[0]) == 12 and "conversation" not in "".join(lines)
     # die Statistik liest die Zeilen weiterhin
     assert all(statistik.LOG_LINE.match(line) for line in lines)
+
+
+async def test_rejected_requests_log_the_reason(tmp_path, monkeypatch):
+    """Bei HTTP-Fehlern steht der Grund der Ablehnung im Log (`err=`)."""
+    monkeypatch.setenv("ESC_ACCESS_LOG", "true")
+    path = tmp_path / "access.log"
+    log = access_log.log
+    saved = list(log.handlers)
+    for handler in saved:
+        log.removeHandler(handler)
+    handler = logging.FileHandler(path, encoding="utf-8")
+    handler.setFormatter(logging.Formatter("%(asctime)s %(levelname)s %(name)s — %(message)s"))
+    log.addHandler(handler)
+    log.setLevel(logging.INFO)
+    try:
+        async with _Server() as server:
+            headers = {**BASE_HEADERS, "MCP-Protocol-Version": MODERN}
+            # neues Protokoll ohne die Pflichtangaben in `_meta`
+            await server.http.post(
+                "/mcp", json={"jsonrpc": "2.0", "id": 1, "method": "tools/list"}, headers=headers
+            )
+            # kein JSON
+            await server.http.post("/mcp", content=b"hallo", headers=BASE_HEADERS)
+            # gültiger Aufruf
+            await server.legacy("tools/list", {})
+        handler.flush()
+        lines = path.read_text(encoding="utf-8").splitlines()
+    finally:
+        log.removeHandler(handler)
+        handler.close()
+        for old in saved:
+            log.addHandler(old)
+
+    assert len(lines) == 3
+    assert "status=400" in lines[0] and " err=-32602:params._meta-must-be-an-object" in lines[0]
+    assert "method=- " in lines[1] and " err=-32700:Parse-error" in lines[1]
+    assert "status=200" in lines[2] and " err=" not in lines[2]
+    rows = [statistik._parse_line(line) for line in lines]
+    assert rows[0]["err"].startswith("-32602:") and rows[2]["err"] == "-"
+
+
+def test_statistik_separates_probe_errors():
+    def row(method, status, app="-", rid="1", err="-"):
+        r = _row("2026-11-26 06:00:00", method, app=app)
+        r.update(status=status, rid=rid, err=err)
+        return r
+
+    rows = [
+        row("server/discover", "400", app="rokmcp-probe", rid="probe-badversion",
+            err="-32022:Unsupported-protocol-version"),
+        row("server/discover", "400", app="rokmcp-probe", rid="probe-badversion"),
+        row("server/discover", "400", app="VibeShippedHealthCheck"),
+        row("tools/call", "400", err="-32020:mcp-name-header-does-not-match"),
+        row("tools/list", "400"),
+        row("tools/list", "200"),
+    ]
+    statistik._resolve_apps(rows)
+    day = statistik.aggregate_per_day(rows)["2026-11-26"]
+
+    assert day["errors"] == 2
+    assert day["probe_errors"] == 3
+    assert day["error_breakdown"] == {
+        "Prüfanfragen: rokmcp-probe": 2,
+        "Prüfanfragen: VibeShippedHealthCheck": 1,
+        "tools/call → 400 (-32020:mcp-name-header-does-not-match)": 1,
+        "tools/list → 400": 1,
+    }
+    # Hin- und Rückweg durch den Cache; alte Caches ohne das Feld laden mit 0
+    restored = statistik._aggregate_from_json(statistik._aggregate_to_json(day))
+    assert restored["probe_errors"] == 3
+    old = statistik._aggregate_to_json(day)
+    del old["probe_errors"]
+    assert statistik._aggregate_from_json(old)["probe_errors"] == 0

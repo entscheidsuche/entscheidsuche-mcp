@@ -1,6 +1,6 @@
 [project]
 name = "entscheidsuche-mcp"
-version = "0.3.1"
+version = "0.3.2"
 description = "MCP-Server für entscheidsuche.ch — KI-Suche und Stichwortsuche in Schweizer Gerichtsentscheiden"
 readme = "README.md"
 requires-python = ">=3.11"
