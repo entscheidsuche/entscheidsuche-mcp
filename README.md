@@ -22,7 +22,7 @@ dort steht alles Nötige zur Einrichtung in Claude.ai, ChatGPT, Cursor,
 VS Code, Claude Desktop und anderen Clients. Dieses Repository richtet
 sich primär an Entwickler, Drittanwendungen und Selbst-Betreiber.
 
-[![Lizenz Code](https://img.shields.io/badge/code-MIT-blue.svg)](#lizenz)
+[![Lizenz Code](https://img.shields.io/badge/code-Apache--2.0-blue.svg)](#lizenz)
 [![Daten](https://img.shields.io/badge/data-open-green.svg)](https://entscheidsuche.ch)
 [![Betrieb](https://img.shields.io/badge/operator-Verein%20entscheidsuche.ch-orange.svg)](https://entscheidsuche.ch)
 
@@ -445,7 +445,7 @@ nicht in diesem Repo.
 
 ## Lizenz
 
-**Code:** [MIT](LICENSE)
+**Code:** [Apache License 2.0](LICENSE)
 
 **Daten:** Die zugrundeliegenden Gerichtsentscheide sind amtliche Werke
 und stehen gemäss URG Art. 5 nicht unter Urheberrechtsschutz. Die

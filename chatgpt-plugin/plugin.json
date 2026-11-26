@@ -10,7 +10,7 @@
   },
   "homepage": "https://entscheidsuche.ch",
   "repository": "https://github.com/entscheidsuche/entscheidsuche-mcp",
-  "license": "MIT",
+  "license": "Apache-2.0",
   "keywords": [
     "law",
     "legal",
