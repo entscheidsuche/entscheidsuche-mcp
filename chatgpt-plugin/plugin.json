@@ -52,7 +52,7 @@
         "logoDark": "./assets/logo-dark.png"
       },
       "review": {
-        "demo_recording_url": "",
+        "demo_recording_url": "https://mcp.entscheidsuche.ch/media/demo.mp4",
         "test_cases": {
           "positive": [
             {
