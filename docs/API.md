@@ -444,7 +444,7 @@ Versionsinfo und konfigurierte Endpunkte.
 ```jsonc
 {
   "name": "entscheidsuche-mcp",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "search_url": "https://entscheidsuche.ch/_search_KI.php/elasticsearch/_search",
   "semantic_search": true,
   "embedding_model": "qwen3-embedding-8b",
@@ -587,6 +587,19 @@ Die Meldungen enthalten keine internen URLs. Protokollfehler (ungültiges JSON,
 unbekannte Methode) werden als JSON-RPC-Fehler gemäß Spec beantwortet.
 
 ---
+
+## Änderungen in Version 0.3.1
+
+- **Hinweis auf den Volltext:** Die Beschreibungen der Such-Tools und die
+  Server-Anweisungen sagen ausdrücklich, dass ein Treffer nur einen Auszug
+  enthält und der Volltext mit `fetch` zu lesen ist, bevor wiedergegeben wird,
+  was ein Entscheid festhält. `search_by_case_number` verlangt zudem den
+  Abgleich von Gericht und Datum mit dem vorgegebenen Zitat.
+- **Access-Log:** Mit `ESC_ACCESS_LOG_SESSION=true` schreibt der Server
+  vorübergehend ein Feld `conv=` mit einer gehashten Kennung der Unterhaltung
+  (ChatGPT: `_meta["openai/session"]`), um die Aufrufe einer Unterhaltung
+  zusammenzuführen. Standard: aus.
+- Tools, Parameter und Antworten sind unverändert.
 
 ## Änderungen in Version 0.3.0
 

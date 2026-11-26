@@ -29,7 +29,7 @@ ist öffentlich.
 | [Claude Desktop](#claude-desktop-stdio-bridge) | macOS-/Windows-App | JSON-Config (stdio über Bridge) | gratis möglich, Pro empfohlen |
 | [Claude Code](#claude-code-cli) | Terminal | `claude mcp add` (HTTP nativ) | API-Credits oder Pro/Max-Plan |
 | [Claude API](#claude-api-direkt) | Eigener Code | `mcp_servers` im Tools-Aufruf | API-Konto (pay-as-you-go) |
-| [ChatGPT](#chatgpt) | chatgpt.com, Desktop, Mobile | Custom Connectors (Deep Research / Agent) | ChatGPT Pro / Team / Enterprise / Edu |
+| [ChatGPT](#chatgpt) | chatgpt.com, Desktop | Plugins → «Add custom MCP server» | ChatGPT Plus / Pro / Business / Enterprise / Edu |
 | [Perplexity](#perplexity) | perplexity.ai, Desktop, Mobile | Connectors (MCP) | Perplexity Pro / Enterprise (sich entwickelnd) |
 | [VS Code + Copilot](#vs-code-mit-github-copilot) | VS Code | `.vscode/mcp.json` | GitHub Copilot Pro o.ä. |
 | [Cursor](#cursor) | Cursor-Editor | UI oder `~/.cursor/mcp.json` | gratis und kostenpflichtig |
@@ -159,29 +159,45 @@ print(resp.content)
 
 ## ChatGPT
 
-ChatGPT unterstützt Custom-MCP-Server in den **Connectors / Deep
-Research**. Einrichtung über die Web-Oberfläche:
+In ChatGPT wird ein eigener MCP-Server als **Plugin** angelegt (Stand
+November 2026; frühere Anleitungen nennen «Settings → Connectors» und einen
+Developer Mode, beides ist dafür nicht mehr nötig).
 
-1. chatgpt.com → **Settings → Connectors** → *„Create"*.
-2. **MCP Server URL:** `https://mcp.entscheidsuche.ch/mcp`,
-   Auth = *No authentication*.
-3. Falls ein Transport-Feld erscheint: *Streamable HTTP* wählen
-   (nicht *SSE*).
-4. Connector im Chat aktivieren (Tools-Menü) bzw. in einem
-   Deep-Research-Run mit anhaken.
+1. Im Browser <https://chatgpt.com/plugins> öffnen (oder in der Seitenleiste
+   **Plugins** wählen).
+2. Auf dieser Seite den **Plus-Button** wählen, dann *„Add custom MCP
+   server"*. Gemeint ist nicht das Plus im Eingabefeld des Chats.
+3. **Name:** `entscheidsuche.ch`; unter *Connection* die URL
+   `https://mcp.entscheidsuche.ch/mcp`; Authentifizierung: *No
+   authentication*.
+4. Den Warnhinweis mit *„I understand and want to continue"* bestätigen,
+   *„Create as a plugin"* wählen und das Plugin installieren.
+5. Neue Unterhaltung beginnen, im Eingabefeld `@` tippen und
+   *entscheidsuche.ch* auswählen — oder den Dienst im Prompt nennen
+   («Nutze entscheidsuche.ch …»).
 
-> **Voraussetzung:** ChatGPT Pro, Team, Enterprise oder Edu.
-> Im Free- und Plus-Tier waren Custom-MCP-Connectors zuletzt nicht
-> verfügbar — der Status kann sich ändern.
+> **Voraussetzung:** ChatGPT Plus, Pro, Business, Enterprise oder Edu.
+> Erprobt ist die Einrichtung mit einem Plus-Konto. In Business-, Enterprise-
+> und Edu-Workspaces dürfen nur Admins bzw. Owner Plugins anlegen.
 >
-> **Hinweis:** OpenAIs Deep-Research-Modus verlangt Tools mit den Namen
-> `search` und `fetch`. Der Server stellt beide bereit: `search` als
-> Standardsuche, `fetch` als Alias für `fetch_document`. Die Antwort von
-> `search` enthält dafür zusätzlich die kompakte Liste `results`
-> (`id`, `title`, `url`). Praktisch erprobt ist das Zusammenspiel mit
-> Deep Research noch nicht.
+> **Hinweise:**
+> - Das Plugin ist auch in der Desktop-App verfügbar, sobald es angelegt ist.
+> - ChatGPT speichert die Tool-Liste. Nach einer Änderung am Server auf der
+>   Plugins-Seite *„Refresh"* wählen und eine neue Unterhaltung beginnen.
+> - Welche Abfragen ChatGPT absetzt, zeigt die Oberfläche nicht im Einzelnen
+>   an; die Zeile «nachgedacht» über der Antwort enthält nur den Gedankengang
+>   und allfällige Websuchen.
+> - Wie viele Volltexte ChatGPT liest, hängt vom eingestellten Denkaufwand
+>   ab. Für Recherchen einen hohen Denkaufwand wählen und im Prompt
+>   ausdrücklich verlangen, dass die Entscheide im Volltext gelesen werden.
+> - Der Server stellt die Tools `search` und `fetch` bereit, die OpenAI für
+>   Deep Research vorsieht. Praktisch erprobt ist das Zusammenspiel mit Deep
+>   Research nicht.
 >
-> Doku: <https://platform.openai.com/docs/mcp>
+> Doku: <https://developers.openai.com/api/docs/guides/custom-mcp-server>
+
+Beispiel-Prompts stehen auf <https://mcp.entscheidsuche.ch> unter
+«Typische Anwendungsfälle».
 
 ---
 

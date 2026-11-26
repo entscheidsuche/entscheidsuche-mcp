@@ -236,3 +236,70 @@ def test_statistik_counts_sessions_without_initialize():
     assert day["apps_tool_calls"] == {"ChatGPT": 1, "Claude": 1}
     assert day["tool_calls"] == 2
     assert day["setup"] == 4  # discover, 2 × tools/list, initialize
+
+
+async def test_search_tools_tell_the_model_to_read_the_full_text():
+    """Ohne den Hinweis werten Modelle oft nur die Trefferliste aus."""
+    mcp = build_server()
+    tools = {tool.name: tool for tool in await mcp.list_tools()}
+    for name in ("search", "semantic_search", "keyword_search", "search_by_case_number"):
+        description = tools[name].description
+        assert "only an excerpt" in description, name
+        assert "`fetch`" in description, name
+    assert "only an excerpt" in mcp.instructions
+
+
+async def test_conversation_id_is_logged_only_when_switched_on(tmp_path, monkeypatch):
+    """`conv=` fasst die Aufrufe einer ChatGPT-Unterhaltung zusammen; ohne den
+    Schalter bleibt das Zeilenformat unverändert."""
+    path = tmp_path / "access.log"
+    log = access_log.log
+    saved = list(log.handlers)
+    for handler in saved:
+        log.removeHandler(handler)
+    handler = logging.FileHandler(path, encoding="utf-8")
+    handler.setFormatter(logging.Formatter("%(asctime)s %(levelname)s %(name)s — %(message)s"))
+    log.addHandler(handler)
+    log.setLevel(logging.INFO)
+
+    async def inner(scope, receive, send):
+        await send({"type": "http.response.start", "status": 200, "headers": []})
+        await send({"type": "http.response.body", "body": b"{}"})
+
+    app = access_log.JsonRpcAccessLogMiddleware(inner, mcp_path="/mcp")
+    client = httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://t")
+
+    def body(session):
+        return {
+            "jsonrpc": "2.0", "id": 1, "method": "tools/call",
+            "params": {"name": "search", "arguments": {"query": "x"},
+                       "_meta": {"openai/session": session}},
+        }
+
+    try:
+        monkeypatch.setenv("ESC_ACCESS_LOG_SESSION", "false")
+        await client.post("/mcp", json=body("conversation-A"))
+        monkeypatch.setenv("ESC_ACCESS_LOG_SESSION", "true")
+        await client.post("/mcp", json=body("conversation-A"))
+        await client.post("/mcp", json=body("conversation-A"))
+        await client.post("/mcp", json=body("conversation-B"))
+        await client.post(
+            "/mcp",
+            json={"jsonrpc": "2.0", "id": 2, "method": "tools/list"},
+            headers={"x-openai-session": "conversation-A"},
+        )
+        await client.aclose()
+        handler.flush()
+        lines = path.read_text(encoding="utf-8").splitlines()
+    finally:
+        log.removeHandler(handler)
+        handler.close()
+        for old in saved:
+            log.addHandler(old)
+
+    assert "conv=" not in lines[0]
+    ids = [line.split(" conv=")[1].split(" ")[0] for line in lines[1:]]
+    assert ids[0] == ids[1] == ids[3] != ids[2]
+    assert len(ids[0]) == 12 and "conversation" not in "".join(lines)
+    # die Statistik liest die Zeilen weiterhin
+    assert all(statistik.LOG_LINE.match(line) for line in lines)

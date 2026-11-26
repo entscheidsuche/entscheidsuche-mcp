@@ -20,9 +20,10 @@ commentary.
   `ZB.2021.48`: call `search_by_case_number`.
 - Exact words, a quoted phrase, Boolean operators, a complete result list,
   sorting by date or pagination: call `keyword_search`.
-- The full text of a decision: call `fetch` with the `id` of a hit. Read the
-  full text before summarising a decision or quoting from it; a search hit
-  contains only an excerpt.
+- The full text of a decision: call `fetch` with the `id` of a hit. A search
+  hit contains only an excerpt; read the full text before you describe what a
+  decision holds or quote from it. The tools return the decisions themselves;
+  they do not provide summaries.
 - Restricting results to a canton or court: pass hierarchy IDs such as
   `CH_BGer` (Federal Supreme Court) or `ZH_OG` (Zurich Obergericht) in
   `hierarchy`. `list_hierarchy` returns the IDs with decision counts.
@@ -38,5 +39,4 @@ commentary.
   use `keyword_search` when completeness matters.
 - Say so when the search finds nothing suitable. Do not cite decisions that
   the tools did not return.
-- The decisions are information about case law, not legal advice on an
-  individual case.
+- The decisions are case law, not legal advice on an individual case.

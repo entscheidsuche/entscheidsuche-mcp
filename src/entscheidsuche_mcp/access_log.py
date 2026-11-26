@@ -11,6 +11,11 @@ Konfiguration via Env-Variablen:
 
 * ``ESC_ACCESS_LOG`` — ``true`` (default) aktiviert die Middleware
 * ``ESC_ACCESS_LOG_ARGS_MAX`` — max. Zeichen pro args-Repr (Default 200)
+* ``ESC_ACCESS_LOG_SESSION`` — ``true`` protokolliert zusaetzlich ein Feld
+  ``conv=`` mit einer gekuerzten, gehashten Kennung der Unterhaltung, sofern
+  der Client eine mitschickt (ChatGPT: ``_meta["openai/session"]``). Damit
+  lassen sich alle Aufrufe einer Unterhaltung zusammenfuehren. Default aus;
+  nur voruebergehend fuer Tests einschalten.
 * ``ESC_ACCESS_LOG_FILE`` — optional separater Pfad; ohne Angabe Default
   ``/var/log/entscheidsuche-mcp/access.log`` (mit Fallback auf
   ``~/entscheidsuche-mcp.access.log``).
@@ -18,6 +23,7 @@ Konfiguration via Env-Variablen:
 
 from __future__ import annotations
 
+import hashlib
 import json
 import logging
 import os
@@ -87,8 +93,46 @@ def _describe_rpc(payload: Any) -> list[dict[str, Any]]:
                 }
         app, appver = _client_info(method, params)
         out.append({"method": method, "tool": tool, "id": rpc_id, "args": args,
-                    "app": app, "appver": appver})
+                    "app": app, "appver": appver,
+                    "conv": _conversation_id(params)})
     return out
+
+
+_META_SESSION_KEYS = ("openai/session",)
+_SESSION_HEADERS = (b"x-openai-session",)
+
+
+def _session_logging() -> bool:
+    val = os.environ.get("ESC_ACCESS_LOG_SESSION", "false")
+    return val.strip().lower() in {"1", "true", "yes", "on"}
+
+
+def _short_hash(value: Any) -> str:
+    """Zwoelf Hex-Zeichen: gleiche Unterhaltung, gleiche Kennung; die
+    Originalkennung des Clients steht nicht im Log."""
+    if not isinstance(value, str) or not value.strip():
+        return "-"
+    return hashlib.sha256(value.strip().encode("utf-8")).hexdigest()[:12]
+
+
+def _conversation_id(params: Any) -> str:
+    """Kennung der Unterhaltung aus ``params._meta``, sonst ``-``."""
+    if not isinstance(params, dict):
+        return "-"
+    meta = params.get("_meta")
+    if not isinstance(meta, dict):
+        return "-"
+    for key in _META_SESSION_KEYS:
+        if meta.get(key):
+            return _short_hash(meta[key])
+    return "-"
+
+
+def _conversation_id_from_headers(scope: Any) -> str:
+    for name, value in (scope.get("headers") or []):
+        if name.lower() in _SESSION_HEADERS:
+            return _short_hash(value.decode("latin-1"))
+    return "-"
 
 
 _META_CLIENT_INFO = "io.modelcontextprotocol/clientInfo"
@@ -189,9 +233,17 @@ class JsonRpcAccessLogMiddleware:
             for r in rpcs:
                 app = r.get("app", "-")
                 appver = r.get("appver", "-")
+                # Das Feld conv= erscheint nur bei eingeschaltetem Schalter;
+                # sonst bleibt das Zeilenformat unveraendert.
+                conv = ""
+                if _session_logging():
+                    cid = r.get("conv", "-")
+                    if cid == "-":
+                        cid = _conversation_id_from_headers(scope)
+                    conv = " conv=" + cid
                 log.info(
                     "method=%s tool=%s id=%s status=%s size=%d ms=%d "
-                    "client=%s app=%s appver=%s args=%s",
+                    "client=%s app=%s appver=%s%s args=%s",
                     r["method"] or "-",
                     r["tool"] or "-",
                     "-" if r["id"] is None else r["id"],
@@ -201,6 +253,7 @@ class JsonRpcAccessLogMiddleware:
                     client,
                     app,
                     appver,
+                    conv,
                     _summarize_args(r["args"]),
                 )
 

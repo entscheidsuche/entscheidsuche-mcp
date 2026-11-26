@@ -66,13 +66,8 @@ lässt sich zwischen Versionen nicht mehr ändern.
 
 ## Ablauf für das Demo-Video
 
-Plugin in ChatGPT über den privaten Weg einbinden (Plugins → Plus-Zeichen →
-«Add custom MCP server»), Bildschirm aufnehmen und nacheinander die fünf
-Prompts aus `review.test_cases.positive` eingeben, jeweils die Tool-Aufrufe
-aufklappen und einen Link zu entscheidsuche.ch öffnen. Zum Schluss einen der
-drei negativen Prompts eingeben und zeigen, dass kein Tool aufgerufen wird.
-Vorher jeden Testfall einmal durchspielen: Weichen die Ergebnisse von
-`expected_behavior` ab, den Text im Manifest anpassen.
+Siehe `VIDEO.md` in diesem Ordner: Vorbereitung, die fünf Prompts zum
+Kopieren und was bei jedem Fall im Bild sein soll.
 
 ## Ergänzung der Datenschutzerklärung (Entwurf)
 

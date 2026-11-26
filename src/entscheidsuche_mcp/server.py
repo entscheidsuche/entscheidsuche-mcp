@@ -535,6 +535,16 @@ _FILTER_NOTE = (
     "`list_facets`."
 )
 
+# Ein Suchtreffer enthält nur einen Auszug. Ohne diesen Hinweis werten Modelle
+# oft bloss die Trefferliste aus und beschreiben Entscheide, die sie nie
+# gelesen haben.
+_FULL_TEXT_NOTE = (
+    "A hit contains only an excerpt of the decision, not the decision. Before "
+    "you state what a decision holds, describe its outcome or quote from it, "
+    "read its full text with `fetch` (or `fetch_document`), passing the hit's "
+    "`id`."
+)
+
 _SEARCH_DESCRIPTION = (
     "Default search for Swiss court decisions and case law on entscheidsuche.ch "
     "(Federal Supreme Court BGer/BGE and cantonal courts; German, French, "
@@ -550,8 +560,7 @@ _SEARCH_DESCRIPTION = (
     "operators or wildcards, is empty or '*', or when `sort`, `search_after` "
     "or `include_aggregations` is used. The response field `search_mode` says "
     "which search ran.\n\n"
-    "Read the full text of a hit with `fetch` (or `fetch_document`), passing "
-    "the hit's `id`. " + _FILTER_NOTE
+    + _FULL_TEXT_NOTE + " " + _FILTER_NOTE
 )
 
 _SEMANTIC_DESCRIPTION = (
@@ -566,7 +575,8 @@ _SEMANTIC_DESCRIPTION = (
     "Results are ranked by similarity (`score`); `text` contains the best "
     "matching passage of each decision. There is no pagination, no other sort "
     "order and no Boolean syntax — use `keyword_search` for exact terms, "
-    "`search_by_case_number` for case numbers.\n\n" + _FILTER_NOTE
+    "`search_by_case_number` for case numbers.\n\n"
+    + _FULL_TEXT_NOTE + " " + _FILTER_NOTE
 )
 
 _KEYWORD_DESCRIPTION = (
@@ -586,7 +596,7 @@ _KEYWORD_DESCRIPTION = (
     "If a query is not valid syntax it is searched as plain terms and the "
     "response says so in `note`.\n\n"
     "`text` contains a snippet with the matched terms in <em>…</em>. "
-    + _FILTER_NOTE
+    + _FULL_TEXT_NOTE + " " + _FILTER_NOTE
     + "\n\nPagination: pass `next_cursor` of the response as `search_after` in "
     "the next call (same query, same sort)."
 )
@@ -661,7 +671,10 @@ def build_server() -> MCPServer:
             "and pagination. `search_by_case_number` looks up case numbers and "
             "BGE citations. `fetch` / `fetch_document` return the full text of "
             "a decision. `list_hierarchy` and `list_facets` list cantons, courts "
-            "and chambers for the `hierarchy` filter."
+            "and chambers for the `hierarchy` filter.\n"
+            "Search hits contain only an excerpt. Read the full text with "
+            "`fetch` before you state what a decision holds, describe its "
+            "outcome or quote from it, and cite decisions with their `url`."
         ),
         version=__version__,
         lifespan=_lifespan,
@@ -964,7 +977,9 @@ def build_server() -> MCPServer:
             "Look up Swiss court decisions by case number, docket reference or "
             "BGE citation, e.g. 'BGE 142 III 1', '5A_396/2015' or 'ZB.2021.48'. "
             "The reference is searched as an exact phrase; the decision itself "
-            "normally comes first, followed by decisions that cite it."
+            "normally comes first, followed by decisions that cite it. Check "
+            "that court and date of the hit match the citation you were given. "
+            + _FULL_TEXT_NOTE
         ),
         annotations=_READ_ONLY,
     )

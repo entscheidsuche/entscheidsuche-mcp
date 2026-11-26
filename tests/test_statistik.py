@@ -186,20 +186,42 @@ def test_cache_loads_old_schema_without_new_fields(tmp_path):
     assert d["hours_setup"][9] == 3  # = all - tools
 
 
-def test_refresh_cache_persists_only_past_days(tmp_path):
+def test_refresh_cache_writes_one_file_per_month(tmp_path):
+    """Der Cache liegt monatsweise in ``stats-YYYY-MM.json``: abgeschlossene
+    Monate sind ``final``, der laufende Monat bleibt offen und enthält auch
+    den heutigen Tag, der bei jedem Lauf neu aus dem Log gelesen wird."""
     log_path = tmp_path / "afa.log"
     cache_path = tmp_path / "stats-cache.json"
     today = date.today().isoformat()
-    _write_log(log_path, [
+    lines = [
         _log("2026-01-01 09:00:00", "tools/call", "search"),
         _log(f"{today} 10:00:00", "tools/call", "fetch_document"),
-    ])
+    ]
+    _write_log(log_path, lines)
+
     combined = statistik.refresh_cache(cache_path, log_path, today=today)
-    assert "2026-01-01" in combined
-    assert today in combined
-    on_disk = json.loads(cache_path.read_text())
-    assert "2026-01-01" in on_disk["days"]
-    assert today not in on_disk["days"]
+    assert combined["2026-01-01"]["tool_calls"] == 1
+    assert combined[today]["tool_calls"] == 1
+
+    # die frühere Einzeldatei wird nicht mehr geschrieben
+    assert not cache_path.exists()
+    past = json.loads((tmp_path / "stats-2026-01.json").read_text())
+    assert past["final"] is True
+    assert list(past["days"]) == ["2026-01-01"]
+    current = json.loads((tmp_path / f"stats-{today[:7]}.json").read_text())
+    assert current["final"] is False
+    assert today in current["days"]
+
+    # ein zweiter Lauf zählt nichts doppelt
+    again = statistik.refresh_cache(cache_path, log_path, today=today)
+    assert again["2026-01-01"]["tool_calls"] == 1
+    assert again[today]["tool_calls"] == 1
+
+    # neue Aufrufe von heute kommen beim nächsten Lauf dazu
+    _write_log(log_path, lines + [_log(f"{today} 11:00:00", "tools/call", "search")])
+    later = statistik.refresh_cache(cache_path, log_path, today=today)
+    assert later[today]["tool_calls"] == 2
+    assert later["2026-01-01"]["tool_calls"] == 1
 
 
 # ---------------------------------------------------------------------------
